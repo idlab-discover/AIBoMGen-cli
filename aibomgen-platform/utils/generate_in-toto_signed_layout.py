@@ -1,3 +1,4 @@
+from securesystemslib.signer._key import SSlibKey
 from securesystemslib.signer import CryptoSigner
 from in_toto.models.layout import Layout, Step
 from in_toto.models.metadata import Metablock
@@ -19,7 +20,7 @@ def generate_keys(output_dir):
 
     # Generate Ed25519 key pair
     worker_signer = CryptoSigner.generate_ed25519()
-    
+
     # Save the private key
     private_key_path = os.path.join(output_dir, "worker_private_key.pem")
     with open(private_key_path, "wb") as priv_file:
@@ -29,14 +30,14 @@ def generate_keys(output_dir):
     # Save the public key as a JSON file
     public_key_path = os.path.join(output_dir, "worker_public_key.json")
     public_key_dict = worker_signer.public_key.to_dict()
-    public_key_dict["keyid"] = worker_signer.public_key.keyid  # Add the keyid field
+    # Add the keyid field
+    public_key_dict["keyid"] = worker_signer.public_key.keyid
     with open(public_key_path, "w") as pub_file:
         json.dump(public_key_dict, pub_file, indent=4)
     print(f"Public key saved to: {public_key_path}")
 
     return worker_signer
 
-from securesystemslib.signer._key import SSlibKey
 
 def load_signer(private_key_path, public_key_path):
     """
@@ -52,11 +53,14 @@ def load_signer(private_key_path, public_key_path):
     # Load the public key from the JSON file
     with open(public_key_path, "r") as pub_file:
         public_key_dict = json.load(pub_file)
-        public_key = SSlibKey.from_dict(public_key_dict["keyid"], public_key_dict)
+        public_key = SSlibKey.from_dict(
+            public_key_dict["keyid"], public_key_dict)
 
     # Load the private key
-    signer = CryptoSigner.from_priv_key_uri(f"file2://{private_key_path}", public_key)
+    signer = CryptoSigner.from_priv_key_uri(
+        f"file2://{private_key_path}", public_key)
     return signer
+
 
 def create_layout(worker_signer, output_path):
     """
@@ -71,7 +75,8 @@ def create_layout(worker_signer, output_path):
     # Create a new layout
     layout = Layout()
     layout.readme = "This layout defines the steps for the run_training task."
-    layout.set_relative_expiration(days=90)  # Set expiration to 90 days from now
+    # Set expiration to 90 days from now
+    layout.set_relative_expiration(days=90)
 
     # Add the worker's public key to the layout
     worker_key_dict = worker_signer.public_key.to_dict()
@@ -84,7 +89,8 @@ def create_layout(worker_signer, output_path):
     step.set_expected_command_from_string("python tasks.py run_training")
     step.add_material_rule_from_string("MATCH model WITH PRODUCTS FROM api")
     step.add_material_rule_from_string("MATCH dataset WITH PRODUCTS FROM api")
-    step.add_material_rule_from_string("MATCH dataset_definition WITH PRODUCTS FROM api")
+    step.add_material_rule_from_string(
+        "MATCH dataset_definition WITH PRODUCTS FROM api")
     step.add_product_rule_from_string("CREATE trained_model.keras")
     step.add_product_rule_from_string("CREATE metrics.json")
 
@@ -120,7 +126,7 @@ def sign_layout(layout_metadata, worker_signer, output_path):
 
 if __name__ == "__main__":
     # Directory to save keys
-    secrets_dir = "./secrets"
+    secrets_dir = "./aibomgen-platform/secrets"
     os.makedirs(secrets_dir, exist_ok=True)
 
     # Generate worker keys
