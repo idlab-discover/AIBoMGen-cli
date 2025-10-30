@@ -21,7 +21,10 @@ from celery_config import celery_app
 
 # === Router Setup ===
 developer_router = APIRouter(prefix="/developer", tags=["Developer Endpoints"])
+
+# Limiter setup
 limiter = Limiter(key_func=get_remote_address)
+ENABLE_RATE_LIMIT = os.getenv("ENABLE_RATE_LIMIT", "false").lower() == "true"
 
 # === Database Dependency ===
 
@@ -36,8 +39,14 @@ def get_db():
 # === Developer Endpoints ===
 
 
-@developer_router.post("/submit_job_by_model_and_data", dependencies=[Depends(get_current_user)])
-@limiter.limit("5/minute")  # Limit to 5 requests per minute
+def _submit_job_decorator(func):
+    if ENABLE_RATE_LIMIT:
+        return developer_router.post("/submit_job_by_model_and_data", dependencies=[Depends(get_current_user)])(limiter.limit("5/minute")(func))
+    else:
+        return developer_router.post("/submit_job_by_model_and_data", dependencies=[Depends(get_current_user)])(func)
+
+
+@_submit_job_decorator
 async def submit_job(
     request: Request,
     # Use Depends to get the user object
