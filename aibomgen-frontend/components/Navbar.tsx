@@ -33,6 +33,7 @@ const Navbar = () => {
     useEffect(() => {
         if (accounts.length > 0) {
             const account = accounts[0];
+            instance.setActiveAccount(account); // Always set active account when accounts change
             fetchProfilePicture(account);
         } else {
             setUser({
@@ -92,18 +93,12 @@ const Navbar = () => {
     // Handle login
     const handleLogin = async () => {
         try {
-            // Step 1: Login with OpenID Connect scopes
-            const loginResponse = await instance.loginPopup({
+            // Step 1: Login with OpenID Connect scopes using redirect
+            await instance.loginRedirect({
                 scopes: ["openid", "profile", "offline_access", "User.Read"], // Only OpenID Connect scopes
+                prompt: "consent", // Force consent screen for new users
             });
-
-            const account = loginResponse.account;
-            if (account) {
-                instance.setActiveAccount(account); // Set the active account after login
-
-                // Step 2: Fetch profile picture using Microsoft Graph token
-                fetchProfilePicture(account);
-            }
+            // No further code needed; after redirect, MSAL will handle the response and update accounts
         } catch (error) {
             console.error("Login failed:", error);
         }
@@ -112,7 +107,7 @@ const Navbar = () => {
     // Handle logout
     const handleLogout = async () => {
         try {
-            await instance.logoutPopup();
+            await instance.logoutRedirect();
             instance.setActiveAccount(null); // Clear the active account after logout
             setUser({
                 name: t("guest"),

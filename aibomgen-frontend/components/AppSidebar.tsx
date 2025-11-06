@@ -54,7 +54,7 @@ const AppSidebar = () => {
     const [isCookieDrawerOpen, setIsCookieDrawerOpen] = useState(false); // State to control drawer visibility
     const [isCollapsibleOpen, setIsCollapsibleOpen] = useLocalStorage("collapsibleState", false); // Use local storage to persist state
     const [isMounted, setIsMounted] = useState(false); // Track if the component is mounted
-    const { instance } = useMsal();
+    const { instance, accounts } = useMsal();
     const isAuthenticated = useIsAuthenticated();
     const { jobs, setJobs } = useJobContext(); // Get jobs from context
     const { allJobs, setAllJobs } = useJobContext(); // Get all jobs from context
@@ -79,7 +79,8 @@ const AppSidebar = () => {
         setIsMounted(true); // Set mounted state to true after the component mounts
 
         const fetchJobs = async () => {
-            if (isAuthenticated) {
+            const activeAccount = instance.getActiveAccount();
+            if (isAuthenticated && activeAccount) {
                 try {
                     const data = await GetMyTasks(instance);
                     setJobs(data);
@@ -91,11 +92,12 @@ const AppSidebar = () => {
 
         fetchJobs();
 
-        // Polling mechanism: Fetch jobs every 30 seconds
+        // Polling mechanism: Fetch jobs every 60 seconds
         const interval = setInterval(() => {
             fetchJobs();
-        }, 60000); // minute
-    }, [instance, isAuthenticated]);
+        }, 60000);
+        return () => clearInterval(interval);
+    }, [instance, isAuthenticated, accounts]);
 
     const handleAcceptAll = () => {
         setCookie("cookieConsent", "accepted", 365); // Store consent for 1 year
