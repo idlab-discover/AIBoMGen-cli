@@ -26,13 +26,14 @@ For results and experiments related to this project (v1), refer to the **[AIBoMG
 
 ## Contact
 
-For inquiries, feel free to reach out:
+For inquiries, feel free to reach out
+
+Maintained by:
 
 Wiebe Vandendriessche  
 [wiebe.vandendriessche@ugent.be](mailto:wiebe.vandendriessche@ugent.be)  
 [LinkedIn](https://www.linkedin.com/in/wiebe-vandendriessche/?locale=en_US)  
-
-Maintained by [DISCOVER: IDLab, Ghent University – imec](https://idlab.ugent.be/research-teams/discover).
+[DISCOVER: IDLab, Ghent University – imec](https://idlab.ugent.be/research-teams/discover).
 
 ## License
 
