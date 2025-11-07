@@ -15,7 +15,7 @@ It includes:
 
 Legacy branches for different experimental versions are preserved under `aibomgen-v1/...`.
 
-## Current Work (AIBoMGen v2)
+## AIBoMGen v2 (Current Work)
 
 **AIBoMGen v2** — Next-generation system for generating AIBOMs covering the **full AI lifecycle**, integrated with Kubeflow ML Metadata.  
 _Branch:_ [`aibomgen-v2/main`](https://github.com/idlab-discover/AIBoMGen/tree/aibomgen-v2/main)
