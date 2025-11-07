@@ -34,6 +34,10 @@ Wiebe Vandendriessche
 
 Maintained by [DISCOVER: IDLab, Ghent University – imec](https://idlab.ugent.be/research-teams/discover).
 
+## License
+
+This project is licensed under the terms described in the [LICENSE](./LICENSE) file.
+
 ## Acknowledgements
 
 This work has been partially supported by the CRACY project, funded by the European Union’s Digital Europe Programme under grant agreement No 101190492.
