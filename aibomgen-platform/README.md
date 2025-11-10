@@ -142,7 +142,7 @@ For results and experiments related to this platform, refer to the **[AIBoMGen E
 ### Prerequisites (You need to install)
 - **Docker**: For containerized deployment.
 - **Docker Compose**: To orchestrate the containers.
-- **NVIDIA Container Toolkit**: To allow worker containers to use the host machine's GPU. Install it by following the [official NVIDIA documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). For windows make sure you are running docker on WSL2.
+- **NVIDIA Container Toolkit**: To allow worker containers to use the host machine's GPU. Install it by following the [official NVIDIA documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). For Windows make sure you are running Docker on WSL2. If you're on a laptop without a GPU, set `GPU=false` in `.env` and you can skip this.
 - **Environment Variables**: Create a `.env` file in the aibomgen-platform directory to configure the system (see **Setup** for details).
 - **Platform Secrets**: Generate platform secrets using the `generate_in-toto_signed_layout.py` script provided in the repository. This script generates a private-public key pair and a layout for supply chain verification and signing, ensuring the integrity and trustability of the system's supply chain.
 
@@ -306,10 +306,38 @@ REDIS_PASSWORD=redis_password
 ### 4. Generate Platform Secrets for Signing
 Run the `generate_in-toto_signed_layout.py` script located in the `utils/` directory. This script will generate a private-public key pair and a signed layout for supply chain verification. The private key will be used to cryptographically sign the AIBoM, ensuring trustability.
 
-### 5. Start Docker Compose
-```bash
 docker-compose up --build
+### 5. Start Docker Compose
+CPU-only and GPU-enabled modes are now supported via a simple `GPU` toggle in `.env` plus an optional profile.
+
+Add to `.env` (already included by default):
+```env
+GPU=true
 ```
+
+Use the helper script (recommended):
+```bash
+chmod +x compose-up.sh
+./compose-up.sh -d
+```
+
+Manual commands (alternative):
+```bash
+# CPU-only mode
+GPU=false COMPOSE_PROFILES="" docker compose up --build
+
+# GPU-enabled mode (same behavior as before)
+GPU=true COMPOSE_PROFILES=gpu docker compose up --build
+```
+
+When `GPU=false`:
+ - The GPU worker (`worker-gpu`) is not started.
+ - GPU/NVML code paths are skipped gracefully.
+ - Training runs on CPU.
+
+When `GPU=true`:
+ - The GPU worker (`worker-gpu`) starts with `runtime: nvidia` (requires NVIDIA toolkit).
+ - Training prefers GPU if available.
 
 **Note**: Ensure that the `worker/entrypoint.sh` file uses LF (Line Feed) line endings. If the file has CRLF (Carriage Return + Line Feed) line endings, the workers may fail to start. You can configure this in your text editor or use the following command to convert the line endings:
 ```bash

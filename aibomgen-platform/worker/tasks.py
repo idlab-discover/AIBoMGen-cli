@@ -66,12 +66,9 @@ def run_training(unique_dir, model_url, dataset_url, dataset_definition_url, opt
 
     try:
 
-        # Confirm GPU availability
-        gpus = tf.config.list_physical_devices('GPU')
-        if not gpus:
-            task_logger.warning("No GPU devices found!")
-        else:
-            task_logger.info(f"GPUs available: {[gpu.name for gpu in gpus]}")
+        # Determine GPU usage from environment
+        gpu_env = os.getenv("GPU", "true").strip().lower()
+        use_gpu = gpu_env in ("1", "true", "yes", "on")
 
         cpus = tf.config.list_physical_devices('CPU')
         if not cpus:
@@ -79,17 +76,34 @@ def run_training(unique_dir, model_url, dataset_url, dataset_definition_url, opt
         else:
             task_logger.info(f"CPUs available: {[cpu.name for cpu in cpus]}")
 
-        # Device selection
-        if len(gpus) > 0 and len(cpus) > 0:
-            task_logger.info(
-                "Both GPU and CPU devices are available. Using GPU for training.")
-            tf.config.set_visible_devices(gpus[0], 'GPU')
-        elif len(cpus) > 0:
-            task_logger.info(
-                "Only CPU devices are available. Using CPU for training.")
-            tf.config.set_visible_devices(cpus[0], 'CPU')
+        if use_gpu:
+            # Confirm GPU availability
+            gpus = tf.config.list_physical_devices('GPU')
+            if not gpus:
+                task_logger.warning(
+                    "No GPU devices found! Falling back to CPU.")
+            else:
+                task_logger.info(
+                    f"GPUs available: {[gpu.name for gpu in gpus]}")
+
+            # Device selection
+            if len(gpus) > 0 and len(cpus) > 0:
+                task_logger.info(
+                    "GPU is enabled and available. Using GPU for training.")
+                tf.config.set_visible_devices(gpus[0], 'GPU')
+            elif len(cpus) > 0:
+                task_logger.info(
+                    "GPU enabled but not available; using CPU for training.")
+                tf.config.set_visible_devices(cpus[0], 'CPU')
+            else:
+                raise RuntimeError("No available devices for training.")
         else:
-            raise RuntimeError("No available devices for training.")
+            task_logger.info(
+                "GPU usage is disabled via configuration. Forcing CPU.")
+            if len(cpus) > 0:
+                tf.config.set_visible_devices(cpus[0], 'CPU')
+            else:
+                raise RuntimeError("No available CPU devices for training.")
 
         start_task_time = time.time()
         start_task_time_utc = time.strftime(

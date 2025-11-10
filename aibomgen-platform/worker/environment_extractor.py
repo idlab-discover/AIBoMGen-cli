@@ -3,11 +3,11 @@ import os
 import time
 import psutil
 from celery import current_task
-from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetCount, nvmlDeviceGetName, nvmlDeviceGetMemoryInfo, nvmlShutdown
 import docker
 import subprocess
 import json
 from shared.minio_utils import download_file_from_minio, list_files_in_bucket, WORKER_SCANS_BUCKET
+
 
 def extract_environment_details(task_logger, unique_dir, start_task_time, start_training_time, start_aibom_time):
     """
@@ -36,8 +36,9 @@ def extract_environment_details(task_logger, unique_dir, start_task_time, start_
         gpu_info = get_gpu_info(task_logger=task_logger)
         celery_task_info = get_celery_task_info(task_logger=task_logger)
         docker_info = get_docker_info(task_logger=task_logger)
-        vulnerability_scan = fetch_latest_vulnerability_scan_from_minio(unique_dir, task_logger=task_logger)        
-        
+        vulnerability_scan = fetch_latest_vulnerability_scan_from_minio(
+            unique_dir, task_logger=task_logger)
+
         task_logger.info("Environment details extracted successfully.")
 
         return {
@@ -59,9 +60,11 @@ def extract_environment_details(task_logger, unique_dir, start_task_time, start_
             "unique_dir": unique_dir,
         }
     except Exception as e:
-        task_logger.error(f"An error occurred while extracting environment details: {str(e)}")
+        task_logger.error(
+            f"An error occurred while extracting environment details: {str(e)}")
         raise
-    
+
+
 def get_tensorflow_version(task_logger=None):
     """
     Get the installed TensorFlow version.
@@ -88,7 +91,8 @@ def get_tensorflow_version(task_logger=None):
         if task_logger:
             task_logger.error(f"Error retrieving TensorFlow version: {str(e)}")
         return "Unknown"
-    
+
+
 def get_gpu_info(task_logger=None):
     """
     Get GPU information using NVIDIA's NVML library.
@@ -97,9 +101,29 @@ def get_gpu_info(task_logger=None):
         task_logger (Logger, optional): Logger for logging task-specific information.
 
     Returns:
-        list: A list of dictionaries containing GPU details or 'No GPU detected' if no GPU is available.
+        list: A list of dictionaries containing GPU details. Returns an empty list when GPU is disabled or unavailable.
     """
+    # Respect GPU toggle
+    gpu_env = os.getenv("GPU", "true").strip().lower()
+    use_gpu = gpu_env in ("1", "true", "yes", "on")
+
+    if not use_gpu:
+        if task_logger:
+            task_logger.info(
+                "GPU is disabled by configuration. Skipping GPU info retrieval.")
+        return []
+
     try:
+        # Import NVML lazily to avoid ImportError on CPU-only systems
+        from pynvml import (
+            nvmlInit,
+            nvmlDeviceGetHandleByIndex,
+            nvmlDeviceGetCount,
+            nvmlDeviceGetName,
+            nvmlDeviceGetMemoryInfo,
+            nvmlShutdown,
+        )
+
         if task_logger:
             task_logger.info("Retrieving GPU information...")
         nvmlInit()
@@ -118,11 +142,16 @@ def get_gpu_info(task_logger=None):
         if task_logger:
             task_logger.info("GPU information retrieved successfully.")
         return gpus
+    except ImportError:
+        if task_logger:
+            task_logger.warning("pynvml not installed; skipping GPU info.")
+        return []
     except Exception as e:
         if task_logger:
             task_logger.error(f"Error retrieving GPU info: {str(e)}")
-        return f"Error retrieving GPU info: {str(e)}"
-    
+        return []
+
+
 def get_docker_info(task_logger=None):
     """
     Get Docker container and image information using the Docker SDK.
@@ -135,7 +164,8 @@ def get_docker_info(task_logger=None):
     """
     try:
         if task_logger:
-            task_logger.info("Retrieving Docker container and image information...")
+            task_logger.info(
+                "Retrieving Docker container and image information...")
         # Check if running inside a Docker container
         if os.path.exists("/.dockerenv"):
             client = docker.from_env()
@@ -148,7 +178,8 @@ def get_docker_info(task_logger=None):
                 "image_id": image.id,
             }
             if task_logger:
-                task_logger.info(f"Docker information retrieved: {docker_info}")
+                task_logger.info(
+                    f"Docker information retrieved: {docker_info}")
             return docker_info
         else:
             if task_logger:
@@ -163,7 +194,7 @@ def get_docker_info(task_logger=None):
             task_logger.error(f"Error retrieving Docker info: {str(e)}")
         return f"Error retrieving Docker info: {str(e)}"
 
-    
+
 def get_celery_task_info(task_logger=None):
     """
     Get information about the current Celery task.
@@ -184,7 +215,8 @@ def get_celery_task_info(task_logger=None):
                 "queue": current_task.request.delivery_info.get("routing_key", "Unknown"),
             }
             if task_logger:
-                task_logger.info(f"Celery task information retrieved: {task_info}")
+                task_logger.info(
+                    f"Celery task information retrieved: {task_info}")
             return task_info
         else:
             if task_logger:
@@ -194,7 +226,8 @@ def get_celery_task_info(task_logger=None):
         if task_logger:
             task_logger.error(f"Error retrieving Celery task info: {str(e)}")
         return f"Error retrieving Celery task info: {str(e)}"
-    
+
+
 def fetch_latest_vulnerability_scan_from_minio(unique_dir, task_logger=None):
     """
     Fetch the latest vulnerability scan results from MinIO.
@@ -208,7 +241,8 @@ def fetch_latest_vulnerability_scan_from_minio(unique_dir, task_logger=None):
     """
     try:
         if task_logger:
-            task_logger.info("Fetching the latest vulnerability scan results from MinIO...")
+            task_logger.info(
+                "Fetching the latest vulnerability scan results from MinIO...")
 
         # List all files in the vulnerability scans bucket
         bucket_prefix = "worker-vulnerability-scans/"
@@ -216,11 +250,13 @@ def fetch_latest_vulnerability_scan_from_minio(unique_dir, task_logger=None):
 
         if not files:
             if task_logger:
-                task_logger.warning("No vulnerability scan files found in MinIO.")
+                task_logger.warning(
+                    "No vulnerability scan files found in MinIO.")
             return {"error": "No vulnerability scan files found."}
 
         # Find the latest file based on timestamp in the filename
-        latest_file = max(files, key=lambda x: x.split("_")[-1].replace(".json", ""))
+        latest_file = max(files, key=lambda x: x.split("_")
+                          [-1].replace(".json", ""))
         local_file = f"/tmp/{os.path.basename(latest_file)}"
 
         # Download the latest file
@@ -243,5 +279,6 @@ def fetch_latest_vulnerability_scan_from_minio(unique_dir, task_logger=None):
 
     except Exception as e:
         if task_logger:
-            task_logger.error(f"Error fetching vulnerability scan results: {str(e)}")
+            task_logger.error(
+                f"Error fetching vulnerability scan results: {str(e)}")
         return {"error": f"Error fetching vulnerability scan results: {str(e)}"}

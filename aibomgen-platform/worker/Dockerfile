@@ -19,5 +19,9 @@ COPY ./shared /app/shared
 # Copy the worker code
 COPY ./worker /app 
 
+# Ensure entrypoint script has correct line endings and is executable
+RUN sed -i 's/\r$//' /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
 # Run as root (default user in Docker)
 ENTRYPOINT ["/app/entrypoint.sh"]

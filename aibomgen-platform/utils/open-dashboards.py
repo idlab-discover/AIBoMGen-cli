@@ -2,6 +2,8 @@ import os
 import webbrowser
 from dotenv import load_dotenv
 
+# Does not work in WSL!!
+
 # Load environment variables from .env file
 dotenv_path = os.path.join(os.path.dirname(__file__), '../.env')
 load_dotenv(dotenv_path)
