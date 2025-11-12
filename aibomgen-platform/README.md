@@ -310,12 +310,12 @@ docker-compose up --build
 ### 5. Start Docker Compose
 CPU-only and GPU-enabled modes are now supported via a simple `GPU` toggle in `.env` plus an optional profile.
 
-Add to `.env` (already included by default):
+Add to `.env`:
 ```env
 GPU=true
 ```
 
-Use the helper script (recommended):
+Or use the helper script (will detect GPU and start with correct profile):
 ```bash
 chmod +x compose-up.sh
 ./compose-up.sh -d
@@ -324,7 +324,7 @@ chmod +x compose-up.sh
 Manual commands (alternative):
 ```bash
 # CPU-only mode
-GPU=false COMPOSE_PROFILES="" docker compose up --build
+GPU=false COMPOSE_PROFILES=cpu docker compose up --build
 
 # GPU-enabled mode (same behavior as before)
 GPU=true COMPOSE_PROFILES=gpu docker compose up --build
