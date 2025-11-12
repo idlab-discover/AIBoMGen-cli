@@ -1,14 +1,14 @@
-# AIBoMGen Platform: Distributed AI Training with AIBoM Generation
+# AIBoMGen Platform: Distributed AI Training with AIBOM Generation
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [User Flows](#user-flows)
   - [User Flow for an AI Developer (Model Training on the Trusted System)](#user-flow-for-an-ai-developer-model-training-on-the-trusted-system)
-  - [User Flow for an AI User (Verifying the AIBoM)](#user-flow-for-an-ai-user-verifying-the-aibom)
+  - [User Flow for an AI User (Verifying the AIBOM)](#user-flow-for-an-ai-user-verifying-the-aibom)
 - [Requirements](#requirements)
   - [Prerequisites (You Need to Install)](#prerequisites-you-need-to-install)
-  - [Handled by Docker (API and Worker Containers)](#handled-by-docker-api-and-worker-containers)
+  - [Handled by Docker (API and Worker Containers)](#requirements-in-Docker-containers-No-need-to-install-manually)
 - [Repository Structure](#repository-structure)
 - [Setup](#setup)
   - [1. Clone the Repository](#1-clone-the-repository)
@@ -27,20 +27,20 @@
     - [6. Verify a File Hash Against an In-toto Link File](#6-verify-a-file-hash-against-an-in-toto-link-file)
     - [7. Verify MinIO Artifacts Against an In-toto Link File](#7-verify-minio-artifacts-against-an-in-toto-link-file)
     - [8. Verify a CycloneDX BOM and Associated In-toto Link File](#8-verify-a-cyclonedx-bom-and-associated-in-toto-link-file)
-- [AIBoM Generation (CycloneDX format)](#aibom-generation-cyclonedx-format)
+- [AIBOM Generation (CycloneDX format)](#aibom-generation-cyclonedx-format)
 - [Trustability Features](#trustability-features)
 - [Dashboards](#dashboards)
 
 ---
 
 ## Overview
-AIBoMGen Platform is the backend system for distributed AI training with a focus on **trustability**, integrity, reproducibility, and artifact management. It ensures that the training process is fully auditable and tamper-proof by generating an **AI Bill of Materials (AIBoM)**, which includes cryptographic attestations of the training environment, inputs, and outputs.
+AIBoMGen Platform is the backend system for distributed AI training with a focus on **trustability**, integrity, reproducibility, and artifact management. It ensures that the training process is fully auditable and tamper-proof by generating an **AI Bill of Materials (AIBOM)**, which includes cryptographic attestations of the training environment, inputs, and outputs.
 
 
 ![System Architecture](../docs/diagrams/versionT3_2_notext_whbg.png))
 
 Key features:
-- **Automated AIBoM Generation**: Automatically creates an AI Bill of Materials (AIBoM) that documents the training process, including metadata, input/output details, and environment configurations.
+- **Automated AIBOM Generation**: Automatically creates an AI Bill of Materials (AIBOM) that documents the training process, including metadata, input/output details, and environment configurations.
 - **Supply Chain Integrity**: Leverages in-toto `.link` files to ensure the integrity of training inputs, outputs, and processes.
 - **Scalable Distributed Training**: Supports distributed training using Celery workers, enabling efficient execution across multiple nodes.
 - **Secure and Isolated Execution**: Runs training jobs in containerized environments to ensure security and prevent interference between jobs.
@@ -85,8 +85,8 @@ For results and experiments related to this platform, refer to the **[AIBoMGen E
 4. **Generate AIBoM**:
    - After training, the system:
      - Computes hashes for all input and output files (also logs and other intermediary files).
-     - Generates the AIBoM (AI Bill of Materials) with optional metadata, model information, input/output artifacts (training data), and environment details (worker/job data).
-     - Signs the AIBoM using the system's private key (The platform acts as a trusted entity).
+     - Generates the AIBOM (AI Bill of Materials) with optional metadata, model information, input/output artifacts (training data), and environment details (worker/job data).
+     - Signs the AIBOM using the system's private key (The platform acts as a trusted entity).
 
 5. **Upload Artifacts**:
    - The system uploads the following artifacts to MinIO or similar storage:
@@ -97,27 +97,27 @@ For results and experiments related to this platform, refer to the **[AIBoMGen E
      - Signed CycloneDX BOM `.json` with reference to In-toto `.link` file.
 
 6. **Share AIBoM**:
-   - The developer shares the AIBoM (and `.link` file) with the AI users of their model (along with the public key for verification).
+   - The developer shares the AIBOM (and `.link` file) with the AI users of their model (along with the public key for verification).
 
 ---
 
-### **User Flow for an AI User (Verifying the AIBoM)**
+### **User Flow for an AI User (Verifying the AIBOM)**
 
-1. **Receive AIBoM and Artifacts**:
+1. **Receive AIBOM and Artifacts**:
    - The AI user receives:
-     - The AIBoM (JSON file).
+     - The AIBOM (JSON file).
      - The public key of the trusted system.
 
 2. **Verify the AIBoM**:
-   - The user verifies the AIBoM by:
+   - The user verifies the AIBOM by:
      - Decrypting the signature using the trusted system's public key.
-     - Ensuring that the decrypted signature matches the AIBoM content.
+     - Ensuring that the decrypted signature matches the AIBOM content.
    - If the signature verification succeeds, it confirms that:
-     - The AIBoM was generated by the trusted system.
-     - The AIBoM has not been tampered with.
+     - The AIBOM was generated by the trusted system.
+     - The AIBOM has not been tampered with.
 
 3. **Verify the Associated in-toto Link File**:
-   - The user verifies the `.link` file referenced in the AIBoM by:
+   - The user verifies the `.link` file referenced in the AIBOM by:
      - Using the `/verify_in-toto_link` endpoint to validate the `.link` file against the signed layout.
      - Ensuring that all recorded materials and products match the metadata in the `.link` file.
 
@@ -127,7 +127,7 @@ For results and experiments related to this platform, refer to the **[AIBoMGen E
      - Using the `/verify_minio_artifacts` endpoint to validate that materials and products stored in MinIO match the metadata in the `.link` file.
 
 5. **Verify the CycloneDX AIBoM**:
-   - The user verifies the authenticity and integrity of the CycloneDX AIBoM by:
+   - The user verifies the authenticity and integrity of the CycloneDX AIBOM by:
      - Using the `/verify_bom_and_link` endpoint to validate the AIBoM's cryptographic signature using the platform's public key.
      - Ensuring that the AIBoM's metadata and associated `.link` file are consistent and untampered.
 
@@ -448,7 +448,7 @@ The FastAPI service runs on [http://localhost:8000](http://localhost:8000). Belo
       "training_status": "training job completed",
       "unique_dir": "6251847e-710f-47a3-b809-070518e4b1b9",
       "job_id": "123e4567-e89b-12d3-a456-426614174000",
-      "message": "Training completed successfully and AIBoM generated.",
+      "message": "Training completed successfully and AIBOM generated.",
       "output_artifacts": [
         "trained_model.keras",
         "metrics.json",
@@ -561,32 +561,32 @@ The FastAPI service runs on [http://localhost:8000](http://localhost:8000). Belo
 
 ---
 
-## AIBoM Generation (CycloneDX format)
-The **AI Bill of Materials (AIBoM)** is a JSON document that captures:
+## AIBOM Generation (CycloneDX format)
+The **AI Bill of Materials (AIBOM)** is a JSON document that captures:
 - **Environment Details**: Captures details such as OS, Python version, TensorFlow version, CPU count, memory, disk usage, GPU information, Docker container details, and vulnerability scan results.
 - **Input Files**: Includes hashes and metadata for datasets and dataset definitions used during training.
 - **Output Files**: Includes hashes and metadata for the trained model and metrics generated during training.
 - **Configuration**: Captures training parameters (e.g., epochs, batch size) and optional metadata (e.g., model name, version, description).
 - **Attestations**: References an in-toto `.link` file for artifact integrity verification.
 
-- [Example AIBoM JSON File](./docs/examples/example_aibom.md)
-- [Example In-toto Link File](./docs/examples/example_link.md)
+- [Example AIBOM JSON File](./aibomgen-platform/docs/examples/example_aibom.md)
+- [Example In-toto Link File](/aibomgen-platform/example_link.md)
 
 ---
 
 ### Trustability Features
-1. **Automated AIBoM Generation**:
-   - The AIBoM is generated automatically by the system during the training process. Users cannot modify or bypass this step, ensuring a consistent and tamper-proof workflow.
+1. **Automated AIBOM Generation**:
+   - The AIBOM is generated automatically by the system during the training process. Users cannot modify or bypass this step, ensuring a consistent and tamper-proof workflow.
 
 2. **Cryptographic Signing**:
-   - The AIBoM is signed using a private key, creating a digital signature that ensures the authenticity and integrity of the document. This guarantees that the AIBoM originates from the trusted system.
+   - The AIBOM is signed using a private key, creating a digital signature that ensures the authenticity and integrity of the document. This guarantees that the AIBOM originates from the trusted system.
 
 3. **Verification**:
-   - The generated AIBoM and its signature can be verified using the corresponding public key. This ensures that the training process and its outputs have not been tampered with and remain trustworthy.
-   - Additionally, the AIBoM references an **in-toto `.link` file** for artifact integrity verification. The `.link` file contains cryptographic hashes of all input and output artifacts, ensuring that the materials and products used during training match the recorded metadata. Verification of the `.link` file ensures the integrity of the supply chain.
+   - The generated AIBOM and its signature can be verified using the corresponding public key. This ensures that the training process and its outputs have not been tampered with and remain trustworthy.
+   - Additionally, the AIBOM references an **in-toto `.link` file** for artifact integrity verification. The `.link` file contains cryptographic hashes of all input and output artifacts, ensuring that the materials and products used during training match the recorded metadata. Verification of the `.link` file ensures the integrity of the supply chain.
 
 4. **Controlled API**:
-   - Users interact with the system exclusively through a secure API. This prevents arbitrary code execution, ensuring that users cannot tamper with the training process, bypass the AIBoM generation, or interfere with the system's infrastructure. All interactions are logged for auditability.
+   - Users interact with the system exclusively through a secure API. This prevents arbitrary code execution, ensuring that users cannot tamper with the training process, bypass the AIBOM generation, or interfere with the system's infrastructure. All interactions are logged for auditability.
 
 5. **Containerized Workers**:
    - Training jobs are executed in isolated Docker containers. This ensures that each job runs in a secure and controlled environment, preventing users from accessing or modifying other parts of the system. The containerized approach also enhances scalability and resource management.
