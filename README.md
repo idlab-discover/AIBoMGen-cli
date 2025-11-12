@@ -41,5 +41,5 @@ This project is licensed under the terms described in the [LICENSE](./LICENSE) f
 
 ## Acknowledgements
 
-This work has been partially supported by the CRACY project, funded by the European Union’s Digital Europe Programme under grant agreement No 101190492.
+This work has been partially supported by the [CRACY project](https://cra-cy.eu/), funded by the European Union’s Digital Europe Programme under grant agreement No 101190492.
 
