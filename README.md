@@ -1,45 +1,87 @@
-# AIBoMGen Project
+# CRA oriented version
 
-This repository aggregates research Proof of Concepts related to **AI Bills of Materials (AIBOMs)**.  
-It contains the stable AIBoMGen v1 platform and points to ongoing work for the next generation (v2).
+## Summary
 
-## AIBoMGen v1
+We need a consumer-ready (CRA-oriented) version of the AIBOM generator that targets systems embedding AI components (e.g., smart doorbells, IoT edge devices).
+This version should assume trusted model developers and focus on lightweight integration, signed model metadata, and CycloneDX/SPDX compliant AIBOM output suitable for CI/CD, OTA updates or device inventory systems.
 
-**Release:** `v1.0-stable`  
-_Branch:_ [`aibomgen-v1/main`](https://github.com/idlab-discover/AIBoMGen/tree/aibomgen-v1/main)
+## Motivation
 
-The original AIBoMGen platform is a proof-of-concept system that generates AIBOMs while training AI models.  
-It includes:  
-- **[AIBoMGen Frontend](./aibomgen-frontend/README.md)**: A Next.js-based web application for interacting with the AIBoMGen platform.
-- **[AIBoMGen Platform](./aibomgen-platform/README.md)**: The backend system for distributed AI training and AIBoM generation.
+The current AIBOM generator targets high-assurance AI supply chain environments (e.g., research, enterprise, or regulated sectors).
+For commercial or consumer devices, we need a version that:
+- Works with trusted model sources (e.g., Hugging Face models).
+- Generates minimal, verifiable AIBOMs without requiring full lineage tracking.
+- Is easy to embed in firmware pipelines, cloud services, or edge deployments.
+- Enables traceability of AI components while maintaining a low integration burden.
 
-Legacy branches for different experimental versions are preserved under `aibomgen-v1/...`.
+## Requirements
 
-## AIBoMGen v2 (Current Work)
+Functional:
+- AIBOM schema focussed on AI components, runtime environment, and system dependencies.
+- Suitable for OTA updates and embedded devices
+- Assume model developer is trusted but require developer-provided signed metadata
+- Automatic Hugging Face metadata retrieval
+- CVE and vulnerability integration
+  - Match dependencies with CVEs
+  - Annotate AIBOM output with vulnerabilities and severity levels
+  - Support integration with public vulnerability databases
+- Easy integration for manufacturers
+  - CLI and Python API for inclusion in build or CI/CD pipelines
+  - Compatible with GitHub Actions, GitLab CI, and local builds
+- Ofcourse CycloneDX and SPDX compliant output specification format
 
-**AIBoMGen v2** — Next-generation system for generating AIBOMs covering the **full AI lifecycle**, integrated with Kubeflow ML Metadata.  
-_Branch:_ [`aibomgen-v2/main`](https://github.com/idlab-discover/AIBoMGen/tree/aibomgen-v2/main)
+Non-functional:
+- Minimal dependencies
+- Runs offline (without metadata retrieval)
+- JSON schema versioning and validation support
+- Execution time as low as possible
 
-## Results and Experiments
+## Example use case
+A manufacturer builds a smart doorbell that performs object detection (e.g., detecting people, packages, animals).
+They integrate a Hugging Face model (e.g., openai/fast-object-detector) and want to generate a CRA-style AIBOM automatically during CI/CD.
+They want the build pipeline to automatically:
 
-For results and experiments related to this project (v1), refer to the **[AIBoMGen Experiments repository](https://github.com/wiebe-vandendriessche/AIBoMGen-experiments)**.
+1. Fetch model metadata from Hugging Face.
+2. Collect local system and firmware info.
+3. Scan for vulnerabilities in dependencies.
+4. Generate and archive an aibom.json.
 
-## Contact
+Example repository structure:
+```
+pde-doorbell/
+├── src/
+│   ├── main.py
+│   └── inference.py
+├── manifests/
+│   ├── system.json
+│   └── runtime_requirements.txt
+├── tools/
+│   └── aibom-cra.py
+├── .github/
+│   └── workflows/
+│       └── aibom.yml
+└── dist/
+    └── aibom.json (generated)
+```
+`manifests/system.json`
+```
+{
+  "artifact_id": "pde-doorbell-v1.2.0",
+  "producer": {
+    "system_id": "doorbell-vendor-x",
+    "component": "PDE-doorbell-firmware",
+    "contact": "devops@vendorx.com"
+  },
+  "system_components": [
+    ...
+  ]
+}
 
-For inquiries, feel free to reach out
+```
 
-Maintained by:
-
-Wiebe Vandendriessche  
-[wiebe.vandendriessche@ugent.be](mailto:wiebe.vandendriessche@ugent.be)  
-[LinkedIn](https://www.linkedin.com/in/wiebe-vandendriessche/?locale=en_US)  
-[DISCOVER: IDLab, Ghent University – imec](https://idlab.ugent.be/research-teams/discover).
-
-## License
-
-This project is licensed under the terms described in the [LICENSE](./LICENSE) file.
-
-## Acknowledgements
-
-This work has been partially supported by the [CRACY project](https://cra-cy.eu/), funded by the European Union’s Digital Europe Programme under grant agreement No 101190492.
+## Possible extensions
+- Allow merging multiple Hugging Face models into one AIBOM
+- Integrate model card trust scores? model card tools?
+- Export combined SBOM + AIBOM bundle
+- Enable offline caching of Hugging Face metadata
 
