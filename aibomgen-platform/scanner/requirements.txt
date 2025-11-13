@@ -1,5 +1,0 @@
-celery[sqlalchemy]
-python-dotenv
-docker
-boto3
-mysql-connector-python
