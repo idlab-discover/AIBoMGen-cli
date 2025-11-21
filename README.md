@@ -1,4 +1,4 @@
-# CRA oriented version
+# CRA oriented version (GO implementation)
 
 ## Summary
 

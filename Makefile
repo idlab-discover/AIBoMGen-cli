@@ -1,23 +1,20 @@
-PYTHON ?= python
+SHELL := /bin/bash
 
-.PHONY: install-dev test cov cov-xml cov-html
+.PHONY: all build test vet fmt tidy
 
-install-dev:
-	$(PYTHON) -m pip install --upgrade pip
-	pip install -e .[dev]
+all: build test
 
-# Run tests (quiet) with coverage summary in terminal
+build:
+	go build ./...
+
 test:
-	$(PYTHON) -m pytest
+	go test -v -race ./...
 
-# Terminal coverage with missing lines
-cov:
-	$(PYTHON) -m pytest --cov-report=term-missing
+vet:
+	go vet ./...
 
-# Generate coverage.xml for CI tools
-cov-xml:
-	$(PYTHON) -m pytest --cov-report=xml
+fmt:
+	go fmt ./...
 
-# Generate HTML coverage report (open htmlcov/index.html)
-cov-html:
-	$(PYTHON) -m pytest --cov-report=html
+tidy:
+	go mod tidy
