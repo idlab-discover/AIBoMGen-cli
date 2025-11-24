@@ -1,3 +1,7 @@
+# Ignore Go build binary
+aibomgen-cra
+
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
