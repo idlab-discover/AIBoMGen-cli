@@ -5,28 +5,28 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 // Component represents an AI-related artifact detected in a project.
 type Component struct {
-	ID         string  `json:"id"`
-	Name       string  `json:"name"`
-	Type       string  `json:"type"`
-	Path       string  `json:"path"`
-	Evidence   string  `json:"evidence"`
-	Confidence float64 `json:"confidence"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Path     string `json:"path"`
+	Evidence string `json:"evidence"`
 }
 
-var weightExtensions = map[string]struct{}{
-	".pt":          {},
-	".pth":         {},
-	".bin":         {},
-	".safetensors": {},
-	".ckpt":        {},
-	".onnx":        {},
-	".tflite":      {},
-}
+// var weightExtensions = map[string]struct{}{
+// 	".pt":          {},
+// 	".pth":         {},
+// 	".bin":         {},
+// 	".safetensors": {},
+// 	".ckpt":        {},
+// 	".onnx":        {},
+// 	".tflite":      {},
+// }
 
 // hfModelPattern matches Hugging Face model IDs inside from_pretrained("...") calls.
 // Supports both single segment IDs (e.g., bert-base-uncased) and org/model forms (e.g., facebook/opt-1.3b).
@@ -45,16 +45,19 @@ func Scan(root string) ([]Component, error) {
 		}
 
 		ext := strings.ToLower(filepath.Ext(info.Name()))
-		if _, ok := weightExtensions[ext]; ok {
-			results = append(results, Component{
-				ID:         path,
-				Name:       info.Name(),
-				Type:       "weight-file",
-				Path:       path,
-				Evidence:   "extension:" + ext,
-				Confidence: 0.9,
-			})
-		}
+
+		// Disable weight file detection for now.
+
+		// if _, ok := weightExtensions[ext]; ok {
+		// 	results = append(results, Component{
+		// 		ID:         path,
+		// 		Name:       info.Name(),
+		// 		Type:       "weight-file",
+		// 		Path:       path,
+		// 		Evidence:   "extension:" + ext,
+		// 		Confidence: 0.9,
+		// 	})
+		// }
 
 		// Lightweight content scan for HF model IDs.
 		if shouldScanForModelID(ext) {
@@ -64,19 +67,22 @@ func Scan(root string) ([]Component, error) {
 			}
 			defer f.Close()
 			scanner := bufio.NewScanner(f)
+			lineNum := 0
 			for scanner.Scan() {
+				lineNum++
 				line := scanner.Text()
 				matches := hfModelPattern.FindAllStringSubmatch(line, -1)
 				for _, m := range matches {
 					if len(m) > 1 {
 						modelID := m[1]
+						evidence := "from_pretrained() pattern at line " +
+							strconv.Itoa(lineNum) + ": " + line
 						results = append(results, Component{
-							ID:         modelID,
-							Name:       modelID,
-							Type:       "model",
-							Path:       path,
-							Evidence:   "from_pretrained() pattern",
-							Confidence: 0.95,
+							ID:       modelID,
+							Name:     modelID,
+							Type:     "model",
+							Path:     path,
+							Evidence: evidence,
 						})
 					}
 				}
@@ -105,12 +111,8 @@ func dedupe(components []Component) []Component {
 	for _, c := range components {
 		key := c.Type + "::" + c.ID
 		if existing, ok := index[key]; ok {
-			// Prefer highest confidence & concatenate evidence.
-			if c.Confidence > existing.Confidence {
-				existing.Confidence = c.Confidence
-			}
 			if !strings.Contains(existing.Evidence, c.Evidence) {
-				existing.Evidence += ";" + c.Evidence
+				existing.Evidence += ". " + c.Evidence
 			}
 			index[key] = existing
 		} else {
