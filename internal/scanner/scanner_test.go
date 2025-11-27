@@ -16,6 +16,8 @@ func TestScanDetectsModelAndWeight(t *testing.T) {
 		t.Fatalf("failed to create python file: %v", err)
 	}
 
+	// Weight-file detection disabled; only verify model detection.
+
 	comps, err := Scan(dir)
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)

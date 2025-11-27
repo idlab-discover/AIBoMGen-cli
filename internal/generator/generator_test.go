@@ -46,9 +46,7 @@ func TestBuildMLModelCardReturnsCard(t *testing.T) {
 	if card == nil {
 		t.Fatalf("expected MLModelCard not nil")
 	}
-	if card.ModelParameters == nil {
-		t.Errorf("expected ModelParameters with Task")
-	}
+	// No static defaults: ModelParameters may be empty when offline/non-configured
 }
 
 func TestWriteCreatesFile(t *testing.T) {

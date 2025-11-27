@@ -2,11 +2,15 @@ package scanner
 
 import (
 	"bufio"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"aibomgen-cra/internal/ui"
 )
 
 // Component represents an AI-related artifact detected in a project.
@@ -18,19 +22,25 @@ type Component struct {
 	Evidence string `json:"evidence"`
 }
 
+// Weight file detection intentionally disabled for now; focus on HF usage.
 // var weightExtensions = map[string]struct{}{
-// 	".pt":          {},
-// 	".pth":         {},
-// 	".bin":         {},
-// 	".safetensors": {},
-// 	".ckpt":        {},
-// 	".onnx":        {},
-// 	".tflite":      {},
+//     ".pt":          {},
+//     ".pth":         {},
+//     ".bin":         {},
+//     ".safetensors": {},
+//     ".ckpt":        {},
+//     ".onnx":        {},
+//     ".tflite":      {},
 // }
 
 // hfModelPattern matches Hugging Face model IDs inside from_pretrained("...") calls.
 // Supports both single segment IDs (e.g., bert-base-uncased) and org/model forms (e.g., facebook/opt-1.3b).
 var hfModelPattern = regexp.MustCompile(`from_pretrained\("([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?)"\)`)
+
+var logWriter io.Writer
+
+// SetLogger sets an optional destination for scan logs.
+func SetLogger(w io.Writer) { logWriter = w }
 
 // Scan walks the target path and returns detected AI components.
 func Scan(root string) ([]Component, error) {
@@ -46,18 +56,7 @@ func Scan(root string) ([]Component, error) {
 
 		ext := strings.ToLower(filepath.Ext(info.Name()))
 
-		// Disable weight file detection for now.
-
-		// if _, ok := weightExtensions[ext]; ok {
-		// 	results = append(results, Component{
-		// 		ID:         path,
-		// 		Name:       info.Name(),
-		// 		Type:       "weight-file",
-		// 		Path:       path,
-		// 		Evidence:   "extension:" + ext,
-		// 		Confidence: 0.9,
-		// 	})
-		// }
+		// Weight file detection disabled.
 
 		// Lightweight content scan for HF model IDs.
 		if shouldScanForModelID(ext) {
@@ -84,6 +83,10 @@ func Scan(root string) ([]Component, error) {
 							Path:     path,
 							Evidence: evidence,
 						})
+						if logWriter != nil {
+							prefix := ui.Color("Scan:", ui.FgYellow)
+							fmt.Fprintf(logWriter, "%s found model '%s' at %s:%d\n", prefix, modelID, path, lineNum)
+						}
 					}
 				}
 			}
@@ -93,7 +96,19 @@ func Scan(root string) ([]Component, error) {
 	if err != nil {
 		return nil, err
 	}
-	return dedupe(results), nil
+	deduped := dedupe(results)
+	if logWriter != nil {
+		// Count models detected
+		modelCount := 0
+		for _, c := range deduped {
+			if c.Type == "model" {
+				modelCount++
+			}
+		}
+		prefix := ui.Color("Scan:", ui.FgYellow)
+		fmt.Fprintf(logWriter, "%s detected %d components (models: %d)\n", prefix, len(deduped), modelCount)
+	}
+	return deduped, nil
 }
 
 func shouldScanForModelID(ext string) bool {
