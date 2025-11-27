@@ -1,0 +1,29 @@
+name: AIBomGen CRA Go CI
+
+on:
+  push:
+    branches:
+      - aibomgen-cra/go
+  pull_request:
+    branches:
+      - aibomgen-cra/go
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.25.x, 1.24.x, 1.23.x, 1.22.x, 1.21.x]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Install dependencies
+        run: go mod tidy
+      - name: Run tests
+        run: go test ./...
+      - name: Build
+        run: go build ./...
