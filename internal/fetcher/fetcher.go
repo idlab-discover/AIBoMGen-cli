@@ -1,77 +1,70 @@
 package fetcher
 
+import cdx "github.com/CycloneDX/cyclonedx-go"
+
 // Placeholder for future metadata fetching (e.g., Hugging Face Hub API).
 // Provides interface definition for future expansion.
 
-// Fetcher defines behavior for retrieving model metadata.
+// Fetcher defines behavior for retrieving model cards.
 type Fetcher interface {
-	Get(id string) (Metadata, error)
+	Get(id string) (*cdx.MLModelCard, error)
 }
 
-func FetchModelMetadata(modelID string) Metadata {
-	// Dummy/mock implementation: returns a fully filled Metadata struct
-	return Metadata{
-		ModelID:     modelID,
-		Name:        "bert-base-uncased",
-		Version:     "1.0.0",
-		License:     "Apache-2.0",
-		Author:      "Google Research",
-		Description: "BERT base model (uncased) pretrained on BookCorpus and English Wikipedia.",
-		SourceURL:   "https://huggingface.co/bert-base-uncased",
-
-		Task:               "text-classification",
-		ArchitectureFamily: "Transformer",
-		ModelArchitecture:  "BERT",
-		ApproachType:       "supervised",
-		Datasets: []DatasetInfo{
-			{Name: "BookCorpus", Ref: "dataset:bookcorpus", Description: "Large dataset of books."},
-			{Name: "Wikipedia", Ref: "dataset:wikipedia-en", Description: "English Wikipedia dump."},
-		},
-		Inputs:  []IOParameter{{Format: "text/plain"}},
-		Outputs: []IOParameter{{Format: "classification-label"}},
-
-		PerformanceMetrics: []PerformanceMetric{
-			{Type: "accuracy", Value: "0.84", Slice: "dev", ConfidenceInterval: &ConfidenceInterval{LowerBound: "0.82", UpperBound: "0.86"}},
-		},
-		Graphics: []GraphicInfo{{URL: "https://huggingface.co/bert-base-uncased/accuracy.png", Description: "Accuracy plot"}},
-
-		Users:                []string{"NLP researchers", "Developers"},
-		UseCases:             []string{"Sentiment analysis", "Intent classification"},
-		TechnicalLimitations: []string{"Not suitable for non-English text"},
-		PerformanceTradeoffs: []string{"Large model size increases inference time"},
-		EthicalConsiderations: []EthicalConsideration{
-			{Name: "Bias in training data", MitigationStrategy: "Careful dataset curation"},
-		},
-		EnvironmentalConsiderations: EnvironmentalConsiderations{
-			EnergyConsumptions: []EnergyConsumption{
-				{
-					Activity:           "training",
-					EnergyProviders:    []EnergyProvider{{Description: "Cloud provider", Organization: "AWS", EnergySource: "wind", EnergyProvided: EnergyMeasure{Value: 1000, Unit: "kWh"}}},
-					ActivityEnergyCost: EnergyMeasure{Value: 1000, Unit: "kWh"},
-					CO2CostEquivalent:  &CO2Measure{Value: 0.5, Unit: "tCO2eq"},
-					CO2CostOffset:      &CO2Measure{Value: 0.1, Unit: "tCO2eq"},
-					Properties:         []Property{{Name: "region", Value: "us-east-1"}},
-				},
-			},
-			Properties: []Property{{Name: "renewable", Value: "true"}},
-		},
-		FairnessAssessments: []FairnessAssessment{
-			{GroupAtRisk: "Minority dialects", Benefits: "Improved NLP", Harms: "Potential bias", MitigationStrategy: "Diverse data"},
-		},
-
-		EnergyConsumptions: []EnergyConsumption{
-			{
-				Activity:           "inference",
-				EnergyProviders:    []EnergyProvider{{Description: "On-prem GPU", Organization: "CompanyX", EnergySource: "solar", EnergyProvided: EnergyMeasure{Value: 10, Unit: "kWh"}}},
-				ActivityEnergyCost: EnergyMeasure{Value: 10, Unit: "kWh"},
-				CO2CostEquivalent:  &CO2Measure{Value: 0.01, Unit: "tCO2eq"},
-				CO2CostOffset:      &CO2Measure{Value: 0.005, Unit: "tCO2eq"},
-				Properties:         []Property{{Name: "hardware", Value: "NVIDIA V100"}},
+// FetchModelCard returns a dummy CycloneDX MLModelCard directly, avoiding custom metadata structs.
+func FetchModelCard(modelID string) *cdx.MLModelCard {
+	datasets := []cdx.MLDatasetChoice{
+		{
+			Ref: "dataset:bookcorpus",
+			ComponentData: &cdx.ComponentData{
+				Name:        "BookCorpus",
+				Description: "Large dataset of books.",
 			},
 		},
-		ExternalReferences: []ExternalReference{
-			{URL: "https://huggingface.co/bert-base-uncased", Description: "Model homepage", Type: "homepage"},
-			{URL: "https://arxiv.org/abs/1810.04805", Description: "Original paper", Type: "publication"},
+		{
+			Ref: "dataset:wikipedia-en",
+			ComponentData: &cdx.ComponentData{
+				Name:        "Wikipedia",
+				Description: "English Wikipedia dump.",
+			},
 		},
+	}
+	inputs := []cdx.MLInputOutputParameters{{Format: "text/plain"}}
+	outputs := []cdx.MLInputOutputParameters{{Format: "classification-label"}}
+	perf := []cdx.MLPerformanceMetric{{
+		Type:  "accuracy",
+		Value: "0.84",
+		Slice: "dev",
+		ConfidenceInterval: &cdx.MLPerformanceMetricConfidenceInterval{
+			LowerBound: "0.82",
+			UpperBound: "0.86",
+		},
+	}}
+
+	return &cdx.MLModelCard{
+		ModelParameters: &cdx.MLModelParameters{
+			Task:               "text-classification",
+			ArchitectureFamily: "Transformer",
+			ModelArchitecture:  "BERT",
+			Approach: &cdx.MLModelParametersApproach{
+				Type: cdx.MLModelParametersApproachType("supervised"),
+			},
+			Datasets: &datasets,
+			Inputs:   &inputs,
+			Outputs:  &outputs,
+		},
+		QuantitativeAnalysis: &cdx.MLQuantitativeAnalysis{
+			PerformanceMetrics: &perf,
+		},
+		Considerations: &cdx.MLModelCardConsiderations{
+			Users:                &[]string{"NLP researchers", "Developers"},
+			UseCases:             &[]string{"Sentiment analysis", "Intent classification"},
+			TechnicalLimitations: &[]string{"Not suitable for non-English text"},
+			PerformanceTradeoffs: &[]string{"Large model size increases inference time"},
+			EthicalConsiderations: &[]cdx.MLModelCardEthicalConsideration{{
+				Name:               "Bias in training data",
+				MitigationStrategy: "Careful dataset curation",
+			}},
+		},
+		// Optional: attach external references via component properties in generator
 	}
 }
