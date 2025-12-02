@@ -69,3 +69,52 @@ func TestWriteCreatesFile(t *testing.T) {
 		t.Fatalf("expected file to exist at %s: %v", outPath, err)
 	}
 }
+
+func TestWriteWithFormatXMLCreatesFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	outPath := filepath.Join(tmpDir, "bom.xml")
+	comps := []scanner.Component{{
+		ID:       "bert-base-uncased",
+		Name:     "bert-base-uncased",
+		Type:     "model",
+		Path:     "testdata/repo-basic/src/use_model.py",
+		Evidence: "from_pretrained()",
+	}}
+	bom := Build(comps)
+	if err := WriteWithFormat(outPath, bom, "xml"); err != nil {
+		t.Fatalf("WriteWithFormat xml failed: %v", err)
+	}
+	if _, err := os.Stat(outPath); err != nil {
+		t.Fatalf("expected xml file to exist: %v", err)
+	}
+	// Basic decode round-trip
+	f, err := os.Open(outPath)
+	if err != nil {
+		t.Fatalf("open xml failed: %v", err)
+	}
+	defer f.Close()
+	var decoded cdx.BOM
+	dec := cdx.NewBOMDecoder(f, cdx.BOMFileFormatXML)
+	if err := dec.Decode(&decoded); err != nil {
+		t.Fatalf("decode xml failed: %v", err)
+	}
+	if decoded.Components == nil || len(*decoded.Components) != 1 {
+		t.Fatalf("expected 1 component after xml decode")
+	}
+}
+
+func TestWriteWithFormat_ConflictingExtensionErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+	outPath := filepath.Join(tmpDir, "bom.xml")
+	comps := []scanner.Component{{
+		ID:       "bert-base-uncased",
+		Name:     "bert-base-uncased",
+		Type:     "model",
+		Path:     "testdata/repo-basic/src/use_model.py",
+		Evidence: "from_pretrained()",
+	}}
+	bom := Build(comps)
+	if err := WriteWithFormat(outPath, bom, "json"); err == nil {
+		t.Fatalf("expected error when format json conflicts with .xml extension")
+	}
+}

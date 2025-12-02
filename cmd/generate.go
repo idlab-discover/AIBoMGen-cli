@@ -18,20 +18,22 @@ import (
 )
 
 var (
-	generatePath   string
-	generateOutput string
-	hfOnline       bool
-	hfTimeoutSec   int
-	hfTokenEnv     string
-	interactive    bool
-	quiet          bool
+	generatePath         string
+	generateOutput       string
+	generateOutputFormat string
+	generateSpecVersion  string
+	hfOnline             bool
+	hfTimeoutSec         int
+	hfTokenEnv           string
+	enrich               bool
+	quiet                bool
 )
 
 // generateCmd represents the generate command
 var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Generate an AI-aware BOM (AIBOM)",
-	Long:  "Scans the target path for AI artifacts (model IDs, weight files) and produces a minimal CycloneDX-style AIBOM JSON.",
+	Long:  "Scans the target path for AI Hugginface imports and produces a CycloneDX-style AIBOM JSON.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := generatePath
 		if target == "" {
@@ -40,6 +42,16 @@ var generateCmd = &cobra.Command{
 		absTarget, err := filepath.Abs(target)
 		if err != nil {
 			return err
+		}
+		// Fail fast on explicit format/extension mismatch before scanning
+		if generateOutput != "" && generateOutputFormat != "" && generateOutputFormat != "auto" {
+			ext := filepath.Ext(generateOutput)
+			if generateOutputFormat == "xml" && ext == ".json" {
+				return fmt.Errorf("output path extension %q does not match format %q", ext, generateOutputFormat)
+			}
+			if generateOutputFormat == "json" && ext == ".xml" {
+				return fmt.Errorf("output path extension %q does not match format %q", ext, generateOutputFormat)
+			}
 		}
 		// Configure orchestrator and optionally enable Hugging Face for parameters
 		var p fetcher.ParametersFetcher
@@ -81,17 +93,31 @@ var generateCmd = &cobra.Command{
 		bom := generator.Build(comps)
 		// Fetchers now log their findings; no aggregate logging here
 		// Optionally prompt user to fill missing fields and annotate completeness
-		enricher.InteractiveCompleteBOM(bom, interactive, cmd.InOrStdin(), cmd.OutOrStdout())
+		enricher.InteractiveCompleteBOM(bom, enrich, cmd.InOrStdin(), cmd.OutOrStdout())
 		output := generateOutput
 		if output == "" {
-			output = "dist/aibom.json"
+			// Default extension based on requested format (json unless explicitly xml)
+			if generateOutputFormat == "xml" {
+				output = "dist/aibom.xml"
+			} else {
+				output = "dist/aibom.json"
+			}
 		}
-		if err := generator.Write(output, bom); err != nil {
+		fmtChosen := generateOutputFormat
+		if fmtChosen == "auto" || fmtChosen == "" {
+			ext := filepath.Ext(output)
+			if ext == ".xml" {
+				fmtChosen = "xml"
+			} else {
+				fmtChosen = "json"
+			}
+		}
+		if err := generator.WriteWithFormatAndSpec(output, bom, fmtChosen, generateSpecVersion); err != nil {
 			return err
 		}
 		// Add a blank line before the final success message for readability
 		fmt.Fprintln(cmd.OutOrStdout())
-		fmt.Fprintf(cmd.OutOrStdout(), "AIBOM written to %s (components: %d)\n", output, len(comps))
+		fmt.Fprintf(cmd.OutOrStdout(), "AIBOM written to %s (format: %s, components: %d)\n", output, fmtChosen, len(comps))
 		return nil
 	},
 }
@@ -100,9 +126,11 @@ func init() {
 	rootCmd.AddCommand(generateCmd)
 	generateCmd.Flags().StringVarP(&generatePath, "path", "p", "", "Path to scan (default: current directory)")
 	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "Output file path (default: dist/aibom.json)")
+	generateCmd.Flags().StringVarP(&generateOutputFormat, "format", "f", "auto", "Output BOM format: json|xml|auto (default: auto)")
+	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.3, 1.4, 1.5, 1.6)")
 	generateCmd.Flags().BoolVar(&hfOnline, "hf-online", true, "Enable Hugging Face API for model metadata")
 	generateCmd.Flags().IntVar(&hfTimeoutSec, "hf-timeout", 10, "HTTP timeout in seconds for Hugging Face API")
 	generateCmd.Flags().StringVar(&hfTokenEnv, "hf-token-env", "HUGGINGFACE_TOKEN", "Env var name containing Hugging Face token")
-	generateCmd.Flags().BoolVar(&interactive, "interactive", true, "Prompt for missing fields and compute completeness")
+	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness")
 	generateCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress scan/fetch logs (errors still shown)")
 }
