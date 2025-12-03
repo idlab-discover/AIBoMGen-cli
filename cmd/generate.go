@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -10,9 +9,6 @@ import (
 
 	"aibomgen-cra/internal/enricher"
 	"aibomgen-cra/internal/fetcher"
-	cons "aibomgen-cra/internal/fetcher/considerations"
-	params "aibomgen-cra/internal/fetcher/parameters"
-	quant "aibomgen-cra/internal/fetcher/quantitative"
 	"aibomgen-cra/internal/generator"
 	"aibomgen-cra/internal/scanner"
 )
@@ -24,9 +20,11 @@ var (
 	generateSpecVersion  string
 	hfOnline             bool
 	hfTimeoutSec         int
-	hfTokenEnv           string
+	hfToken              string
+	hfCacheDir           string
 	enrich               bool
 	quiet                bool
+	dummy                bool
 )
 
 // generateCmd represents the generate command
@@ -53,32 +51,23 @@ var generateCmd = &cobra.Command{
 				return fmt.Errorf("output path extension %q does not match format %q", ext, generateOutputFormat)
 			}
 		}
-		// Configure orchestrator and optionally enable Hugging Face for parameters
-		var p fetcher.ParametersFetcher
-		var q fetcher.QuantitativeFetcher
-		var c fetcher.ConsiderationsFetcher
-		if hfOnline {
-			token := os.Getenv(hfTokenEnv)
+		// Configure default fetcher: HuggingFace (online) or Dummy (offline)
+		if dummy || !hfOnline {
+			fetcher.SetDefault(fetcher.NewDummyFetcher())
+		} else {
+			token := hfToken
 			if hfTimeoutSec <= 0 {
 				hfTimeoutSec = 10
 			}
 			timeout := time.Duration(hfTimeoutSec) * time.Second
-			pf := params.NewHuggingFaceParametersFetcher(timeout, token)
-			qf := quant.NewHuggingFaceQuantFetcher(timeout, token)
-			cf := cons.NewHuggingFaceConsiderationsFetcher(timeout, token)
-			// Attach command output as logger
-			if !quiet {
-				lw := cmd.ErrOrStderr()
-				pf.SetLogger(lw)
-				qf.SetLogger(lw)
-				cf.SetLogger(lw)
-			}
-			p, q, c = pf, qf, cf
+			hf := fetcher.NewHuggingFaceFetcher(timeout, token, hfCacheDir)
+			fetcher.SetDefault(hf)
 		}
-		fetcher.SetDefault(fetcher.NewOrchestrator(p, q, c))
 		// Wire scanner and generator logging to command output
 		if !quiet {
 			lw := cmd.ErrOrStderr()
+			// Configure package-level fetcher logger per project convention
+			fetcher.SetLogger(lw)
 			scanner.SetLogger(lw)
 			generator.SetLogger(lw)
 		}
@@ -130,7 +119,9 @@ func init() {
 	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.3, 1.4, 1.5, 1.6)")
 	generateCmd.Flags().BoolVar(&hfOnline, "hf-online", true, "Enable Hugging Face API for model metadata")
 	generateCmd.Flags().IntVar(&hfTimeoutSec, "hf-timeout", 10, "HTTP timeout in seconds for Hugging Face API")
-	generateCmd.Flags().StringVar(&hfTokenEnv, "hf-token-env", "HUGGINGFACE_TOKEN", "Env var name containing Hugging Face token")
+	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token (string)")
+	generateCmd.Flags().StringVar(&hfCacheDir, "hf-cache-dir", "", "Cache directory for Hugging Face downloads (optional)")
 	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness")
 	generateCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress scan/fetch logs (errors still shown)")
+	generateCmd.Flags().BoolVar(&dummy, "dummy", false, "Use dummy fetcher instead of Hugging Face API")
 }
