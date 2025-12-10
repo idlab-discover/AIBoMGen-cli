@@ -41,6 +41,41 @@ func TestBuildProducesComponentsWithModelCard(t *testing.T) {
 	}
 }
 
+func TestBuildPerComponentProducesSingleComponentBOMs(t *testing.T) {
+	comps := []scanner.Component{
+		{
+			ID:       "google-bert/bert-base-uncased",
+			Name:     "google-bert/bert-base-uncased",
+			Type:     "model",
+			Path:     "testdata/repo-basic/src/use_model.py",
+			Evidence: "from_pretrained()",
+		},
+		{
+			ID:       "facebook/opt-1.3b",
+			Name:     "facebook/opt-1.3b",
+			Type:     "model",
+			Path:     "testdata/repo-basic/src/use_model.py",
+			Evidence: "from_pretrained()",
+		},
+	}
+	componentBOMs := BuildPerComponent(comps)
+	if len(componentBOMs) != len(comps) {
+		t.Fatalf("expected %d component BOMs, got %d", len(comps), len(componentBOMs))
+	}
+	for i, compBOM := range componentBOMs {
+		if compBOM.BOM == nil {
+			t.Fatalf("component BOM %d is nil", i)
+		}
+		if compBOM.BOM.Components == nil || len(*compBOM.BOM.Components) != 1 {
+			t.Fatalf("expected exactly one component in BOM %d", i)
+		}
+		component := (*compBOM.BOM.Components)[0]
+		if component.Name != comps[i].Name {
+			t.Fatalf("component name mismatch: expected %s, got %s", comps[i].Name, component.Name)
+		}
+	}
+}
+
 func TestBuildMLModelCardReturnsCard(t *testing.T) {
 	card := BuildMLModelCard("bert-base-uncased")
 	if card == nil {

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -79,10 +80,12 @@ var generateCmd = &cobra.Command{
 		if !quiet {
 			fmt.Fprintln(cmd.ErrOrStderr())
 		}
-		bom := generator.Build(comps)
+		componentBOMs := generator.BuildPerComponent(comps)
 		// Fetchers now log their findings; no aggregate logging here
 		// Optionally prompt user to fill missing fields and annotate completeness
-		enricher.InteractiveCompleteBOM(bom, enrich, cmd.InOrStdin(), cmd.OutOrStdout())
+		for _, compBOM := range componentBOMs {
+			enricher.InteractiveCompleteBOM(compBOM.BOM, enrich, cmd.InOrStdin(), cmd.OutOrStdout())
+		}
 		output := generateOutput
 		if output == "" {
 			// Default extension based on requested format (json unless explicitly xml)
@@ -101,12 +104,32 @@ var generateCmd = &cobra.Command{
 				fmtChosen = "json"
 			}
 		}
-		if err := generator.WriteWithFormatAndSpec(output, bom, fmtChosen, generateSpecVersion); err != nil {
-			return err
+		outputDir := filepath.Dir(output)
+		if outputDir == "" {
+			outputDir = "."
+		}
+		outputDir = filepath.Clean(outputDir)
+		fileExt := ".json"
+		if fmtChosen == "xml" {
+			fileExt = ".xml"
+		}
+		written := make([]string, 0, len(componentBOMs))
+		for _, compBOM := range componentBOMs {
+			sanitized := sanitizeComponentName(compBOM.Component.Name)
+			fileName := fmt.Sprintf("%s_aibom%s", sanitized, fileExt)
+			dest := filepath.Join(outputDir, fileName)
+			if err := generator.WriteWithFormatAndSpec(dest, compBOM.BOM, fmtChosen, generateSpecVersion); err != nil {
+				return err
+			}
+			written = append(written, dest)
 		}
 		// Add a blank line before the final success message for readability
 		fmt.Fprintln(cmd.OutOrStdout())
-		fmt.Fprintf(cmd.OutOrStdout(), "AIBOM written to %s (format: %s, components: %d)\n", output, fmtChosen, len(comps))
+		if len(written) == 0 {
+			fmt.Fprintln(cmd.OutOrStdout(), "No models detected; no AIBOM files written.")
+			return nil
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "AIBOM files written (%d) under %s (format: %s)\n", len(written), outputDir, fmtChosen)
 		return nil
 	},
 }
@@ -124,4 +147,30 @@ func init() {
 	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness")
 	generateCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress scan/fetch logs (errors still shown)")
 	generateCmd.Flags().BoolVar(&dummy, "dummy", false, "Use dummy fetcher instead of Hugging Face API")
+}
+
+func sanitizeComponentName(name string) string {
+	if name == "" {
+		return "model"
+	}
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '-' || r == '_' || r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	sanitized := b.String()
+	if sanitized == "" {
+		return "model"
+	}
+	return sanitized
 }
