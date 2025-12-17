@@ -6,11 +6,14 @@ import (
 	"strings"
 	"time"
 
+	cdx "github.com/CycloneDX/cyclonedx-go"
 	"github.com/spf13/cobra"
 
+	"aibomgen-cra/internal/builder"
 	"aibomgen-cra/internal/enricher"
 	"aibomgen-cra/internal/fetcher"
 	"aibomgen-cra/internal/generator"
+	"aibomgen-cra/internal/metadata"
 	"aibomgen-cra/internal/scanner"
 )
 
@@ -19,20 +22,23 @@ var (
 	generateOutput       string
 	generateOutputFormat string
 	generateSpecVersion  string
-	hfOnline             bool
-	hfTimeoutSec         int
-	hfToken              string
-	hfCacheDir           string
-	enrich               bool
-	quiet                bool
-	dummy                bool
+
+	// hfMode controls whether metadata is fetched from Hugging Face.
+	// Supported values: online|offline|dummy
+	hfMode       string
+	hfTimeoutSec int
+	hfToken      string
+
+	enrich bool
+	// Logging is controlled via generateLogLevel.
+	generateLogLevel string
 )
 
 // generateCmd represents the generate command
 var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Generate an AI-aware BOM (AIBOM)",
-	Long:  "Scans the target path for AI Hugginface imports and produces a CycloneDX-style AIBOM JSON.",
+	Long:  "Scans the target path for AI Hugginface imports and produces a CycloneDX AIBOM JSON.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := generatePath
 		if target == "" {
@@ -41,6 +47,30 @@ var generateCmd = &cobra.Command{
 		absTarget, err := filepath.Abs(target)
 		if err != nil {
 			return err
+		}
+
+		// Resolve effective log level.
+		level := strings.ToLower(strings.TrimSpace(generateLogLevel))
+		if level == "" {
+			level = "standard"
+		}
+		switch level {
+		case "quiet", "standard", "debug":
+			// ok
+		default:
+			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", generateLogLevel)
+		}
+
+		// Resolve effective HF mode.
+		mode := strings.ToLower(strings.TrimSpace(hfMode))
+		if mode == "" {
+			mode = "online"
+		}
+		switch mode {
+		case "online", "dummy":
+			// ok
+		default:
+			return fmt.Errorf("invalid --hf-mode %q (expected online|dummy)", hfMode)
 		}
 		// Fail fast on explicit format/extension mismatch before scanning
 		if generateOutput != "" && generateOutputFormat != "" && generateOutputFormat != "auto" {
@@ -52,40 +82,74 @@ var generateCmd = &cobra.Command{
 				return fmt.Errorf("output path extension %q does not match format %q", ext, generateOutputFormat)
 			}
 		}
-		// Configure default fetcher: HuggingFace (online) or Dummy (offline)
-		if dummy || !hfOnline {
-			fetcher.SetDefault(fetcher.NewDummyFetcher())
-		} else {
-			token := hfToken
-			if hfTimeoutSec <= 0 {
-				hfTimeoutSec = 10
-			}
-			timeout := time.Duration(hfTimeoutSec) * time.Second
-			hf := fetcher.NewHuggingFaceFetcher(timeout, token, hfCacheDir)
-			fetcher.SetDefault(hf)
-		}
-		// Wire scanner and generator logging to command output
-		if !quiet {
+
+		// Wire internal package logging based on log level.
+		if level != "quiet" {
 			lw := cmd.ErrOrStderr()
-			// Configure package-level fetcher logger per project convention
-			fetcher.SetLogger(lw)
 			scanner.SetLogger(lw)
 			generator.SetLogger(lw)
+			if level == "debug" {
+				fetcher.SetLogger(lw)
+				metadata.SetLogger(lw)
+				builder.SetLogger(lw)
+			}
 		}
-		comps, err := scanner.Scan(absTarget)
+
+		// Scan for AI components
+		discoveries, err := scanner.Scan(absTarget)
 		if err != nil {
 			return err
 		}
-		// Add a blank line between scan summary and fetch/model context logs
-		if !quiet {
-			fmt.Fprintln(cmd.ErrOrStderr())
+
+		if hfTimeoutSec <= 0 {
+			hfTimeoutSec = 10
 		}
-		componentBOMs := generator.BuildPerComponent(comps)
-		// Fetchers now log their findings; no aggregate logging here
-		// Optionally prompt user to fill missing fields and annotate completeness
-		for _, compBOM := range componentBOMs {
-			enricher.InteractiveCompleteBOM(compBOM.BOM, enrich, cmd.InOrStdin(), cmd.OutOrStdout())
+		timeout := time.Duration(hfTimeoutSec) * time.Second
+
+		var discoveredBOMs []generator.DiscoveredBOM
+		if mode == "dummy" {
+			// dummy mode: per discovery: store + build (no network).
+			// TODO: wire a real dummy method for mode==dummy.
+			bomBuilder := builder.NewBOMBuilder(builder.DefaultOptions())
+			discoveredBOMs = make([]generator.DiscoveredBOM, 0, len(discoveries))
+
+			for _, d := range discoveries {
+				modelID := discoveryModelID(d)
+
+				store := metadata.NewStore()
+				ctx := builder.BuildContext{
+					ModelID: modelID,
+					Scan:    d,
+					Meta:    store.View(modelID),
+				}
+
+				bom, err := bomBuilder.Build(ctx)
+				if err != nil {
+					return err
+				}
+				discoveredBOMs = append(discoveredBOMs, generator.DiscoveredBOM{
+					Discovery: d,
+					BOM:       bom,
+				})
+			}
+		} else {
+			// Online mode: per discovery: store + fetch + map + build (inside generator).
+			discoveredBOMs, err = generator.BuildPerDiscovery(discoveries, hfToken, timeout)
+			if err != nil {
+				return err
+			}
 		}
+
+		// Optional enrichment: only run when requested.
+		// Enricher is currently stubbed; do not fail generate if it errors.
+		if enrich {
+			for _, d := range discoveredBOMs {
+				if err := enricher.InteractiveCompleteBOM(d.BOM, true, cmd.InOrStdin(), cmd.OutOrStdout()); err != nil && level == "debug" {
+					fmt.Fprintf(cmd.ErrOrStderr(), "[enrich] %v\n", err)
+				}
+			}
+		}
+
 		output := generateOutput
 		if output == "" {
 			// Default extension based on requested format (json unless explicitly xml)
@@ -95,6 +159,7 @@ var generateCmd = &cobra.Command{
 				output = "dist/aibom.json"
 			}
 		}
+
 		fmtChosen := generateOutputFormat
 		if fmtChosen == "auto" || fmtChosen == "" {
 			ext := filepath.Ext(output)
@@ -104,25 +169,42 @@ var generateCmd = &cobra.Command{
 				fmtChosen = "json"
 			}
 		}
+
 		outputDir := filepath.Dir(output)
 		if outputDir == "" {
 			outputDir = "."
 		}
 		outputDir = filepath.Clean(outputDir)
+
 		fileExt := ".json"
 		if fmtChosen == "xml" {
 			fileExt = ".xml"
 		}
-		written := make([]string, 0, len(componentBOMs))
-		for _, compBOM := range componentBOMs {
-			sanitized := sanitizeComponentName(compBOM.Component.Name)
+
+		written := make([]string, 0, len(discoveredBOMs))
+		for _, d := range discoveredBOMs {
+			name := bomMetadataComponentName(d.BOM)
+			if strings.TrimSpace(name) == "" {
+				// filename fallback
+				name = strings.TrimSpace(d.Discovery.Name)
+				if name == "" {
+					name = strings.TrimSpace(d.Discovery.ID)
+				}
+				if name == "" {
+					name = "model"
+				}
+			}
+
+			sanitized := sanitizeComponentName(name)
 			fileName := fmt.Sprintf("%s_aibom%s", sanitized, fileExt)
 			dest := filepath.Join(outputDir, fileName)
-			if err := generator.WriteWithFormatAndSpec(dest, compBOM.BOM, fmtChosen, generateSpecVersion); err != nil {
+
+			if err := generator.WriteWithFormatAndSpec(dest, d.BOM, fmtChosen, generateSpecVersion); err != nil {
 				return err
 			}
 			written = append(written, dest)
 		}
+
 		// Add a blank line before the final success message for readability
 		fmt.Fprintln(cmd.OutOrStdout())
 		if len(written) == 0 {
@@ -135,18 +217,29 @@ var generateCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(generateCmd)
-	generateCmd.Flags().StringVarP(&generatePath, "path", "p", "", "Path to scan (default: current directory)")
-	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "Output file path (default: dist/aibom.json)")
+	generateCmd.Flags().StringVarP(&generatePath, "input", "i", "", "Path to scan (default: current directory)")
+	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "Output file path (directory is used; default: dist/aibom.json)")
 	generateCmd.Flags().StringVarP(&generateOutputFormat, "format", "f", "auto", "Output BOM format: json|xml|auto (default: auto)")
 	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.3, 1.4, 1.5, 1.6)")
-	generateCmd.Flags().BoolVar(&hfOnline, "hf-online", true, "Enable Hugging Face API for model metadata")
+	generateCmd.Flags().StringVar(&hfMode, "hf-mode", "online", "Hugging Face metadata mode: online|dummy (default: online)")
 	generateCmd.Flags().IntVar(&hfTimeoutSec, "hf-timeout", 10, "HTTP timeout in seconds for Hugging Face API")
 	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token (string)")
-	generateCmd.Flags().StringVar(&hfCacheDir, "hf-cache-dir", "", "Cache directory for Hugging Face downloads (optional)")
 	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness")
-	generateCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress scan/fetch logs (errors still shown)")
-	generateCmd.Flags().BoolVar(&dummy, "dummy", false, "Use dummy fetcher instead of Hugging Face API")
+	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "standard", "Log level: quiet|standard|debug (default: standard)")
+}
+
+func discoveryModelID(d scanner.Discovery) string {
+	if strings.TrimSpace(d.ID) != "" {
+		return strings.TrimSpace(d.ID)
+	}
+	return strings.TrimSpace(d.Name)
+}
+
+func bomMetadataComponentName(bom *cdx.BOM) string {
+	if bom == nil || bom.Metadata == nil || bom.Metadata.Component == nil {
+		return ""
+	}
+	return bom.Metadata.Component.Name
 }
 
 func sanitizeComponentName(name string) string {

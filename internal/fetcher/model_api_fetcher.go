@@ -1,0 +1,117 @@
+package fetcher
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+)
+
+// BoolOrString unmarshals JSON that may be either a boolean (true/false)
+// or a string (e.g. "auto").
+type BoolOrString struct {
+	Bool   *bool
+	String *string
+}
+
+func (v *BoolOrString) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 || bytes.Equal(b, []byte("null")) {
+		v.Bool = nil
+		v.String = nil
+		return nil
+	}
+
+	// string case: "auto"
+	if b[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		s = strings.TrimSpace(s)
+		v.String = &s
+		v.Bool = nil
+		return nil
+	}
+
+	// bool case: true/false
+	var bo bool
+	if err := json.Unmarshal(b, &bo); err != nil {
+		return err
+	}
+	v.Bool = &bo
+	v.String = nil
+	return nil
+}
+
+// ModelAPIFetcher fetches model metadata from the Hugging Face Hub API.
+type ModelAPIFetcher struct {
+	Client *http.Client
+	Token  string
+}
+
+// ModelAPIResponse is the decoded response from GET https://huggingface.co/api/models/:id
+type ModelAPIResponse struct {
+	ID          string         `json:"id"`
+	ModelID     string         `json:"modelId"`
+	Author      string         `json:"author"`
+	PipelineTag string         `json:"pipeline_tag"`
+	LibraryName string         `json:"library_name"`
+	Tags        []string       `json:"tags"`
+	License     string         `json:"license"`
+	SHA         string         `json:"sha"`
+	Downloads   int            `json:"downloads"`
+	Likes       int            `json:"likes"`
+	LastMod     string         `json:"lastModified"`
+	CreatedAt   string         `json:"createdAt"`
+	Gated       BoolOrString   `json:"gated"` // <- changed from bool
+	Private     bool           `json:"private"`
+	Inference   string         `json:"inference"`
+	UsedStorage int64          `json:"usedStorage"`
+	CardData    map[string]any `json:"cardData"`
+	Config      struct {
+		ModelType     string   `json:"model_type"`
+		Architectures []string `json:"architectures"`
+	} `json:"config"`
+}
+
+func (f *ModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*ModelAPIResponse, error) {
+	client := f.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	logf(modelID, "GET /api/models/%s", strings.TrimPrefix(strings.TrimSpace(modelID), "/"))
+
+	url := fmt.Sprintf("https://huggingface.co/api/models/%s", modelID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if strings.TrimSpace(f.Token) != "" {
+		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(f.Token))
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		logf(modelID, "request error (%v)", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		logf(modelID, "non-200 status=%d", resp.StatusCode)
+		return nil, fmt.Errorf("huggingface api status %d", resp.StatusCode)
+	}
+
+	var parsed ModelAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		logf(modelID, "decode error (%v)", err)
+		return nil, err
+	}
+	logf(modelID, "ok (library=%q pipeline=%q)", strings.TrimSpace(parsed.LibraryName), strings.TrimSpace(parsed.PipelineTag))
+	return &parsed, nil
+}

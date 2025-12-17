@@ -1,4 +1,6 @@
-package fetcher
+// Deprecated (this can not be used anymore)
+
+package dummy
 
 import (
 	cdx "github.com/CycloneDX/cyclonedx-go"
@@ -11,7 +13,6 @@ func NewDummyFetcher() *DummyFetcher { return &DummyFetcher{} }
 
 func (d *DummyFetcher) Get(id string) (*cdx.MLModelCard, error) {
 	// Full placeholder card: populate all fields with sensible defaults
-	logf("[dummy] fetch id=%s\n", id)
 
 	inputs := []cdx.MLInputOutputParameters{{Format: "application/octet-stream"}}
 	outputs := []cdx.MLInputOutputParameters{{Format: "application/octet-stream"}}

@@ -13,8 +13,8 @@ import (
 	"aibomgen-cra/internal/ui"
 )
 
-// Component represents an AI-related artifact detected in a project.
-type Component struct {
+// represents an AI-related artifact detected in a project.
+type Discovery struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Type     string `json:"type"`
@@ -43,8 +43,8 @@ var logWriter io.Writer
 func SetLogger(w io.Writer) { logWriter = w }
 
 // Scan walks the target path and returns detected AI components.
-func Scan(root string) ([]Component, error) {
-	var results []Component
+func Scan(root string) ([]Discovery, error) {
+	var results []Discovery
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -76,7 +76,7 @@ func Scan(root string) ([]Component, error) {
 						modelID := m[1]
 						evidence := "from_pretrained() pattern at line " +
 							strconv.Itoa(lineNum) + ": " + line
-						results = append(results, Component{
+						results = append(results, Discovery{
 							ID:       modelID,
 							Name:     modelID,
 							Type:     "model",
@@ -121,8 +121,8 @@ func shouldScanForModelID(ext string) bool {
 }
 
 // dedupe merges components with identical ID+Type.
-func dedupe(components []Component) []Component {
-	index := make(map[string]Component)
+func dedupe(components []Discovery) []Discovery {
+	index := make(map[string]Discovery)
 	for _, c := range components {
 		key := c.Type + "::" + c.ID
 		if existing, ok := index[key]; ok {
@@ -134,7 +134,7 @@ func dedupe(components []Component) []Component {
 			index[key] = c
 		}
 	}
-	out := make([]Component, 0, len(index))
+	out := make([]Discovery, 0, len(index))
 	for _, v := range index {
 		out = append(out, v)
 	}
