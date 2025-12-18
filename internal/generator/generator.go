@@ -12,7 +12,6 @@ import (
 
 	"aibomgen-cra/internal/builder"
 	"aibomgen-cra/internal/fetcher"
-	"aibomgen-cra/internal/metadata"
 	"aibomgen-cra/internal/scanner"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
@@ -25,7 +24,7 @@ type DiscoveredBOM struct {
 
 var logOut io.Writer
 
-// BuildPerDiscovery orchestrates: fetch HF API → map into metadata → build BOM per model.
+// BuildPerDiscovery orchestrates: fetch HF API (optional) → build BOM per model via registry-driven builder.
 func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout time.Duration) ([]DiscoveredBOM, error) {
 	results := make([]DiscoveredBOM, 0, len(discoveries))
 
@@ -46,27 +45,22 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 
 		logf(modelID, "start (scanPath=%s)", strings.TrimSpace(d.Path))
 
-		// per-discovery store
-		store := metadata.NewStore()
-
-		// per-discovery fetch
+		var resp *fetcher.ModelAPIResponse
 		if modelID != "" {
 			logf(modelID, "fetch HF model metadata")
-			resp, err := apiFetcher.Fetch(context.Background(), modelID)
+			r, err := apiFetcher.Fetch(context.Background(), modelID)
 			if err != nil {
 				logf(modelID, "fetch failed (%v)", err)
-				// continue building with empty store (builders should have fallbacks)
 			} else {
-				logf(modelID, "map HF response into metadata")
-				metadata.MapModelAPIToMetadata(modelID, resp, store)
-				logf(modelID, "metadata mapped")
+				resp = r
+				logf(modelID, "metadata fetched")
 			}
 		}
 
 		ctx := builder.BuildContext{
 			ModelID: modelID,
 			Scan:    d,
-			Meta:    store.View(modelID),
+			HF:      resp,
 		}
 
 		logf(modelID, "build BOM")

@@ -116,11 +116,10 @@ var generateCmd = &cobra.Command{
 			for _, d := range discoveries {
 				modelID := discoveryModelID(d)
 
-				store := metadata.NewStore()
 				ctx := builder.BuildContext{
 					ModelID: modelID,
 					Scan:    d,
-					Meta:    store.View(modelID),
+					HF:      nil,
 				}
 
 				bom, err := bomBuilder.Build(ctx)

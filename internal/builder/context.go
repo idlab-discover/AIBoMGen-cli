@@ -1,14 +1,14 @@
 package builder
 
 import (
-	"aibomgen-cra/internal/metadata"
+	"aibomgen-cra/internal/fetcher"
 	"aibomgen-cra/internal/scanner"
 )
 
 type BuildContext struct {
 	ModelID string
 	Scan    scanner.Discovery
-	Meta    metadata.View
+	HF      *fetcher.ModelAPIResponse
 }
 
 type Options struct {
@@ -17,5 +17,8 @@ type Options struct {
 }
 
 func DefaultOptions() Options {
-	return Options{IncludeEvidenceProperties: true, HuggingFaceBaseURL: "https://huggingface.co/"}
+	return Options{
+		IncludeEvidenceProperties: true,
+		HuggingFaceBaseURL:        "https://huggingface.co/",
+	}
 }
