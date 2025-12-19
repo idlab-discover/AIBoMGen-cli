@@ -30,5 +30,4 @@ func init() {
 	enrichCmd.Flags().StringVarP(&enrichOutput, "output", "o", "", "Output file path (default: overwrite input)")
 	enrichCmd.Flags().StringVarP(&enrichOutputFormat, "format", "f", "auto", "Output BOM format: json|xml|auto (default: auto)")
 	enrichCmd.Flags().StringVar(&enrichSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.3, 1.4, 1.5, 1.6)")
-	enrichCmd.Flags().BoolVarP(&enrichQuiet, "quiet", "q", false, "Suppress non-essential logs")
 }

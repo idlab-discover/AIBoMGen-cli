@@ -104,10 +104,17 @@ func Registry() []FieldSpec {
 				}
 				if name != "" {
 					tgt.Component.Name = name
+					logf(src.ModelID, "apply %s set=%s", ComponentName, summarizeValue(name))
 				}
 			},
 			Present: func(b *cdx.BOM) bool {
-				return bomHasComponentName(b)
+				ok := bomHasComponentName(b)
+				mid := ""
+				if c := bomComponent(b); c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ComponentName, ok)
+				return ok
 			},
 		},
 		{
@@ -137,10 +144,17 @@ func Registry() []FieldSpec {
 					URL:  url,
 				}}
 				tgt.Component.ExternalReferences = &refs
+				logf(src.ModelID, "apply %s set=%s", ComponentExternalReferences, summarizeValue(url))
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
-				return c != nil && c.ExternalReferences != nil && len(*c.ExternalReferences) > 0
+				ok := c != nil && c.ExternalReferences != nil && len(*c.ExternalReferences) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ComponentExternalReferences, ok)
+				return ok
 			},
 		},
 		{
@@ -156,10 +170,17 @@ func Registry() []FieldSpec {
 					return
 				}
 				tgt.Component.Tags = &tags
+				logf(src.ModelID, "apply %s set=%s", ComponentTags, summarizeValue(tags))
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
-				return c != nil && c.Tags != nil && len(*c.Tags) > 0
+				ok := c != nil && c.Tags != nil && len(*c.Tags) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ComponentTags, ok)
+				return ok
 			},
 		},
 		{
@@ -178,10 +199,17 @@ func Registry() []FieldSpec {
 					{License: &cdx.License{Name: lic}},
 				}
 				tgt.Component.Licenses = &ls
+				logf(src.ModelID, "apply %s set=%s", ComponentLicenses, summarizeValue(lic))
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
-				return c != nil && c.Licenses != nil && len(*c.Licenses) > 0
+				ok := c != nil && c.Licenses != nil && len(*c.Licenses) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ComponentLicenses, ok)
+				return ok
 			},
 		},
 		{
@@ -198,10 +226,17 @@ func Registry() []FieldSpec {
 				}
 				hs := []cdx.Hash{{Algorithm: cdx.HashAlgoSHA1, Value: sha}}
 				tgt.Component.Hashes = &hs
+				logf(src.ModelID, "apply %s set=%s", ComponentHashes, summarizeValue(sha))
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
-				return c != nil && c.Hashes != nil && len(*c.Hashes) > 0
+				ok := c != nil && c.Hashes != nil && len(*c.Hashes) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ComponentHashes, ok)
+				return ok
 			},
 		},
 		{
@@ -217,10 +252,17 @@ func Registry() []FieldSpec {
 					return
 				}
 				tgt.Component.Manufacturer = &cdx.OrganizationalEntity{Name: s}
+				logf(src.ModelID, "apply %s set=%s", ComponentManufacturer, summarizeValue(s))
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
-				return c != nil && c.Manufacturer != nil && strings.TrimSpace(c.Manufacturer.Name) != ""
+				ok := c != nil && c.Manufacturer != nil && strings.TrimSpace(c.Manufacturer.Name) != ""
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ComponentManufacturer, ok)
+				return ok
 			},
 		},
 		{
@@ -236,10 +278,17 @@ func Registry() []FieldSpec {
 					return
 				}
 				tgt.Component.Group = s
+				logf(src.ModelID, "apply %s set=%s", ComponentGroup, summarizeValue(s))
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
-				return c != nil && strings.TrimSpace(c.Group) != ""
+				ok := c != nil && strings.TrimSpace(c.Group) != ""
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ComponentGroup, ok)
+				return ok
 			},
 		},
 		// Evidence properties
@@ -254,8 +303,16 @@ func Registry() []FieldSpec {
 				setProperty(tgt.Component, "aibomgen.type", src.Scan.Type)
 				setProperty(tgt.Component, "aibomgen.evidence", src.Scan.Evidence)
 				setProperty(tgt.Component, "aibomgen.path", src.Scan.Path)
+				logf(src.ModelID, "apply aibomgen.evidence type=%s path=%s evidence=%s", summarizeValue(src.Scan.Type), summarizeValue(src.Scan.Path), summarizeValue(src.Scan.Evidence))
 			},
-			Present: func(_ *cdx.BOM) bool { return true },
+			Present: func(b *cdx.BOM) bool {
+				mid := ""
+				if c := bomComponent(b); c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present aibomgen.evidence ok=true")
+				return true
+			},
 		},
 		// HF properties -> Component.Properties using Property.Name = Key.String() (same as your current builder)
 		hfProp(ComponentPropertiesHuggingFaceLastModified, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
@@ -326,10 +383,17 @@ func Registry() []FieldSpec {
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.Task = s
+				logf(src.ModelID, "apply %s set=%s", ModelCardModelParametersTask, summarizeValue(s))
 			},
 			Present: func(b *cdx.BOM) bool {
 				mp := bomModelParameters(b)
-				return mp != nil && strings.TrimSpace(mp.Task) != ""
+				ok := mp != nil && strings.TrimSpace(mp.Task) != ""
+				mid := ""
+				if c := bomComponent(b); c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ModelCardModelParametersTask, ok)
+				return ok
 			},
 		},
 		{
@@ -346,10 +410,17 @@ func Registry() []FieldSpec {
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.ArchitectureFamily = s
+				logf(src.ModelID, "apply %s set=%s", ModelCardModelParametersArchitectureFamily, summarizeValue(s))
 			},
 			Present: func(b *cdx.BOM) bool {
 				mp := bomModelParameters(b)
-				return mp != nil && strings.TrimSpace(mp.ArchitectureFamily) != ""
+				ok := mp != nil && strings.TrimSpace(mp.ArchitectureFamily) != ""
+				mid := ""
+				if c := bomComponent(b); c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ModelCardModelParametersArchitectureFamily, ok)
+				return ok
 			},
 		},
 		{
@@ -369,10 +440,17 @@ func Registry() []FieldSpec {
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.ModelArchitecture = s
+				logf(src.ModelID, "apply %s set=%s", ModelCardModelParametersModelArchitecture, summarizeValue(s))
 			},
 			Present: func(b *cdx.BOM) bool {
 				mp := bomModelParameters(b)
-				return mp != nil && strings.TrimSpace(mp.ModelArchitecture) != ""
+				ok := mp != nil && strings.TrimSpace(mp.ModelArchitecture) != ""
+				mid := ""
+				if c := bomComponent(b); c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ModelCardModelParametersModelArchitecture, ok)
+				return ok
 			},
 		},
 		{
@@ -400,17 +478,33 @@ func Registry() []FieldSpec {
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.Datasets = &choices
+				logf(src.ModelID, "apply %s set=%s", ModelCardModelParametersDatasets, summarizeValue(ds))
 			},
 			Present: func(b *cdx.BOM) bool {
 				mp := bomModelParameters(b)
 				if mp == nil || mp.Datasets == nil || len(*mp.Datasets) == 0 {
+					mid := ""
+					if c := bomComponent(b); c != nil {
+						mid = c.Name
+					}
+					logf(mid, "present %s ok=false", ModelCardModelParametersDatasets)
 					return false
 				}
 				for _, d := range *mp.Datasets {
 					if strings.TrimSpace(d.Ref) != "" {
+						mid := ""
+						if c := bomComponent(b); c != nil {
+							mid = c.Name
+						}
+						logf(mid, "present %s ok=true", ModelCardModelParametersDatasets)
 						return true
 					}
 				}
+				mid := ""
+				if c := bomComponent(b); c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=false", ModelCardModelParametersDatasets)
 				return false
 			},
 		},
@@ -432,11 +526,18 @@ func hfProp(key Key, weight float64, get func(r *fetcher.ModelAPIResponse) (any,
 			}
 			propName := strings.TrimPrefix(key.String(), "BOM.metadata.component.properties.")
 			setProperty(tgt.Component, propName, strings.TrimSpace(fmt.Sprint(v)))
+			logf(src.ModelID, "apply %s set=%s", key, summarizeValue(v))
 		},
 		Present: func(b *cdx.BOM) bool {
 			c := bomComponent(b)
 			propName := strings.TrimPrefix(key.String(), "BOM.metadata.component.properties.")
-			return c != nil && hasProperty(c, propName)
+			ok := c != nil && hasProperty(c, propName)
+			mid := ""
+			if c != nil {
+				mid = c.Name
+			}
+			logf(mid, "present %s ok=%t", key, ok)
+			return ok
 		},
 	}
 }
