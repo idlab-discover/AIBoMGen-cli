@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"aibomgen-cra/internal/logging"
 	"aibomgen-cra/internal/ui"
 )
 
@@ -37,10 +38,10 @@ type Discovery struct {
 // Supports both single segment IDs (e.g., bert-base-uncased) and org/model forms (e.g., facebook/opt-1.3b).
 var hfModelPattern = regexp.MustCompile(`from_pretrained\("([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?)"\)`)
 
-var logWriter io.Writer
+var logger = &logging.Logger{PrefixText: "Scan:", PrefixColor: ui.FgYellow}
 
 // SetLogger sets an optional destination for scan logs.
-func SetLogger(w io.Writer) { logWriter = w }
+func SetLogger(w io.Writer) { logger.SetWriter(w) }
 
 // Scan walks the target path and returns detected AI components.
 func Scan(root string) ([]Discovery, error) {
@@ -83,9 +84,9 @@ func Scan(root string) ([]Discovery, error) {
 							Path:     path,
 							Evidence: evidence,
 						})
-						if logWriter != nil {
+						if logger.Enabled() {
 							prefix := ui.Color("Scan:", ui.FgYellow)
-							fmt.Fprintf(logWriter, "%s found model '%s' at %s:%d\n", prefix, modelID, path, lineNum)
+							fmt.Fprintf(logger.Writer, "%s found model '%s' at %s:%d\n", prefix, modelID, path, lineNum)
 						}
 					}
 				}
@@ -97,7 +98,7 @@ func Scan(root string) ([]Discovery, error) {
 		return nil, err
 	}
 	deduped := dedupe(results)
-	if logWriter != nil {
+	if logger.Enabled() {
 		// Count models detected
 		modelCount := 0
 		for _, c := range deduped {
@@ -106,7 +107,7 @@ func Scan(root string) ([]Discovery, error) {
 			}
 		}
 		prefix := ui.Color("Scan:", ui.FgYellow)
-		fmt.Fprintf(logWriter, "%s detected %d components (models: %d)\n", prefix, len(deduped), modelCount)
+		fmt.Fprintf(logger.Writer, "%s detected %d components (models: %d)\n", prefix, len(deduped), modelCount)
 	}
 	return deduped, nil
 }

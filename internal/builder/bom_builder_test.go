@@ -2,6 +2,7 @@ package builder
 
 import (
 	"aibomgen-cra/internal/scanner"
+	"io"
 	"strings"
 	"testing"
 
@@ -94,6 +95,8 @@ func TestBuildMetadataComponent_SetsTypeAndNonNilModelCard(t *testing.T) {
 // Test Build function creates BOM with metadata component
 func TestBOMBuilder_Build_CreatesBOMWithMetadataComponent(t *testing.T) {
 	b := NewBOMBuilder(DefaultOptions())
+	SetLogger(io.Discard)
+	t.Cleanup(func() { SetLogger(nil) })
 
 	// Keep Scan.Name empty so registry won't override the name.
 	ctx := BuildContext{

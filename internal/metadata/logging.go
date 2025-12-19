@@ -5,25 +5,17 @@ import (
 	"io"
 	"strings"
 
+	"aibomgen-cra/internal/logging"
 	"aibomgen-cra/internal/ui"
 )
 
-var logWriter io.Writer
+var logger = &logging.Logger{PrefixText: "Meta:", PrefixColor: ui.FgRed}
 
 // SetLogger sets an optional destination for metadata logs.
-func SetLogger(w io.Writer) { logWriter = w }
+func SetLogger(w io.Writer) { logger.SetWriter(w) }
 
 func logf(modelID string, format string, args ...any) {
-	if logWriter == nil {
-		return
-	}
-	m := strings.TrimSpace(modelID)
-	if m == "" {
-		m = "(unknown)"
-	}
-	prefix := ui.Color("Meta:", ui.FgRed)
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(logWriter, "%s model=%s %s\n", prefix, m, msg)
+	logger.Logf(modelID, format, args...)
 }
 
 func summarizeValue(v any) string {
