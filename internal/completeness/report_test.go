@@ -17,7 +17,7 @@ func TestPrintReport_UsesConfiguredLoggerWriter(t *testing.T) {
 
 	PrintReport(Report{Score: 0.5, Passed: 1, Total: 2})
 	got := buf.String()
-	want := "Complete: score=50.0% (1/2)\n"
+	want := "Completeness Report: score=50.0% (1/2)\n"
 	if got != want {
 		t.Fatalf("output = %q, want %q", got, want)
 	}
@@ -47,9 +47,9 @@ func TestPrintReport_WithMissingKeys(t *testing.T) {
 	})
 
 	got := buf.String()
-	want := "Complete: score=0.0% (0/1)\n" +
-		"Complete: missing required: BOM.metadata.component.name\n" +
-		"Complete: missing optional: BOM.metadata.component.tags, BOM.metadata.component.licenses\n"
+	want := "Completeness Report: score=0.0% (0/1)\n" +
+		"Completeness Report: missing required: BOM.metadata.component.name\n" +
+		"Completeness Report: missing optional: BOM.metadata.component.tags, BOM.metadata.component.licenses\n"
 	if got != want {
 		t.Fatalf("output = %q, want %q", got, want)
 	}
