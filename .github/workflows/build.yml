@@ -35,7 +35,7 @@ jobs:
         run: go mod tidy
 
       - name: Run tests
-        run: go test ./... -coverprofile=coverage.out
+        run: go test ./... -cover
 
       - name: Build
         run: go build ./...
