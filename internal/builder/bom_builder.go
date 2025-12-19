@@ -9,22 +9,17 @@ import (
 )
 
 type BOMBuilder struct {
-	MetaComp MetadataComponentBuilder
-	Opts     Options
+	Opts Options
 }
 
 func NewBOMBuilder(opts Options) *BOMBuilder {
-	return &BOMBuilder{MetaComp: NewMetadataComponentBuilder(opts), Opts: opts}
+	return &BOMBuilder{Opts: opts}
 }
 
 func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 	logf(ctx.ModelID, "build start")
 
-	comp, err := b.MetaComp.Build(ctx)
-	if err != nil {
-		logf(ctx.ModelID, "metadata component build failed (%v)", err)
-		return nil, err
-	}
+	comp := buildMetadataComponent(ctx)
 
 	bom := cdx.NewBOM()
 	bom.Metadata = &cdx.Metadata{Component: comp}
@@ -54,6 +49,23 @@ func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 
 	logf(ctx.ModelID, "build ok")
 	return bom, nil
+}
+
+func buildMetadataComponent(ctx BuildContext) *cdx.Component {
+	// Minimal skeleton; registry fills the rest
+	name := strings.TrimSpace(ctx.ModelID)
+	if name == "" && strings.TrimSpace(ctx.Scan.Name) != "" {
+		name = strings.TrimSpace(ctx.Scan.Name)
+	}
+	if name == "" {
+		name = "model"
+	}
+
+	return &cdx.Component{
+		Type:      cdx.ComponentTypeMachineLearningModel,
+		Name:      name,
+		ModelCard: &cdx.MLModelCard{},
+	}
 }
 
 func pruneEmptyModelParameters(comp *cdx.Component) {

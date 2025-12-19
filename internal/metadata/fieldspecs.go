@@ -74,6 +74,10 @@ type FieldSpec struct {
 	Present func(b *cdx.BOM) bool
 }
 
+// This is the central registry of all known FieldSpecs.
+// Each spec defines how to apply itself and how to check presence.
+// The registry is used by the BOM builder and completeness checker.
+// It is the single source of truth for what fields we care about.
 func Registry() []FieldSpec {
 	return []FieldSpec{
 		{
