@@ -66,6 +66,19 @@ func TestLogger_Logf_DefaultPrefix(t *testing.T) {
 	}
 }
 
+func TestLogger_Logf_OmitField(t *testing.T) {
+	ui.Init(true)
+
+	var buf bytes.Buffer
+	l := Logger{Writer: &buf, PrefixText: "X:", OmitModel: true}
+	l.Logf("org/model", "x")
+
+	out := buf.String()
+	if out != "X: x\n" {
+		t.Fatalf("output = %q, want %q", out, "X: x\\n")
+	}
+}
+
 func TestLogger_Logf_NilReceiver_NoPanic(t *testing.T) {
 	ui.Init(true)
 

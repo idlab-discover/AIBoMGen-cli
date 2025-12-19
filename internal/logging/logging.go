@@ -21,6 +21,10 @@ type Logger struct {
 
 	PrefixText  string
 	PrefixColor string
+
+	// OmitModel controls whether the model ID field is written.
+	// When false (default), output includes: "model=<id>".
+	OmitModel bool
 }
 
 func (l *Logger) SetWriter(w io.Writer) { l.Writer = w }
@@ -31,10 +35,6 @@ func (l *Logger) Logf(modelID string, format string, args ...any) {
 	if l == nil || l.Writer == nil {
 		return
 	}
-	m := strings.TrimSpace(modelID)
-	if m == "" {
-		m = "(unknown)"
-	}
 	prefix := l.PrefixText
 	if prefix == "" {
 		prefix = "Log:"
@@ -43,5 +43,14 @@ func (l *Logger) Logf(modelID string, format string, args ...any) {
 		prefix = ui.Color(prefix, l.PrefixColor)
 	}
 	msg := fmt.Sprintf(format, args...)
+	if l.OmitModel {
+		fmt.Fprintf(l.Writer, "%s %s\n", prefix, msg)
+		return
+	}
+
+	m := strings.TrimSpace(modelID)
+	if m == "" {
+		m = "(unknown)"
+	}
 	fmt.Fprintf(l.Writer, "%s model=%s %s\n", prefix, m, msg)
 }
