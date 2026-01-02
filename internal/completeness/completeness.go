@@ -1,10 +1,6 @@
 package completeness
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
-
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
@@ -66,34 +62,4 @@ func Check(bom *cdx.BOM) Report {
 		MissingRequired: missingReq,
 		MissingOptional: missingOpt,
 	}
-}
-
-func ReadBOM(path string, format string) (*cdx.BOM, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	actual := strings.ToLower(strings.TrimSpace(format))
-	if actual == "" || actual == "auto" {
-		if strings.EqualFold(filepath.Ext(path), ".xml") {
-			actual = "xml"
-		} else {
-			actual = "json"
-		}
-	}
-
-	fileFmt := cdx.BOMFileFormatJSON
-	if actual == "xml" {
-		fileFmt = cdx.BOMFileFormatXML
-	}
-
-	bom := new(cdx.BOM)
-	dec := cdx.NewBOMDecoder(f, fileFmt)
-	if err := dec.Decode(bom); err != nil {
-		return nil, err
-	}
-
-	return bom, nil
 }

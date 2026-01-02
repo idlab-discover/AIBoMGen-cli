@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
+	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 )
 
@@ -37,7 +38,7 @@ var completenessCmd = &cobra.Command{
 			}
 		}
 
-		bom, err := completeness.ReadBOM(inPath, inFormat)
+		bom, err := bomio.ReadBOM(inPath, inFormat)
 		if err != nil {
 			return err
 		}

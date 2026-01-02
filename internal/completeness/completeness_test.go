@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
+	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 
@@ -170,7 +171,7 @@ func TestReadBOM_JSON_ExplicitFormat(t *testing.T) {
 	p := filepath.Join(dir, "bom.json")
 	writeBOMFile(t, p, cdx.BOMFileFormatJSON)
 
-	b, err := ReadBOM(p, "json")
+	b, err := bomio.ReadBOM(p, "json")
 	if err != nil {
 		t.Fatalf("ReadBOM err = %v", err)
 	}
@@ -183,7 +184,7 @@ func TestReadBOM_XML_ExplicitFormat(t *testing.T) {
 	p := filepath.Join(dir, "bom.xml")
 	writeBOMFile(t, p, cdx.BOMFileFormatXML)
 
-	b, err := ReadBOM(p, "xml")
+	b, err := bomio.ReadBOM(p, "xml")
 	if err != nil {
 		t.Fatalf("ReadBOM err = %v", err)
 	}
@@ -196,20 +197,20 @@ func TestReadBOM_AutoDetectsByExtension(t *testing.T) {
 
 	pJSON := filepath.Join(dir, "bom.json")
 	writeBOMFile(t, pJSON, cdx.BOMFileFormatJSON)
-	if _, err := ReadBOM(pJSON, "auto"); err != nil {
+	if _, err := bomio.ReadBOM(pJSON, "auto"); err != nil {
 		t.Fatalf("ReadBOM(json, auto) err = %v", err)
 	}
 
 	pXML := filepath.Join(dir, "bom.xml")
 	writeBOMFile(t, pXML, cdx.BOMFileFormatXML)
-	if _, err := ReadBOM(pXML, ""); err != nil { // empty behaves like auto
+	if _, err := bomio.ReadBOM(pXML, ""); err != nil { // empty behaves like auto
 		t.Fatalf("ReadBOM(xml, empty) err = %v", err)
 	}
 }
 
 // Test ReadBOM function error cases
 func TestReadBOM_InvalidPath_ReturnsError(t *testing.T) {
-	if _, err := ReadBOM("/definitely/does/not/exist/lol.json", "json"); err == nil {
+	if _, err := bomio.ReadBOM("/definitely/does/not/exist/lol.json", "json"); err == nil {
 		t.Fatalf("expected error for missing file")
 	}
 }
@@ -222,7 +223,7 @@ func TestReadBOM_InvalidContent_ReturnsDecodeError(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	if _, err := ReadBOM(p, "json"); err == nil {
+	if _, err := bomio.ReadBOM(p, "json"); err == nil {
 		t.Fatalf("expected decode error")
 	}
 }
@@ -232,7 +233,7 @@ func TestReadBOM_FormatMismatch_ReturnsDecodeError(t *testing.T) {
 	p := filepath.Join(dir, "bom.json")
 	writeBOMFile(t, p, cdx.BOMFileFormatJSON)
 
-	if _, err := ReadBOM(p, "xml"); err == nil {
+	if _, err := bomio.ReadBOM(p, "xml"); err == nil {
 		t.Fatalf("expected decode error when decoding json as xml")
 	}
 }

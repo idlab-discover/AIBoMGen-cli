@@ -2,8 +2,6 @@ package generator
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/builder"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
+	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
@@ -21,8 +20,6 @@ type DiscoveredBOM struct {
 	Discovery scanner.Discovery
 	BOM       *cdx.BOM
 }
-
-var logOut io.Writer
 
 // BuildPerDiscovery orchestrates: fetch HF API (optional) → build BOM per model via registry-driven builder.
 func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout time.Duration) ([]DiscoveredBOM, error) {
@@ -93,74 +90,11 @@ func WriteWithFormatAndSpec(outputPath string, bom *cdx.BOM, format string, spec
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return err
 	}
-
-	actual := format
-	if actual == "auto" || actual == "" {
-		ext := strings.ToLower(filepath.Ext(outputPath))
-		if ext == ".xml" {
-			actual = "xml"
-		} else {
-			actual = "json"
-		}
-	}
-
-	// Enforce extension/format consistency when extension present and format explicitly set
-	ext := strings.ToLower(filepath.Ext(outputPath))
-	if actual != "auto" && ext != "" {
-		switch actual {
-		case "xml":
-			if ext != ".xml" {
-				return fmt.Errorf("output path extension %q does not match format %q", ext, actual)
-			}
-		case "json":
-			if ext != ".json" {
-				return fmt.Errorf("output path extension %q does not match format %q", ext, actual)
-			}
-		}
-	}
-
-	fileFmt := cdx.BOMFileFormatJSON
-	if actual == "xml" {
-		fileFmt = cdx.BOMFileFormatXML
-	}
-
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	encoder := cdx.NewBOMEncoder(f, fileFmt)
-	encoder.SetPretty(true)
-
-	if spec == "" {
-		return encoder.Encode(bom)
-	}
-
-	sv, ok := ParseSpecVersion(spec)
-	if !ok {
-		return fmt.Errorf("unsupported CycloneDX spec version: %q", spec)
-	}
-	return encoder.EncodeVersion(bom, sv)
+	return bomio.WriteBOM(bom, outputPath, format, spec)
 }
 
+// ParseSpecVersion parses a spec version string.
+// Deprecated: Use bomio.ParseSpecVersion instead.
 func ParseSpecVersion(s string) (cdx.SpecVersion, bool) {
-	switch s {
-	case "1.0":
-		return cdx.SpecVersion1_0, true
-	case "1.1":
-		return cdx.SpecVersion1_1, true
-	case "1.2":
-		return cdx.SpecVersion1_2, true
-	case "1.3":
-		return cdx.SpecVersion1_3, true
-	case "1.4":
-		return cdx.SpecVersion1_4, true
-	case "1.5":
-		return cdx.SpecVersion1_5, true
-	case "1.6":
-		return cdx.SpecVersion1_6, true
-	default:
-		return 0, false
-	}
+	return bomio.ParseSpecVersion(s)
 }
