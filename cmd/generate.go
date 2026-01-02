@@ -9,12 +9,12 @@ import (
 	cdx "github.com/CycloneDX/cyclonedx-go"
 	"github.com/spf13/cobra"
 
-	"aibomgen-cra/internal/builder"
-	"aibomgen-cra/internal/enricher"
-	"aibomgen-cra/internal/fetcher"
-	"aibomgen-cra/internal/generator"
-	"aibomgen-cra/internal/metadata"
-	"aibomgen-cra/internal/scanner"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/builder"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/enricher"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/generator"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 )
 
 var (

@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"aibomgen-cra/internal/completeness"
-	"aibomgen-cra/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 )
 
 var completenessCmd = &cobra.Command{

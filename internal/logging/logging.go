@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"aibomgen-cra/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 // Logger is a tiny opt-in logger used across internal packages.

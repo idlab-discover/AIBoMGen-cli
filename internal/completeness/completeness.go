@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aibomgen-cra/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )

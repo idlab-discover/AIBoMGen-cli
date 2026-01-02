@@ -1,6 +1,6 @@
 package main
 
-import "aibomgen-cra/cmd"
+import "github.com/idlab-discover/AIBoMGen-cli/cmd"
 
 func main() {
 	cmd.Execute()

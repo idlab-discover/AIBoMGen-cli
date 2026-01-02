@@ -1,6 +1,7 @@
 # Ignore Go build binary
 aibomgen-cra
-
+aibomgen-cli
+AIBoMGen-cli
 
 # Binaries for programs and plugins
 *.exe

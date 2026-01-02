@@ -1,4 +1,4 @@
-module aibomgen-cra
+module github.com/idlab-discover/AIBoMGen-cli
 
 go 1.25.4
 

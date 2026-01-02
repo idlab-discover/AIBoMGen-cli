@@ -3,7 +3,7 @@ package completeness
 import (
 	"strings"
 
-	"aibomgen-cra/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 )
 
 // PrintReport writes the report to the configured logger writer.

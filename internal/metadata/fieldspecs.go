@@ -1,10 +1,11 @@
 package metadata
 
 import (
-	"aibomgen-cra/internal/fetcher"
-	"aibomgen-cra/internal/scanner"
 	"fmt"
 	"strings"
+
+	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"aibomgen-cra/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 func TestLogger_EnabledAndSetWriter(t *testing.T) {

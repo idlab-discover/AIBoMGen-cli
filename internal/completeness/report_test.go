@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"aibomgen-cra/internal/metadata"
-	"aibomgen-cra/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 func TestPrintReport_UsesConfiguredLoggerWriter(t *testing.T) {

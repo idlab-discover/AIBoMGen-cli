@@ -1,10 +1,11 @@
 package builder
 
 import (
-	"aibomgen-cra/internal/scanner"
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )

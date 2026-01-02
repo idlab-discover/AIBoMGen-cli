@@ -1,12 +1,13 @@
 package completeness
 
 import (
-	"aibomgen-cra/internal/fetcher"
-	"aibomgen-cra/internal/metadata"
-	"aibomgen-cra/internal/scanner"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )

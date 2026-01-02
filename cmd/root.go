@@ -8,12 +8,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"aibomgen-cra/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 // rootCmd represents the base command
 var rootCmd = &cobra.Command{
-	Use:   "aibomgen-cra",
+	Use:   "aibomgen-cli",
 	Short: "BOM Generator for Software Projects using AI {}",
 	Long:  bannerASCII + "\n" + "BOM Generator for Software Projects using AI. Helps PDE manufacturers create accurate Bills of Materials for their AI-based software projects.",
 
@@ -37,7 +37,7 @@ func init() {
 
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.aibomgen-cra.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.aibomgen-cli.yaml)")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
 
 	// Add subcommands

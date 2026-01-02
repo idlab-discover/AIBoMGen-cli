@@ -3,8 +3,8 @@ package builder
 import (
 	"io"
 
-	"aibomgen-cra/internal/logging"
-	"aibomgen-cra/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/logging"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 var logger = &logging.Logger{PrefixText: "Build:", PrefixColor: ui.FgGreen}

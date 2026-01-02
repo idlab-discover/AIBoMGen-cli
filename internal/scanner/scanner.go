@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"aibomgen-cra/internal/logging"
-	"aibomgen-cra/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/logging"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 // represents an AI-related artifact detected in a project.

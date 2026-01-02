@@ -1,5 +1,5 @@
 
-# AIBoMGen CRA (WIP)
+# AIBoMGen CLI (WIP)
 
 Work-in-progress Go CLI to auto-detect AI artifacts (Hugging Face model IDs in Python and common weight files) and emit CycloneDX AIBOM. Designed for consumer/embedded pipelines with near-zero config. Can be merged with already generated SBOMs (for example with Syft).
 
@@ -13,8 +13,8 @@ Work-in-progress Go CLI to auto-detect AI artifacts (Hugging Face model IDs in P
 
 ## Usage
 ```bash
-go build -o aibomgen-cra .
-./aibomgen-cra generate --path testdata/repo-basic
+go build ./cmd/aibomgen-cli
+./aibomgen-cli generate --path testdata/repo-basic
 ```
 
 See `docs/design.md` for roadmap details.
