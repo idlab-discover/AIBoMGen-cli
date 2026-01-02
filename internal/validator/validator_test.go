@@ -35,6 +35,7 @@ func TestValidate_MissingMetadata(t *testing.T) {
 
 func TestValidate_ValidBOM(t *testing.T) {
 	bom := &cdx.BOM{
+		SpecVersion: cdx.SpecVersion1_6,
 		Metadata: &cdx.Metadata{
 			Component: &cdx.Component{
 				Name: "test-model",
@@ -55,6 +56,7 @@ func TestValidate_ValidBOM(t *testing.T) {
 
 func TestValidate_StrictMode(t *testing.T) {
 	bom := &cdx.BOM{
+		SpecVersion: cdx.SpecVersion1_6,
 		Metadata: &cdx.Metadata{
 			Component: &cdx.Component{
 				Name: "test-model",
@@ -76,6 +78,7 @@ func TestValidate_StrictMode(t *testing.T) {
 
 func TestValidateModelCard_Missing(t *testing.T) {
 	bom := &cdx.BOM{
+		SpecVersion: cdx.SpecVersion1_6,
 		Metadata: &cdx.Metadata{
 			Component: &cdx.Component{
 				Name: "test-model",
@@ -91,5 +94,95 @@ func TestValidateModelCard_Missing(t *testing.T) {
 	// Should have warnings about missing model card
 	if len(result.Warnings) == 0 {
 		t.Error("expected warnings about missing model card")
+	}
+}
+
+func TestValidateSpecVersion_Missing(t *testing.T) {
+	bom := &cdx.BOM{
+		Metadata: &cdx.Metadata{
+			Component: &cdx.Component{
+				Name: "test-model",
+			},
+		},
+	}
+	opts := ValidationOptions{}
+	result := Validate(bom, opts)
+
+	if result.Valid {
+		t.Error("expected validation to fail for BOM without spec version")
+	}
+
+	foundError := false
+	for _, err := range result.Errors {
+		if err == "BOM missing spec version" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected error about missing spec version")
+	}
+}
+
+func TestValidateSpecVersion_Invalid(t *testing.T) {
+	bom := &cdx.BOM{
+		SpecVersion: 999,
+		Metadata: &cdx.Metadata{
+			Component: &cdx.Component{
+				Name: "test-model",
+			},
+		},
+	}
+	opts := ValidationOptions{}
+	result := Validate(bom, opts)
+
+	if result.Valid {
+		t.Error("expected validation to fail for invalid spec version")
+	}
+}
+
+func TestValidateSpecVersion_Valid(t *testing.T) {
+	bom := &cdx.BOM{
+		SpecVersion: cdx.SpecVersion1_6,
+		Metadata: &cdx.Metadata{
+			Component: &cdx.Component{
+				Name: "test-model",
+			},
+		},
+	}
+	opts := ValidationOptions{
+		CheckModelCard: false,
+	}
+	result := Validate(bom, opts)
+
+	if !result.Valid {
+		t.Errorf("expected validation to pass for valid spec version, got errors: %v", result.Errors)
+	}
+}
+
+func TestValidateSpecVersion_OldVersionWarning(t *testing.T) {
+	bom := &cdx.BOM{
+		SpecVersion: cdx.SpecVersion1_3,
+		Metadata: &cdx.Metadata{
+			Component: &cdx.Component{
+				Name: "test-model",
+			},
+		},
+	}
+	opts := ValidationOptions{
+		CheckModelCard: false,
+	}
+	result := Validate(bom, opts)
+
+	// Should have warning about old spec version
+	foundWarning := false
+	for _, warn := range result.Warnings {
+		if len(warn) > 0 && (warn[0:4] == "spec" || warn[0:4] == "Spec") {
+			foundWarning = true
+			break
+		}
+	}
+	if !foundWarning {
+		t.Error("expected warning about old spec version")
 	}
 }

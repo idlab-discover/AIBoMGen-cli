@@ -46,13 +46,16 @@ func Validate(bom *cdx.BOM, opts ValidationOptions) ValidationResult {
 		result.Errors = append(result.Errors, "BOM missing metadata.component")
 	}
 
-	// 3. Run completeness check (leverages existing package)
+	// 3. Validate spec version
+	validateSpecVersion(bom, &result)
+
+	// 4. Run completeness check (leverages existing package)
 	report := completeness.Check(bom)
 	result.CompletenessScore = report.Score
 	result.MissingRequired = report.MissingRequired
 	result.MissingOptional = report.MissingOptional
 
-	// 4. Strict mode enforcement
+	// 5. Strict mode enforcement
 	if opts.StrictMode {
 		if len(report.MissingRequired) > 0 {
 			result.Valid = false
@@ -69,18 +72,46 @@ func Validate(bom *cdx.BOM, opts ValidationOptions) ValidationResult {
 		}
 	}
 
-	// 5. Add warnings for optional fields
+	// 6. Add warnings for optional fields
 	for _, key := range report.MissingOptional {
 		msg := fmt.Sprintf("optional field missing: %s", key)
 		result.Warnings = append(result.Warnings, msg)
 	}
 
-	// 6. Model card validation
+	// 7. Model card validation
 	if opts.CheckModelCard {
 		validateModelCard(bom, &result)
 	}
 
 	return result
+}
+
+func validateSpecVersion(bom *cdx.BOM, result *ValidationResult) {
+	if bom.SpecVersion == 0 {
+		result.Valid = false
+		result.Errors = append(result.Errors, "BOM missing spec version")
+		return
+	}
+
+	// Check if spec version is valid
+	switch bom.SpecVersion {
+	case cdx.SpecVersion1_0, cdx.SpecVersion1_1, cdx.SpecVersion1_2,
+		cdx.SpecVersion1_3, cdx.SpecVersion1_4, cdx.SpecVersion1_5,
+		cdx.SpecVersion1_6:
+		// Valid spec version
+	default:
+		result.Valid = false
+		result.Errors = append(result.Errors,
+			fmt.Sprintf("invalid or unsupported spec version: %d", bom.SpecVersion))
+		return
+	}
+
+	// Warn about older spec versions (< 1.5 doesn't have full ML-BOM support)
+	if bom.SpecVersion < cdx.SpecVersion1_5 {
+		result.Warnings = append(result.Warnings,
+			fmt.Sprintf("spec version 1.%d predates ML-BOM support (consider upgrading to 1.5+)",
+				bom.SpecVersion-1))
+	}
 }
 
 func validateModelCard(bom *cdx.BOM, result *ValidationResult) {
