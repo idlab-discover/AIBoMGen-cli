@@ -1,10 +1,10 @@
-name: AIBomGen CRA Go CI
+name: AIBomGen-cli Go Build
 
 on:
   push:
-    branches: [ aibomgen-cra/go ]
+    branches: [ main ]
   pull_request:
-    branches: [ aibomgen-cra/go ]
+    branches: [ main ]
 
 jobs:
   build:
