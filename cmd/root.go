@@ -13,12 +13,19 @@ import (
 
 // rootCmd represents the base command
 var rootCmd = &cobra.Command{
-	Use:   "aibomgen-cli",
+	Use:   "AIBoMGen-cli",
 	Short: "BOM Generator for Software Projects using AI {}",
-	Long:  bannerASCII + "\n" + "BOM Generator for Software Projects using AI. Helps PDE manufacturers create accurate Bills of Materials for their AI-based software projects.",
+	Long:  longDescription,
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		ui.Init(noColor)
+		initUIAndBanner(cmd)
+	},
+
+	// When invoked without a subcommand, show help (with banner) instead of
+	// printing a plain usage output.
+	RunE: func(cmd *cobra.Command, args []string) error {
+		initUIAndBanner(cmd)
+		return cmd.Help()
 	},
 }
 
@@ -39,6 +46,13 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.aibomgen-cli.yaml)")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
+
+	// Ensure `--help` (and help subcommands) show a green banner consistently.
+	defaultHelp := rootCmd.HelpFunc()
+	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		initUIAndBanner(cmd)
+		defaultHelp(cmd, args)
+	})
 
 	// Add subcommands
 	rootCmd.AddCommand(generateCmd, enrichCmd, validateCmd)
@@ -77,7 +91,21 @@ func initConfig() {
 
 // Simple ASCII banner shown at startup
 const bannerASCII = `
-░█▀█░▀█▀░█▀▄░█▀█░█▄█░█▀▀░█▀▀░█▀█░░░█▀▀░█▀▄░█▀█
-░█▀█░░█░░█▀▄░█░█░█░█░█░█░█▀▀░█░█░░░█░░░█▀▄░█▀█
-░▀░▀░▀▀▀░▀▀░░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀░▀░░░▀▀▀░▀░▀░▀░▀
+  /$$$$$$  /$$$$$$ /$$$$$$$            /$$      /$$  /$$$$$$                                        /$$ /$$
+ /$$__  $$|_  $$_/| $$__  $$          | $$$    /$$$ /$$__  $$                                      | $$|__/
+| $$  \ $$  | $$  | $$  \ $$  /$$$$$$ | $$$$  /$$$$| $$  \__/  /$$$$$$  /$$$$$$$           /$$$$$$$| $$ /$$
+| $$$$$$$$  | $$  | $$$$$$$  /$$__  $$| $$ $$/$$ $$| $$ /$$$$ /$$__  $$| $$__  $$ /$$$$$$ /$$_____/| $$| $$
+| $$__  $$  | $$  | $$__  $$| $$  \ $$| $$  $$$| $$| $$|_  $$| $$$$$$$$| $$  \ $$|______/| $$      | $$| $$
+| $$  | $$  | $$  | $$  \ $$| $$  | $$| $$\  $ | $$| $$  \ $$| $$_____/| $$  | $$        | $$      | $$| $$
+| $$  | $$ /$$$$$$| $$$$$$$/|  $$$$$$/| $$ \/  | $$|  $$$$$$/|  $$$$$$$| $$  | $$        |  $$$$$$$| $$| $$
+|__/  |__/|______/|_______/  \______/ |__/     |__/ \______/  \_______/|__/  |__/         \_______/|__/|__/
 `
+const longDescription = "BOM Generator for Software Projects using AI. Helps PDE manufacturers create accurate Bills of Materials for their AI-based software projects."
+
+func initUIAndBanner(cmd *cobra.Command) {
+	ui.Init(noColor)
+	if cmd == nil {
+		return
+	}
+	cmd.Root().Long = ui.Color(bannerASCII, ui.FgGreen) + "\n" + longDescription
+}
