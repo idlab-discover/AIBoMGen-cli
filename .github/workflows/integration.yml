@@ -9,6 +9,12 @@ on:
 jobs:
   integration:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [ repo-10, repo-basic ]
+        format: [ json, xml ]
+        hf-mode: [ dummy, online ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,44 +29,80 @@ jobs:
             **/go.sum
             **/go.work.sum
 
+      - name: Cache dist directory
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: ${{ runner.os }}-dist-${{ matrix.fixture }}-${{ matrix.format }}-${{ matrix.hf-mode }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dist-${{ matrix.fixture }}-${{ matrix.format }}-${{ matrix.hf-mode }}-
+
       - name: Download dependencies
         run: go mod download
 
-      - name: Run generator against repo-10
-        run: |
-          rm -rf dist
-          go run . generate \
-            --input ./testdata/repo-10 \
-            --output dist/integration/aibom.json \
-            --log-level debug
-
-      - name: Verify generated AIBOM files
+      - name: Run generator
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+          OUTPUT_FORMAT: ${{ matrix.format }}
+          HF_MODE: ${{ matrix.hf-mode }}
         run: |
           set -euo pipefail
-          if [ ! -d dist/integration ]; then
-            echo "dist/integration directory not found"
+          TARGET_DIR="dist/integration/${FIXTURE}/${OUTPUT_FORMAT}/${HF_MODE}"
+          rm -rf "${TARGET_DIR}"
+          mkdir -p "${TARGET_DIR}"
+          FORMAT_FLAG="--format ${OUTPUT_FORMAT}"
+          go run . generate \
+            --input "./testdata/${FIXTURE}" \
+            --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
+            ${FORMAT_FLAG} \
+            --hf-mode "${HF_MODE}" \
+            --log-level quiet
+
+      - name: Validate generated AIBOM files
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+          OUTPUT_FORMAT: ${{ matrix.format }}
+          HF_MODE: ${{ matrix.hf-mode }}
+        run: |
+          set -euo pipefail
+          TARGET_DIR="dist/integration/${FIXTURE}/${OUTPUT_FORMAT}/${HF_MODE}"
+          REPORT_DIR="reports/${FIXTURE}/${OUTPUT_FORMAT}/${HF_MODE}"
+          if [ ! -d "${TARGET_DIR}" ]; then
+            echo "${TARGET_DIR} missing"
             exit 1
           fi
-          mapfile -t bom_files < <(find dist/integration -maxdepth 1 -type f -name '*_aibom.json' -print)
+          mapfile -t bom_files < <(find "${TARGET_DIR}" -maxdepth 1 -type f -name '*_aibom.*')
           if [ "${#bom_files[@]}" -eq 0 ]; then
-            echo "No AIBOM files generated"
+            echo "No AIBOM files generated under ${TARGET_DIR}"
             exit 1
           fi
+          rm -rf "${REPORT_DIR}"
+          mkdir -p "${REPORT_DIR}"
           for file in "${bom_files[@]}"; do
             if [ ! -s "$file" ]; then
               echo "Generated file $file is empty"
               exit 1
             fi
+            base="$(basename "$file" | sed 's/\.[^.]*$//')"
+            LOG="${REPORT_DIR}/${base}.log"
             go run . validate \
               --input "$file" \
-              --log-level debug \
+              --format auto \
+              --log-level quiet \
               --strict \
-              --min-score 0.5
+              --min-score 0.5 2>&1 | tee "$LOG"
           done
 
       - name: Upload AIBOM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aibom-integration
-          path: dist/integration/*.json
+          name: aibom-${{ matrix.fixture }}-${{ matrix.format }}-${{ matrix.hf-mode }}
+          path: dist/integration/${{ matrix.fixture }}/${{ matrix.format }}/${{ matrix.hf-mode }}
+          if-no-files-found: error
+
+      - name: Upload validator reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: validator-${{ matrix.fixture }}-${{ matrix.format }}-${{ matrix.hf-mode }}
+          path: reports/${{ matrix.fixture }}/${{ matrix.format }}/${{ matrix.hf-mode }}
           if-no-files-found: error
