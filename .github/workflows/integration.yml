@@ -56,7 +56,7 @@ jobs:
             --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
             ${FORMAT_FLAG} \
             --hf-mode "${HF_MODE}" \
-            --log-level quiet
+            --log-level debug
 
       - name: Validate generated AIBOM files
         env:
@@ -88,7 +88,7 @@ jobs:
             go run . validate \
               --input "$file" \
               --format auto \
-              --log-level quiet \
+              --log-level debug \
               --strict \
               --min-score 0.5 2>&1 | tee "$LOG"
           done
