@@ -51,20 +51,16 @@ jobs:
               echo "Generated file $file is empty"
               exit 1
             fi
-            python - "$file" <<'PY'
-            import json, pathlib, sys
-            path = pathlib.Path(sys.argv[1])
-            try:
-                with path.open() as fh:
-                    json.load(fh)
-            except json.JSONDecodeError as exc:
-                raise SystemExit(f"Invalid JSON in {path}: {exc}")
-            PY
-                      done
-            
-                  - name: Upload AIBOM artifacts
-                    uses: actions/upload-artifact@v4
-                    with:
-                      name: aibom-integration
-                      path: dist/integration/*.json
-                      if-no-files-found: error
+            go run . validate \
+              --input "$file" \
+              --log-level debug \
+              --strict \
+              --min-score 0.5
+          done
+
+      - name: Upload AIBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aibom-integration
+          path: dist/integration/*.json
+          if-no-files-found: error
