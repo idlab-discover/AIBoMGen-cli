@@ -55,6 +55,22 @@ func TestReadBOM_OpenError(t *testing.T) {
 	}
 }
 
+func TestReadBOM_Auto_SelectsJSONByExtension(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "bom.json")
+	if err := os.WriteFile(p, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	got, err := ReadBOM(p, "auto")
+	if err != nil {
+		t.Fatalf("ReadBOM(auto): %v", err)
+	}
+	if got == nil {
+		t.Fatalf("expected BOM")
+	}
+}
+
 func TestReadBOM_DecodeError_WhenFormatDoesNotMatchContent(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "bom.json")
@@ -178,5 +194,66 @@ func TestWriteBOM_UnsupportedFormat(t *testing.T) {
 	_, err := ReadBOM(p, "yaml")
 	if err == nil {
 		t.Fatalf("expected error for unsupported format")
+	}
+}
+
+func TestWriteBOM_OpenError_WhenOutputIsDirectory(t *testing.T) {
+	dir := t.TempDir()
+
+	// Make a *directory* that still has a valid ".json" extension so we get past
+	// extension validation and hit the os.Create(...) error path.
+	outDir := filepath.Join(dir, "bom.json")
+	if err := os.Mkdir(outDir, 0o700); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+
+	if err := WriteBOM(minimalBOM(), outDir, "json", ""); err == nil {
+		t.Fatalf("expected error when output path is a directory")
+	}
+}
+
+func TestWriteBOM_UnsupportedFormat_Errors(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "bom.json")
+
+	if err := WriteBOM(minimalBOM(), out, "yaml", ""); err == nil {
+		t.Fatalf("expected error for unsupported write format")
+	}
+}
+
+func TestWriteBOM_ExtensionMismatch_XMLFormatButJSONPath(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "bom.json")
+
+	if err := WriteBOM(minimalBOM(), out, "xml", ""); err == nil {
+		t.Fatalf("expected error for extension/format mismatch")
+	}
+}
+
+func TestWriteBOM_ExtensionMismatch_JSONFormatButXMLPath(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "bom.xml")
+
+	if err := WriteBOM(minimalBOM(), out, "json", ""); err == nil {
+		t.Fatalf("expected error for extension/format mismatch")
+	}
+}
+
+func TestWriteBOM_SpecProvidedButInvalid_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "bom.json")
+
+	if err := WriteBOM(minimalBOM(), out, "json", "9.9"); err == nil {
+		t.Fatalf("expected error for unsupported CycloneDX spec version")
+	}
+}
+
+func TestWriteBOM_Auto_UppercaseXMLExtension_HitsEqualFoldThenValidationMismatch(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "bom.XML") // ext is ".XML"
+
+	// auto picks "xml" due to EqualFold(ext, ".xml"), then validation compares ext != ".xml" and errors.
+	if err := WriteBOM(minimalBOM(), out, "auto", ""); err == nil {
+		t.Fatalf("expected error for uppercase .XML extension validation mismatch")
 	}
 }

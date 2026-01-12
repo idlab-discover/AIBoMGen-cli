@@ -48,8 +48,9 @@ func (v *BoolOrString) UnmarshalJSON(b []byte) error {
 
 // ModelAPIFetcher fetches model metadata from the Hugging Face Hub API.
 type ModelAPIFetcher struct {
-	Client *http.Client
-	Token  string
+	Client  *http.Client
+	Token   string
+	BaseURL string // optional; defaults to "https://huggingface.co"
 }
 
 // ModelAPIResponse is the decoded response from GET https://huggingface.co/api/models/:id
@@ -83,9 +84,15 @@ func (f *ModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*ModelAPIR
 		client = http.DefaultClient
 	}
 
-	logf(modelID, "GET /api/models/%s", strings.TrimPrefix(strings.TrimSpace(modelID), "/"))
+	trimmedModelID := strings.TrimPrefix(strings.TrimSpace(modelID), "/")
+	logf(modelID, "GET /api/models/%s", trimmedModelID)
 
-	url := fmt.Sprintf("https://huggingface.co/api/models/%s", modelID)
+	baseURL := strings.TrimRight(strings.TrimSpace(f.BaseURL), "/")
+	if baseURL == "" {
+		baseURL = "https://huggingface.co"
+	}
+
+	url := fmt.Sprintf("%s/api/models/%s", baseURL, trimmedModelID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
