@@ -1,0 +1,70 @@
+name: AIBomGen-cli Integration Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go 1.25.x
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          check-latest: true
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+            **/go.work.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run generator against repo-10
+        run: |
+          rm -rf dist
+          go run . generate \
+            --input ./testdata/repo-10 \
+            --output dist/integration/aibom.json \
+            --log-level debug
+
+      - name: Verify generated AIBOM files
+        run: |
+          set -euo pipefail
+          if [ ! -d dist/integration ]; then
+            echo "dist/integration directory not found"
+            exit 1
+          fi
+          mapfile -t bom_files < <(find dist/integration -maxdepth 1 -type f -name '*_aibom.json' -print)
+          if [ "${#bom_files[@]}" -eq 0 ]; then
+            echo "No AIBOM files generated"
+            exit 1
+          fi
+          for file in "${bom_files[@]}"; do
+            if [ ! -s "$file" ]; then
+              echo "Generated file $file is empty"
+              exit 1
+            fi
+            python - "$file" <<'PY'
+            import json, pathlib, sys
+            path = pathlib.Path(sys.argv[1])
+            try:
+                with path.open() as fh:
+                    json.load(fh)
+            except json.JSONDecodeError as exc:
+                raise SystemExit(f"Invalid JSON in {path}: {exc}")
+            PY
+                      done
+            
+                  - name: Upload AIBOM artifacts
+                    uses: actions/upload-artifact@v4
+                    with:
+                      name: aibom-integration
+                      path: dist/integration/*.json
+                      if-no-files-found: error
