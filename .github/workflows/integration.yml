@@ -78,6 +78,8 @@ jobs:
           fi
           rm -rf "${REPORT_DIR}"
           mkdir -p "${REPORT_DIR}"
+          SUMMARY_FILE="${REPORT_DIR}/scores.txt"
+          : > "${SUMMARY_FILE}"
           for file in "${bom_files[@]}"; do
             if [ ! -s "$file" ]; then
               echo "Generated file $file is empty"
@@ -91,7 +93,21 @@ jobs:
               --log-level debug \
               --strict \
               --min-score 0.5 2>&1 | tee "$LOG"
+            score_line=$(grep -E 'completeness score:' "$LOG" | tail -1 || true)
+            if [ -z "$score_line" ]; then
+              score_line="completeness score: unavailable"
+            fi
+            summary_entry="$base: $score_line"
+            echo "$summary_entry" | tee -a "$SUMMARY_FILE"
           done
+
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "### ${FIXTURE} | ${OUTPUT_FORMAT} | ${HF_MODE}"
+              cat "$SUMMARY_FILE"
+              echo
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
 
       - name: Upload AIBOM artifacts
         uses: actions/upload-artifact@v4
