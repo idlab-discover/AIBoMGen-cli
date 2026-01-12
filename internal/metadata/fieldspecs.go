@@ -469,13 +469,7 @@ func Registry() []FieldSpec {
 				choices := make([]cdx.MLDatasetChoice, 0, len(ds))
 				for _, ref := range ds {
 					ref = strings.TrimSpace(ref)
-					if ref == "" {
-						continue
-					}
 					choices = append(choices, cdx.MLDatasetChoice{Ref: ref})
-				}
-				if len(choices) == 0 {
-					return
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.Datasets = &choices
