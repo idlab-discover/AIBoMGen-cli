@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/idlab-discover/AIBoMGen-cli/internal/enricher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/generator"
+	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 )
@@ -174,6 +176,9 @@ var generateCmd = &cobra.Command{
 			outputDir = "."
 		}
 		outputDir = filepath.Clean(outputDir)
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
+			return err
+		}
 
 		fileExt := ".json"
 		if fmtChosen == "xml" {
@@ -198,7 +203,7 @@ var generateCmd = &cobra.Command{
 			fileName := fmt.Sprintf("%s_aibom%s", sanitized, fileExt)
 			dest := filepath.Join(outputDir, fileName)
 
-			if err := generator.WriteWithFormatAndSpec(dest, d.BOM, fmtChosen, generateSpecVersion); err != nil {
+			if err := bomio.WriteBOM(d.BOM, dest, fmtChosen, generateSpecVersion); err != nil {
 				return err
 			}
 			written = append(written, dest)
