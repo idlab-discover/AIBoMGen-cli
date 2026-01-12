@@ -1,12 +1,9 @@
 package completeness
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
-	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 
@@ -88,31 +85,6 @@ func buildFullyPopulatedBOMForRegistry(t *testing.T) *cdx.BOM {
 	return bom
 }
 
-func writeBOMFile(t *testing.T, path string, format cdx.BOMFileFormat) {
-	t.Helper()
-
-	bom := cdx.NewBOM()
-	bom.Metadata = &cdx.Metadata{
-		Component: &cdx.Component{
-			Type: cdx.ComponentTypeMachineLearningModel,
-			Name: "org/model",
-		},
-	}
-
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatalf("create file: %v", err)
-	}
-	t.Cleanup(func() { _ = f.Close() })
-
-	enc := cdx.NewBOMEncoder(f, format)
-	enc.SetPretty(true)
-
-	if err := enc.Encode(bom); err != nil {
-		t.Fatalf("encode bom: %v", err)
-	}
-}
-
 // Test Check function on empty BOM
 func TestCheck_EmptyBOM_MissingRequiredMatchesRegistry(t *testing.T) {
 	r := Check(&cdx.BOM{})
@@ -162,78 +134,5 @@ func TestCheck_FullyPopulatedBOM_ScoreIsOne(t *testing.T) {
 	// Float-safe compare
 	if r.Score < 0.999999 {
 		t.Fatalf("Score = %v, want ~1.0", r.Score)
-	}
-}
-
-// Test ReadBOM function with various formats and error cases
-func TestReadBOM_JSON_ExplicitFormat(t *testing.T) {
-	dir := t.TempDir()
-	p := filepath.Join(dir, "bom.json")
-	writeBOMFile(t, p, cdx.BOMFileFormatJSON)
-
-	b, err := bomio.ReadBOM(p, "json")
-	if err != nil {
-		t.Fatalf("ReadBOM err = %v", err)
-	}
-	if b == nil || b.Metadata == nil || b.Metadata.Component == nil {
-		t.Fatalf("decoded bom missing metadata/component")
-	}
-}
-func TestReadBOM_XML_ExplicitFormat(t *testing.T) {
-	dir := t.TempDir()
-	p := filepath.Join(dir, "bom.xml")
-	writeBOMFile(t, p, cdx.BOMFileFormatXML)
-
-	b, err := bomio.ReadBOM(p, "xml")
-	if err != nil {
-		t.Fatalf("ReadBOM err = %v", err)
-	}
-	if b == nil || b.Metadata == nil || b.Metadata.Component == nil {
-		t.Fatalf("decoded bom missing metadata/component")
-	}
-}
-func TestReadBOM_AutoDetectsByExtension(t *testing.T) {
-	dir := t.TempDir()
-
-	pJSON := filepath.Join(dir, "bom.json")
-	writeBOMFile(t, pJSON, cdx.BOMFileFormatJSON)
-	if _, err := bomio.ReadBOM(pJSON, "auto"); err != nil {
-		t.Fatalf("ReadBOM(json, auto) err = %v", err)
-	}
-
-	pXML := filepath.Join(dir, "bom.xml")
-	writeBOMFile(t, pXML, cdx.BOMFileFormatXML)
-	if _, err := bomio.ReadBOM(pXML, ""); err != nil { // empty behaves like auto
-		t.Fatalf("ReadBOM(xml, empty) err = %v", err)
-	}
-}
-
-// Test ReadBOM function error cases
-func TestReadBOM_InvalidPath_ReturnsError(t *testing.T) {
-	if _, err := bomio.ReadBOM("/definitely/does/not/exist/lol.json", "json"); err == nil {
-		t.Fatalf("expected error for missing file")
-	}
-}
-
-// Test ReadBOM function error cases
-func TestReadBOM_InvalidContent_ReturnsDecodeError(t *testing.T) {
-	dir := t.TempDir()
-	p := filepath.Join(dir, "bad.json")
-	if err := os.WriteFile(p, []byte("{not valid json"), 0o644); err != nil {
-		t.Fatalf("write file: %v", err)
-	}
-
-	if _, err := bomio.ReadBOM(p, "json"); err == nil {
-		t.Fatalf("expected decode error")
-	}
-}
-
-func TestReadBOM_FormatMismatch_ReturnsDecodeError(t *testing.T) {
-	dir := t.TempDir()
-	p := filepath.Join(dir, "bom.json")
-	writeBOMFile(t, p, cdx.BOMFileFormatJSON)
-
-	if _, err := bomio.ReadBOM(p, "xml"); err == nil {
-		t.Fatalf("expected decode error when decoding json as xml")
 	}
 }
