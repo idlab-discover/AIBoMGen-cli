@@ -20,12 +20,21 @@ func ReadBOM(path string, format string) (*cdx.BOM, error) {
 	defer f.Close()
 
 	actual := strings.ToLower(strings.TrimSpace(format))
-	if actual == "" || actual == "auto" {
-		if strings.EqualFold(filepath.Ext(path), ".xml") {
+	switch actual {
+	case "", "auto":
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".xml":
 			actual = "xml"
-		} else {
+		case ".json":
+			actual = "json"
+		default:
+			// keep existing behavior: default to JSON when not .xml
 			actual = "json"
 		}
+	case "json", "xml":
+		// ok
+	default:
+		return nil, fmt.Errorf("unsupported BOM format: %q", format)
 	}
 
 	fileFmt := cdx.BOMFileFormatJSON
@@ -50,25 +59,28 @@ func WriteBOM(bom *cdx.BOM, outputPath string, format string, spec string) error
 	ext := filepath.Ext(outputPath)
 
 	actual := strings.ToLower(strings.TrimSpace(format))
-	if actual == "" || actual == "auto" {
+	switch actual {
+	case "", "auto":
 		if strings.EqualFold(ext, ".xml") {
 			actual = "xml"
 		} else {
 			actual = "json"
 		}
+	case "json", "xml":
+		// ok
+	default:
+		return fmt.Errorf("unsupported BOM format: %q", format)
 	}
 
 	// Validate extension matches format
-	if actual != "auto" {
-		switch actual {
-		case "xml":
-			if ext != ".xml" {
-				return fmt.Errorf("output path extension %q does not match format %q", ext, actual)
-			}
-		case "json":
-			if ext != ".json" {
-				return fmt.Errorf("output path extension %q does not match format %q", ext, actual)
-			}
+	switch actual {
+	case "xml":
+		if ext != ".xml" {
+			return fmt.Errorf("output path extension %q does not match format %q", ext, actual)
+		}
+	case "json":
+		if ext != ".json" {
+			return fmt.Errorf("output path extension %q does not match format %q", ext, actual)
 		}
 	}
 
@@ -99,6 +111,8 @@ func WriteBOM(bom *cdx.BOM, outputPath string, format string, spec string) error
 
 // ParseSpecVersion parses a spec version string to a CycloneDX SpecVersion.
 func ParseSpecVersion(s string) (cdx.SpecVersion, bool) {
+	s = strings.TrimSpace(s)
+
 	switch s {
 	case "1.0":
 		return cdx.SpecVersion1_0, true
