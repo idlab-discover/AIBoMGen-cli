@@ -9,6 +9,7 @@ type BuildContext struct {
 	ModelID string
 	Scan    scanner.Discovery
 	HF      *fetcher.ModelAPIResponse
+	Readme  *fetcher.ModelReadmeCard
 }
 
 type Options struct {

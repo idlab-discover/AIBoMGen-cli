@@ -56,6 +56,24 @@ func TestRegistryApplyAndPresent(t *testing.T) {
 				"datasets": []any{"ds2", "ds2"},
 			},
 		},
+		Readme: &fetcher.ModelReadmeCard{
+			BaseModel:                  "bert-base-uncased",
+			Tags:                       []string{"tag-readme"},
+			License:                    "apache-2.0",
+			Datasets:                   []string{"glue"},
+			Metrics:                    []string{"accuracy"},
+			DirectUse:                  "Use for classification.",
+			OutOfScopeUse:              "Do not use for medical.",
+			BiasRisksLimitations:       "May be biased.",
+			BiasRecommendations:        "Use with care.",
+			ModelCardContact:           "contact@example.com",
+			EnvironmentalHardwareType:  "NVIDIA A100",
+			EnvironmentalHoursUsed:     "10",
+			EnvironmentalCloudProvider: "AWS",
+			EnvironmentalComputeRegion: "us-east-1",
+			EnvironmentalCarbonEmitted: "123g",
+			ModelIndexMetrics:          []fetcher.ModelIndexMetric{{Type: "accuracy", Value: "0.91"}},
+		},
 	}
 	src.HF.Config.ModelType = "bert"
 	src.HF.Config.Architectures = []string{"BertForSequenceClassification"}
@@ -99,6 +117,9 @@ func TestRegistryApplyAndPresent(t *testing.T) {
 	if comp.Properties == nil || !hasProperty(comp, "huggingface:lastModified") {
 		t.Fatalf("expected huggingface properties")
 	}
+	if !hasProperty(comp, "huggingface:baseModel") {
+		t.Fatalf("expected modelcard baseModel property")
+	}
 	if comp.ModelCard == nil || comp.ModelCard.ModelParameters == nil {
 		t.Fatalf("model parameters missing")
 	}
@@ -108,6 +129,12 @@ func TestRegistryApplyAndPresent(t *testing.T) {
 	}
 	if mp.Datasets == nil || len(*mp.Datasets) != 2 {
 		t.Fatalf("datasets not populated: %#v", mp.Datasets)
+	}
+	if comp.ModelCard.Considerations == nil || comp.ModelCard.Considerations.UseCases == nil || len(*comp.ModelCard.Considerations.UseCases) == 0 {
+		t.Fatalf("expected model card considerations use cases")
+	}
+	if comp.ModelCard.QuantitativeAnalysis == nil || comp.ModelCard.QuantitativeAnalysis.PerformanceMetrics == nil || len(*comp.ModelCard.QuantitativeAnalysis.PerformanceMetrics) == 0 {
+		t.Fatalf("expected model card quantitative analysis metrics")
 	}
 
 	for _, spec := range specs {

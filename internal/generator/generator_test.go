@@ -30,24 +30,52 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestBuildPerDiscovery_FetchesMetadataAndBuilds(t *testing.T) {
-	responses := []string{
-		`{"id":"hf-alpha","modelId":"hf-alpha","author":"org","pipeline_tag":"tag","library_name":"lib","tags":["t1"],"license":"mit","sha":"abc","downloads":1,"likes":1,"lastModified":"2024-01-01","createdAt":"2023-01-01","private":false,"usedStorage":1,"cardData":{"license":"mit"}}`,
-		`{"id":"hf-beta","modelId":"hf-beta","author":"org","pipeline_tag":"tag","library_name":"lib","tags":["t2"],"license":"apache","sha":"def","downloads":2,"likes":2,"lastModified":"2024-02-01","createdAt":"2023-02-01","private":false,"usedStorage":2,"cardData":{"license":"apache"}}`,
+	apiByModel := map[string]string{
+		"org-model": `{"id":"hf-alpha","modelId":"hf-alpha","author":"org","pipeline_tag":"tag","library_name":"lib","tags":["t1"],"license":"mit","sha":"abc","downloads":1,"likes":1,"lastModified":"2024-01-01","createdAt":"2023-01-01","private":false,"usedStorage":1,"cardData":{"license":"mit"}}`,
+		"beta":      `{"id":"hf-beta","modelId":"hf-beta","author":"org","pipeline_tag":"tag","library_name":"lib","tags":["t2"],"license":"apache","sha":"def","downloads":2,"likes":2,"lastModified":"2024-02-01","createdAt":"2023-02-01","private":false,"usedStorage":2,"cardData":{"license":"apache"}}`,
+	}
+	readmeByModel := map[string]string{
+		"org-model": "---\nlicense: mit\nmetrics: [accuracy]\n---\n\n## Uses\n\n### Direct Use\n\nok\n",
+		"beta":      "---\nlicense: apache\nmetrics: [f1]\n---\n\n## Uses\n\n### Direct Use\n\nok\n",
 	}
 
 	origTransport := http.DefaultTransport
 	var paths []string
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		idx := len(paths)
-		if idx >= len(responses) {
-			t.Fatalf("unexpected request #%d to %s", idx+1, req.URL)
-		}
 		if got, want := req.Header.Get("Authorization"), "Bearer test-token"; got != want {
 			t.Fatalf("authorization header = %q, want %q", got, want)
 		}
 		paths = append(paths, req.URL.Path)
-		body := io.NopCloser(strings.NewReader(responses[idx]))
-		return &http.Response{StatusCode: http.StatusOK, Body: body, Header: make(http.Header)}, nil
+
+		// API call
+		if strings.HasPrefix(req.URL.Path, "/api/models/") {
+			model := strings.TrimPrefix(req.URL.Path, "/api/models/")
+			resp, ok := apiByModel[model]
+			if !ok {
+				t.Fatalf("unexpected api model %q", model)
+			}
+			body := io.NopCloser(strings.NewReader(resp))
+			return &http.Response{StatusCode: http.StatusOK, Body: body, Header: make(http.Header)}, nil
+		}
+
+		// README call
+		if strings.HasSuffix(req.URL.Path, "/resolve/main/README.md") {
+			parts := strings.Split(strings.TrimPrefix(req.URL.Path, "/"), "/")
+			if len(parts) < 1 {
+				t.Fatalf("unexpected readme path %q", req.URL.Path)
+			}
+			model := parts[0]
+			resp, ok := readmeByModel[model]
+			if !ok {
+				t.Fatalf("unexpected readme model %q", model)
+			}
+			body := io.NopCloser(strings.NewReader(resp))
+			return &http.Response{StatusCode: http.StatusOK, Body: body, Header: make(http.Header)}, nil
+		}
+
+		t.Fatalf("unexpected request #%d to %s", idx+1, req.URL)
+		return nil, nil
 	})
 	t.Cleanup(func() { http.DefaultTransport = origTransport })
 
@@ -64,8 +92,8 @@ func TestBuildPerDiscovery_FetchesMetadataAndBuilds(t *testing.T) {
 	if len(got) != len(discoveries) {
 		t.Fatalf("results len = %d, want %d", len(got), len(discoveries))
 	}
-	if len(paths) != 2 {
-		t.Fatalf("expected 2 fetches, got %d", len(paths))
+	if len(paths) != 4 {
+		t.Fatalf("expected 4 fetches (api+readme per model), got %d", len(paths))
 	}
 	if got[0].BOM == nil || got[0].BOM.Metadata == nil || got[0].BOM.Metadata.Component == nil {
 		t.Fatalf("first BOM missing metadata/component")
@@ -79,8 +107,8 @@ func TestBuildPerDiscovery_FetchesMetadataAndBuilds(t *testing.T) {
 	if got[2].BOM.Metadata.Component.Name != "model" {
 		t.Fatalf("third component default name = %q, want model", got[2].BOM.Metadata.Component.Name)
 	}
-	if !strings.Contains(paths[1], "beta") {
-		t.Fatalf("second request path %q missing beta", paths[1])
+	if !strings.Contains(strings.Join(paths, "\n"), "beta") {
+		t.Fatalf("paths missing beta: %v", paths)
 	}
 }
 

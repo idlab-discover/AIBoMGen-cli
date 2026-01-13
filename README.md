@@ -11,7 +11,8 @@ What works today:
 
 - Basic scanning for Hugging Face model IDs in Python-like sources via `from_pretrained("...")`.
 - AIBOM generation per detected model in JSON or XML.
-- Optional Hugging Face Hub API fetch to populate some metadata fields.
+- Hugging Face Hub API fetch to populate metadata fields.
+- Hugging Face Repo README fetch to populate more metadata fields.
 - Completeness scoring and validation of existing AIBOM files.
 
 What is explicitly future work:

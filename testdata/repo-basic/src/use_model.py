@@ -3,7 +3,7 @@ from transformers import AutoModel, AutoTokenizer
 
 def load_models():
     # Bert
-    m1 = AutoModel.from_pretrained("google-bert/bert-base-uncased")
+    m1 = AutoModel.from_pretrained("distilbert/distilgpt2")
     # ModelCard example
     t1 = AutoModel.from_pretrained("templates/model-card-example")
 

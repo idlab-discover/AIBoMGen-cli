@@ -67,6 +67,20 @@ func buildFullyPopulatedBOMForRegistry(t *testing.T) *cdx.BOM {
 			Evidence: "from_pretrained() pattern at line 1",
 		},
 		HF: hf,
+		Readme: &fetcher.ModelReadmeCard{
+			BaseModel:                  "bert-base-uncased",
+			ModelCardContact:           "contact@example.com",
+			DirectUse:                  "Use for classification.",
+			OutOfScopeUse:              "Do not use for medical.",
+			BiasRisksLimitations:       "May be biased.",
+			BiasRecommendations:        "Use with care.",
+			EnvironmentalHardwareType:  "NVIDIA A100",
+			EnvironmentalHoursUsed:     "10",
+			EnvironmentalCloudProvider: "AWS",
+			EnvironmentalComputeRegion: "us-east-1",
+			EnvironmentalCarbonEmitted: "123g",
+			ModelIndexMetrics:          []fetcher.ModelIndexMetric{{Type: "accuracy", Value: "0.91"}},
+		},
 	}
 	tgt := metadata.Target{
 		BOM:                       bom,

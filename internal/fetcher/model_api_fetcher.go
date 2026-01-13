@@ -119,6 +119,6 @@ func (f *ModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*ModelAPIR
 		logf(modelID, "decode error (%v)", err)
 		return nil, err
 	}
-	logf(modelID, "ok (library=%q pipeline=%q)", strings.TrimSpace(parsed.LibraryName), strings.TrimSpace(parsed.PipelineTag))
+	logf(modelID, "ok")
 	return &parsed, nil
 }

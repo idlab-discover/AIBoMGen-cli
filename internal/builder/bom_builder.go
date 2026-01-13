@@ -29,6 +29,7 @@ func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 		ModelID: strings.TrimSpace(ctx.ModelID),
 		Scan:    ctx.Scan,
 		HF:      ctx.HF,
+		Readme:  ctx.Readme,
 	}
 	tgt := metadata.Target{
 		BOM:                       bom,

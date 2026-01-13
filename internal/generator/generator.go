@@ -36,6 +36,7 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 
 	httpClient := &http.Client{Timeout: timeout}
 	apiFetcher := &fetcher.ModelAPIFetcher{Client: httpClient, Token: hfToken}
+	readmeFetcher := &fetcher.ModelReadmeFetcher{Client: httpClient, Token: hfToken}
 
 	bomBuilder := newBOMBuilder()
 
@@ -48,6 +49,7 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 		logf(modelID, "start (scanPath=%s)", strings.TrimSpace(d.Path))
 
 		var resp *fetcher.ModelAPIResponse
+		var readme *fetcher.ModelReadmeCard
 		if modelID != "" {
 			logf(modelID, "fetch HF model metadata")
 			r, err := apiFetcher.Fetch(context.Background(), modelID)
@@ -57,12 +59,22 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 				resp = r
 				logf(modelID, "metadata fetched")
 			}
+
+			logf(modelID, "fetch HF README model card")
+			c, err := readmeFetcher.Fetch(context.Background(), modelID)
+			if err != nil {
+				logf(modelID, "readme fetch failed (%v)", err)
+			} else {
+				readme = c
+				logf(modelID, "readme fetched")
+			}
 		}
 
 		ctx := builder.BuildContext{
 			ModelID: modelID,
 			Scan:    d,
 			HF:      resp,
+			Readme:  readme,
 		}
 
 		logf(modelID, "build BOM")

@@ -34,14 +34,19 @@ const (
 	ComponentPropertiesHuggingFaceLibraryName  Key = "BOM.metadata.component.properties.huggingface:libraryName"
 	ComponentPropertiesHuggingFaceDownloads    Key = "BOM.metadata.component.properties.huggingface:downloads"
 	ComponentPropertiesHuggingFaceLikes        Key = "BOM.metadata.component.properties.huggingface:likes"
+	ComponentPropertiesModelCardBaseModel      Key = "BOM.metadata.component.properties.huggingface:baseModel"
+	ComponentPropertiesModelCardContact        Key = "BOM.metadata.component.properties.huggingface:modelCardContact"
 
 	// BOM.metadata.component.modelCard.* (MODEL CARD)
-	ModelCardModelParametersTask               Key = "BOM.metadata.component.modelCard.modelParameters.task"
-	ModelCardModelParametersArchitectureFamily Key = "BOM.metadata.component.modelCard.modelParameters.architectureFamily"
-	ModelCardModelParametersModelArchitecture  Key = "BOM.metadata.component.modelCard.modelParameters.modelArchitecture"
-	ModelCardModelParametersDatasets           Key = "BOM.metadata.component.modelCard.modelParameters.datasets"
-
-	// later extended with more keys that can be gained from different sources
+	ModelCardModelParametersTask                                 Key = "BOM.metadata.component.modelCard.modelParameters.task"
+	ModelCardModelParametersArchitectureFamily                   Key = "BOM.metadata.component.modelCard.modelParameters.architectureFamily"
+	ModelCardModelParametersModelArchitecture                    Key = "BOM.metadata.component.modelCard.modelParameters.modelArchitecture"
+	ModelCardModelParametersDatasets                             Key = "BOM.metadata.component.modelCard.modelParameters.datasets"
+	ModelCardConsiderationsUseCases                              Key = "BOM.metadata.component.modelCard.considerations.useCases"
+	ModelCardConsiderationsTechnicalLimitations                  Key = "BOM.metadata.component.modelCard.considerations.technicalLimitations"
+	ModelCardConsiderationsEthicalConsiderations                 Key = "BOM.metadata.component.modelCard.considerations.ethicalConsiderations"
+	ModelCardQuantitativeAnalysisPerformanceMetrics              Key = "BOM.metadata.component.modelCard.quantitativeAnalysis.performanceMetrics"
+	ModelCardConsiderationsEnvironmentalConsiderationsProperties Key = "BOM.metadata.component.modelCard.considerations.environmentalConsiderations.properties"
 )
 
 // Source is everything FieldSpecs can read from.
@@ -49,6 +54,7 @@ type Source struct {
 	ModelID string
 	Scan    scanner.Discovery
 	HF      *fetcher.ModelAPIResponse
+	Readme  *fetcher.ModelReadmeCard
 }
 
 // Target is everything FieldSpecs are allowed to mutate.
@@ -144,8 +150,25 @@ func Registry() []FieldSpec {
 					Type: cdx.ExternalReferenceType("website"),
 					URL:  url,
 				}}
+
+				// Add Paper URL if available
+				if src.Readme != nil && strings.TrimSpace(src.Readme.PaperURL) != "" {
+					refs = append(refs, cdx.ExternalReference{
+						Type: cdx.ExternalReferenceType("documentation"),
+						URL:  strings.TrimSpace(src.Readme.PaperURL),
+					})
+				}
+
+				// Add Demo URL if available
+				if src.Readme != nil && strings.TrimSpace(src.Readme.DemoURL) != "" {
+					refs = append(refs, cdx.ExternalReference{
+						Type: cdx.ExternalReferenceType("other"),
+						URL:  strings.TrimSpace(src.Readme.DemoURL),
+					})
+				}
+
 				tgt.Component.ExternalReferences = &refs
-				logf(src.ModelID, "apply %s set=%s", ComponentExternalReferences, summarizeValue(url))
+				logf(src.ModelID, "apply %s set=%s", ComponentExternalReferences, summarizeValue(refs))
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
@@ -163,10 +186,18 @@ func Registry() []FieldSpec {
 			Weight:   0.5,
 			Required: false,
 			Apply: func(src Source, tgt Target) {
-				if tgt.Component == nil || src.HF == nil || len(src.HF.Tags) == 0 {
+				if tgt.Component == nil {
 					return
 				}
-				tags := normalizeStrings(src.HF.Tags)
+				if tgt.Component.Tags != nil && len(*tgt.Component.Tags) > 0 {
+					return
+				}
+				var tags []string
+				if src.HF != nil && len(src.HF.Tags) > 0 {
+					tags = normalizeStrings(src.HF.Tags)
+				} else if src.Readme != nil && len(src.Readme.Tags) > 0 {
+					tags = normalizeStrings(src.Readme.Tags)
+				}
 				if len(tags) == 0 {
 					return
 				}
@@ -189,10 +220,19 @@ func Registry() []FieldSpec {
 			Weight:   1.0,
 			Required: false,
 			Apply: func(src Source, tgt Target) {
-				if tgt.Component == nil || src.HF == nil {
+				if tgt.Component == nil {
 					return
 				}
-				lic := extractLicense(src.HF.CardData, src.HF.Tags)
+				if tgt.Component.Licenses != nil && len(*tgt.Component.Licenses) > 0 {
+					return
+				}
+				lic := ""
+				if src.HF != nil {
+					lic = extractLicense(src.HF.CardData, src.HF.Tags)
+				}
+				if lic == "" && src.Readme != nil {
+					lic = strings.TrimSpace(src.Readme.License)
+				}
 				if lic == "" {
 					return
 				}
@@ -245,10 +285,19 @@ func Registry() []FieldSpec {
 			Weight:   0.5,
 			Required: false,
 			Apply: func(src Source, tgt Target) {
-				if tgt.Component == nil || src.HF == nil {
+				if tgt.Component == nil {
 					return
 				}
-				s := strings.TrimSpace(src.HF.Author)
+				if tgt.Component.Manufacturer != nil && strings.TrimSpace(tgt.Component.Manufacturer.Name) != "" {
+					return
+				}
+				s := ""
+				if src.HF != nil {
+					s = strings.TrimSpace(src.HF.Author)
+				}
+				if s == "" && src.Readme != nil {
+					s = strings.TrimSpace(src.Readme.DevelopedBy)
+				}
 				if s == "" {
 					return
 				}
@@ -271,10 +320,19 @@ func Registry() []FieldSpec {
 			Weight:   0.25,
 			Required: false,
 			Apply: func(src Source, tgt Target) {
-				if tgt.Component == nil || src.HF == nil {
+				if tgt.Component == nil {
 					return
 				}
-				s := strings.TrimSpace(src.HF.Author)
+				if strings.TrimSpace(tgt.Component.Group) != "" {
+					return
+				}
+				s := ""
+				if src.HF != nil {
+					s = strings.TrimSpace(src.HF.Author)
+				}
+				if s == "" && src.Readme != nil {
+					s = strings.TrimSpace(src.Readme.DevelopedBy)
+				}
 				if s == "" {
 					return
 				}
@@ -315,59 +373,83 @@ func Registry() []FieldSpec {
 				return true
 			},
 		},
-		// HF properties -> Component.Properties using Property.Name = Key.String() (same as your current builder)
-		hfProp(ComponentPropertiesHuggingFaceLastModified, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
+		// Component.Properties (Property.Name = key without the BOM.* prefix)
+		hfProp(ComponentPropertiesHuggingFaceLastModified, 0.2, func(src Source) (any, bool) {
+			r := src.HF
 			if r == nil {
 				return nil, false
 			}
 			s := strings.TrimSpace(r.LastMod)
 			return s, s != ""
 		}),
-		hfProp(ComponentPropertiesHuggingFaceCreatedAt, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFaceCreatedAt, 0.2, func(src Source) (any, bool) {
+			r := src.HF
 			if r == nil {
 				return nil, false
 			}
 			s := strings.TrimSpace(r.CreatedAt)
 			return s, s != ""
 		}),
-		hfProp(ComponentPropertiesHuggingFaceLanguage, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFaceLanguage, 0.2, func(src Source) (any, bool) {
+			r := src.HF
 			if r == nil {
 				return nil, false
 			}
 			s := extractLanguage(r.CardData)
 			return s, s != ""
 		}),
-		hfProp(ComponentPropertiesHuggingFaceUsedStorage, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFaceUsedStorage, 0.2, func(src Source) (any, bool) {
+			r := src.HF
 			if r == nil || r.UsedStorage <= 0 {
 				return nil, false
 			}
 			return r.UsedStorage, true
 		}),
-		hfProp(ComponentPropertiesHuggingFacePrivate, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFacePrivate, 0.2, func(src Source) (any, bool) {
+			r := src.HF
 			if r == nil {
 				return nil, false
 			}
 			// keep boolean present always (even false) if HF response exists
 			return r.Private, true
 		}),
-		hfProp(ComponentPropertiesHuggingFaceLibraryName, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFaceLibraryName, 0.2, func(src Source) (any, bool) {
+			r := src.HF
 			if r == nil {
 				return nil, false
 			}
 			s := strings.TrimSpace(r.LibraryName)
 			return s, s != ""
 		}),
-		hfProp(ComponentPropertiesHuggingFaceDownloads, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFaceDownloads, 0.2, func(src Source) (any, bool) {
+			r := src.HF
 			if r == nil || r.Downloads <= 0 {
 				return nil, false
 			}
 			return r.Downloads, true
 		}),
-		hfProp(ComponentPropertiesHuggingFaceLikes, 0.2, func(r *fetcher.ModelAPIResponse) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFaceLikes, 0.2, func(src Source) (any, bool) {
+			r := src.HF
 			if r == nil || r.Likes <= 0 {
 				return nil, false
 			}
 			return r.Likes, true
+		}),
+		hfProp(ComponentPropertiesModelCardBaseModel, 0.2, func(src Source) (any, bool) {
+			r := src.Readme
+			if r == nil {
+				return nil, false
+			}
+			s := strings.TrimSpace(r.BaseModel)
+			return s, s != ""
+		}),
+		hfProp(ComponentPropertiesModelCardContact, 0.2, func(src Source) (any, bool) {
+			r := src.Readme
+			if r == nil {
+				return nil, false
+			}
+			s := strings.TrimSpace(r.ModelCardContact)
+			return s, s != ""
 		}),
 		// Model card fields
 		{
@@ -375,10 +457,19 @@ func Registry() []FieldSpec {
 			Weight:   1.0,
 			Required: false,
 			Apply: func(src Source, tgt Target) {
-				if tgt.ModelCard == nil || src.HF == nil {
+				if tgt.ModelCard == nil {
 					return
 				}
-				s := strings.TrimSpace(src.HF.PipelineTag)
+				if mp := bomModelParameters(tgt.BOM); mp != nil && strings.TrimSpace(mp.Task) != "" {
+					return
+				}
+				s := ""
+				if src.HF != nil {
+					s = strings.TrimSpace(src.HF.PipelineTag)
+				}
+				if s == "" && src.Readme != nil {
+					s = strings.TrimSpace(src.Readme.TaskType)
+				}
 				if s == "" {
 					return
 				}
@@ -459,10 +550,23 @@ func Registry() []FieldSpec {
 			Weight:   0.5,
 			Required: false,
 			Apply: func(src Source, tgt Target) {
-				if tgt.ModelCard == nil || src.HF == nil {
+				if tgt.ModelCard == nil {
 					return
 				}
-				ds := extractDatasets(src.HF.CardData, src.HF.Tags)
+				// Do not overwrite existing datasets
+				if tgt.ModelCard.ModelParameters != nil && tgt.ModelCard.ModelParameters.Datasets != nil && len(*tgt.ModelCard.ModelParameters.Datasets) > 0 {
+					return
+				}
+				var ds []string
+				if src.HF != nil {
+					ds = extractDatasets(src.HF.CardData, src.HF.Tags)
+				}
+				if len(ds) == 0 && src.Readme != nil {
+					ds = normalizeStrings(src.Readme.Datasets)
+					for i := range ds {
+						ds[i] = normalizeDatasetRef(ds[i])
+					}
+				}
 				if len(ds) == 0 {
 					return
 				}
@@ -503,10 +607,252 @@ func Registry() []FieldSpec {
 				return false
 			},
 		},
+		{
+			Key:      ModelCardConsiderationsUseCases,
+			Weight:   0.5,
+			Required: false,
+			Apply: func(src Source, tgt Target) {
+				if tgt.ModelCard == nil || src.Readme == nil {
+					return
+				}
+				cons := ensureConsiderations(tgt.ModelCard)
+				if cons.UseCases != nil && len(*cons.UseCases) > 0 {
+					return
+				}
+				useCases := []string{}
+				if s := strings.TrimSpace(src.Readme.DirectUse); s != "" {
+					useCases = append(useCases, s)
+				}
+				if s := strings.TrimSpace(src.Readme.OutOfScopeUse); s != "" {
+					useCases = append(useCases, "out-of-scope: "+s)
+				}
+				useCases = normalizeStrings(useCases)
+				if len(useCases) == 0 {
+					return
+				}
+				cons.UseCases = &useCases
+				logf(src.ModelID, "apply %s set=%s", ModelCardConsiderationsUseCases, summarizeValue(useCases))
+			},
+			Present: func(b *cdx.BOM) bool {
+				c := bomComponent(b)
+				ok := c != nil && c.ModelCard != nil && c.ModelCard.Considerations != nil && c.ModelCard.Considerations.UseCases != nil && len(*c.ModelCard.Considerations.UseCases) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ModelCardConsiderationsUseCases, ok)
+				return ok
+			},
+		},
+		{
+			Key:      ModelCardConsiderationsTechnicalLimitations,
+			Weight:   0.5,
+			Required: false,
+			Apply: func(src Source, tgt Target) {
+				if tgt.ModelCard == nil || src.Readme == nil {
+					return
+				}
+				cons := ensureConsiderations(tgt.ModelCard)
+				if cons.TechnicalLimitations != nil && len(*cons.TechnicalLimitations) > 0 {
+					return
+				}
+				s := strings.TrimSpace(src.Readme.BiasRisksLimitations)
+				if s == "" {
+					return
+				}
+				vals := []string{s}
+				cons.TechnicalLimitations = &vals
+				logf(src.ModelID, "apply %s set=%s", ModelCardConsiderationsTechnicalLimitations, summarizeValue(s))
+			},
+			Present: func(b *cdx.BOM) bool {
+				c := bomComponent(b)
+				ok := c != nil && c.ModelCard != nil && c.ModelCard.Considerations != nil && c.ModelCard.Considerations.TechnicalLimitations != nil && len(*c.ModelCard.Considerations.TechnicalLimitations) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ModelCardConsiderationsTechnicalLimitations, ok)
+				return ok
+			},
+		},
+		{
+			Key:      ModelCardConsiderationsEthicalConsiderations,
+			Weight:   0.25,
+			Required: false,
+			Apply: func(src Source, tgt Target) {
+				if tgt.ModelCard == nil || src.Readme == nil {
+					return
+				}
+				cons := ensureConsiderations(tgt.ModelCard)
+				if cons.EthicalConsiderations != nil && len(*cons.EthicalConsiderations) > 0 {
+					return
+				}
+				name := strings.TrimSpace(src.Readme.BiasRisksLimitations)
+				mit := strings.TrimSpace(src.Readme.BiasRecommendations)
+				if name == "" && mit == "" {
+					return
+				}
+				if name == "" {
+					name = "bias_risks_limitations"
+				}
+				ethics := []cdx.MLModelCardEthicalConsideration{{Name: name, MitigationStrategy: mit}}
+				cons.EthicalConsiderations = &ethics
+				logf(src.ModelID, "apply %s set=true", ModelCardConsiderationsEthicalConsiderations)
+			},
+			Present: func(b *cdx.BOM) bool {
+				c := bomComponent(b)
+				ok := c != nil && c.ModelCard != nil && c.ModelCard.Considerations != nil && c.ModelCard.Considerations.EthicalConsiderations != nil && len(*c.ModelCard.Considerations.EthicalConsiderations) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ModelCardConsiderationsEthicalConsiderations, ok)
+				return ok
+			},
+		},
+		{
+			Key:      ModelCardQuantitativeAnalysisPerformanceMetrics,
+			Weight:   0.5,
+			Required: false,
+			Apply: func(src Source, tgt Target) {
+				if tgt.ModelCard == nil || src.Readme == nil {
+					return
+				}
+				qa := ensureQuantitativeAnalysis(tgt.ModelCard)
+				if qa.PerformanceMetrics != nil && len(*qa.PerformanceMetrics) > 0 {
+					return
+				}
+				metrics := make([]cdx.MLPerformanceMetric, 0)
+
+				// 1) From model-index in README YAML (detailed metrics with values)
+				for _, m := range src.Readme.ModelIndexMetrics {
+					mt := strings.TrimSpace(m.Type)
+					mv := strings.TrimSpace(m.Value)
+					if mt == "" && mv == "" {
+						continue
+					}
+					metrics = append(metrics, cdx.MLPerformanceMetric{Type: mt, Value: mv})
+				}
+
+				// 2) From simple metrics list in YAML frontmatter
+				for _, mt := range src.Readme.Metrics {
+					mt = strings.TrimSpace(mt)
+					if mt == "" {
+						continue
+					}
+					// Check if already added from model-index
+					alreadyExists := false
+					for _, existing := range metrics {
+						if existing.Type == mt {
+							alreadyExists = true
+							break
+						}
+					}
+					if !alreadyExists {
+						metrics = append(metrics, cdx.MLPerformanceMetric{Type: mt, Value: ""})
+					}
+				}
+
+				// 3) From markdown sections (may contain placeholders for templates)
+				// If we have TestingMetrics or Results sections, add them as a generic entry
+				if len(metrics) == 0 {
+					testingMetrics := strings.TrimSpace(src.Readme.TestingMetrics)
+					results := strings.TrimSpace(src.Readme.Results)
+
+					if testingMetrics != "" || results != "" {
+						// Create a placeholder metric entry to indicate presence of these sections
+						metricType := "testing_metrics"
+						metricValue := ""
+
+						if testingMetrics != "" {
+							metricType = testingMetrics
+						}
+						if results != "" {
+							metricValue = results
+						}
+
+						metrics = append(metrics, cdx.MLPerformanceMetric{
+							Type:  metricType,
+							Value: metricValue,
+						})
+					}
+				}
+
+				if len(metrics) == 0 {
+					return
+				}
+				qa.PerformanceMetrics = &metrics
+				logf(src.ModelID, "apply %s set=%s", ModelCardQuantitativeAnalysisPerformanceMetrics, summarizeValue(metrics))
+			},
+			Present: func(b *cdx.BOM) bool {
+				c := bomComponent(b)
+				ok := c != nil && c.ModelCard != nil && c.ModelCard.QuantitativeAnalysis != nil && c.ModelCard.QuantitativeAnalysis.PerformanceMetrics != nil && len(*c.ModelCard.QuantitativeAnalysis.PerformanceMetrics) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ModelCardQuantitativeAnalysisPerformanceMetrics, ok)
+				return ok
+			},
+		},
+		{
+			Key:      ModelCardConsiderationsEnvironmentalConsiderationsProperties,
+			Weight:   0.25,
+			Required: false,
+			Apply: func(src Source, tgt Target) {
+				if tgt.ModelCard == nil || src.Readme == nil {
+					return
+				}
+				// If already populated, don't overwrite.
+				if tgt.ModelCard.Considerations != nil && tgt.ModelCard.Considerations.EnvironmentalConsiderations != nil {
+					env := tgt.ModelCard.Considerations.EnvironmentalConsiderations
+					if env.Properties != nil && len(*env.Properties) > 0 {
+						return
+					}
+				}
+
+				props := []cdx.Property{}
+				add := func(name, value string) {
+					name = strings.TrimSpace(name)
+					value = strings.TrimSpace(value)
+					if name == "" || value == "" {
+						return
+					}
+					props = append(props, cdx.Property{Name: name, Value: value})
+				}
+
+				add("hardwareType", src.Readme.EnvironmentalHardwareType)
+				add("hoursUsed", src.Readme.EnvironmentalHoursUsed)
+				add("cloudProvider", src.Readme.EnvironmentalCloudProvider)
+				add("computeRegion", src.Readme.EnvironmentalComputeRegion)
+				add("carbonEmitted", src.Readme.EnvironmentalCarbonEmitted)
+
+				if len(props) == 0 {
+					return
+				}
+
+				cons := ensureConsiderations(tgt.ModelCard)
+				if cons.EnvironmentalConsiderations == nil {
+					cons.EnvironmentalConsiderations = &cdx.MLModelCardEnvironmentalConsiderations{}
+				}
+				cons.EnvironmentalConsiderations.Properties = &props
+				logf(src.ModelID, "apply %s set=%s", ModelCardConsiderationsEnvironmentalConsiderationsProperties, summarizeValue(props))
+			},
+			Present: func(b *cdx.BOM) bool {
+				c := bomComponent(b)
+				ok := c != nil && c.ModelCard != nil && c.ModelCard.Considerations != nil && c.ModelCard.Considerations.EnvironmentalConsiderations != nil && c.ModelCard.Considerations.EnvironmentalConsiderations.Properties != nil && len(*c.ModelCard.Considerations.EnvironmentalConsiderations.Properties) > 0
+				mid := ""
+				if c != nil {
+					mid = c.Name
+				}
+				logf(mid, "present %s ok=%t", ModelCardConsiderationsEnvironmentalConsiderationsProperties, ok)
+				return ok
+			},
+		},
 	}
 }
 
-func hfProp(key Key, weight float64, get func(r *fetcher.ModelAPIResponse) (any, bool)) FieldSpec {
+func hfProp(key Key, weight float64, get func(src Source) (any, bool)) FieldSpec {
 	return FieldSpec{
 		Key:      key,
 		Weight:   weight,
@@ -515,7 +861,7 @@ func hfProp(key Key, weight float64, get func(r *fetcher.ModelAPIResponse) (any,
 			if tgt.Component == nil || get == nil {
 				return
 			}
-			v, ok := get(src.HF)
+			v, ok := get(src)
 			if !ok || v == nil {
 				return
 			}
@@ -542,6 +888,32 @@ func ensureModelParameters(card *cdx.MLModelCard) *cdx.MLModelParameters {
 		card.ModelParameters = &cdx.MLModelParameters{}
 	}
 	return card.ModelParameters
+}
+
+func ensureConsiderations(card *cdx.MLModelCard) *cdx.MLModelCardConsiderations {
+	if card.Considerations == nil {
+		card.Considerations = &cdx.MLModelCardConsiderations{}
+	}
+	return card.Considerations
+}
+
+func ensureQuantitativeAnalysis(card *cdx.MLModelCard) *cdx.MLQuantitativeAnalysis {
+	if card.QuantitativeAnalysis == nil {
+		card.QuantitativeAnalysis = &cdx.MLQuantitativeAnalysis{}
+	}
+	return card.QuantitativeAnalysis
+}
+
+func normalizeDatasetRef(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	if strings.HasPrefix(s, "dataset:") {
+		return s
+	}
+	// If it already looks like a namespaced identifier (e.g., "org/ds"), still prefix with dataset:
+	return "dataset:" + s
 }
 
 func setProperty(c *cdx.Component, name, value string) {
