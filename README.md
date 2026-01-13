@@ -15,10 +15,12 @@ What works today:
 - Hugging Face Repo README fetch to populate more metadata fields.
 - Completeness scoring and validation of existing AIBOM files.
 
-What is explicitly future work:
+What is future work:
 
 - Improving the scanner beyond the current regex-based Hugging Face detection.
 - Implementing the `internal/enricher` package (interactive completion is currently stubbed).
+- Implementing the possibility to merge aiboms with existing sboms from a different source.
+- Implementing the possibility to sign aiboms with cosign.
 
 ## Build
 
