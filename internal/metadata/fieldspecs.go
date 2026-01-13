@@ -72,13 +72,15 @@ type Target struct {
 // - how it contributes to completeness
 // - how it is populated into the BOM
 // - how its presence is detected
+// - how user-provided values are set
 type FieldSpec struct {
 	Key      Key
 	Weight   float64
 	Required bool
 
-	Apply   func(src Source, tgt Target)
-	Present func(b *cdx.BOM) bool
+	Apply        func(src Source, tgt Target)
+	Present      func(b *cdx.BOM) bool
+	SetUserValue func(value string, tgt Target) error // NEW: for user-provided enrichment
 }
 
 // This is the central registry of all known FieldSpecs.
@@ -122,6 +124,17 @@ func Registry() []FieldSpec {
 				}
 				logf(mid, "present %s ok=%t", ComponentName, ok)
 				return ok
+			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				name := strings.TrimSpace(value)
+				if name == "" {
+					return fmt.Errorf("name value is empty")
+				}
+				tgt.Component.Name = name
+				return nil
 			},
 		},
 		{
@@ -180,6 +193,21 @@ func Registry() []FieldSpec {
 				logf(mid, "present %s ok=%t", ComponentExternalReferences, ok)
 				return ok
 			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				url := strings.TrimSpace(value)
+				if url == "" {
+					return fmt.Errorf("externalReferences value is empty")
+				}
+				refs := []cdx.ExternalReference{{
+					Type: cdx.ExternalReferenceType("website"),
+					URL:  url,
+				}}
+				tgt.Component.ExternalReferences = &refs
+				return nil
+			},
 		},
 		{
 			Key:      ComponentTags,
@@ -213,6 +241,22 @@ func Registry() []FieldSpec {
 				}
 				logf(mid, "present %s ok=%t", ComponentTags, ok)
 				return ok
+			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("tags value is empty")
+				}
+				// Split by comma for multiple tags
+				tags := strings.Split(s, ",")
+				for i := range tags {
+					tags[i] = strings.TrimSpace(tags[i])
+				}
+				tgt.Component.Tags = &tags
+				return nil
 			},
 		},
 		{
@@ -252,6 +296,20 @@ func Registry() []FieldSpec {
 				logf(mid, "present %s ok=%t", ComponentLicenses, ok)
 				return ok
 			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				lic := strings.TrimSpace(value)
+				if lic == "" {
+					return fmt.Errorf("license value is empty")
+				}
+				ls := cdx.Licenses{
+					{License: &cdx.License{Name: lic}},
+				}
+				tgt.Component.Licenses = &ls
+				return nil
+			},
 		},
 		{
 			Key:      ComponentHashes,
@@ -278,6 +336,18 @@ func Registry() []FieldSpec {
 				}
 				logf(mid, "present %s ok=%t", ComponentHashes, ok)
 				return ok
+			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				sha := strings.TrimSpace(value)
+				if sha == "" {
+					return fmt.Errorf("hash value is empty")
+				}
+				hs := []cdx.Hash{{Algorithm: cdx.HashAlgoSHA1, Value: sha}}
+				tgt.Component.Hashes = &hs
+				return nil
 			},
 		},
 		{
@@ -314,6 +384,17 @@ func Registry() []FieldSpec {
 				logf(mid, "present %s ok=%t", ComponentManufacturer, ok)
 				return ok
 			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("manufacturer value is empty")
+				}
+				tgt.Component.Manufacturer = &cdx.OrganizationalEntity{Name: s}
+				return nil
+			},
 		},
 		{
 			Key:      ComponentGroup,
@@ -348,6 +429,17 @@ func Registry() []FieldSpec {
 				}
 				logf(mid, "present %s ok=%t", ComponentGroup, ok)
 				return ok
+			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("group value is empty")
+				}
+				tgt.Component.Group = s
+				return nil
 			},
 		},
 		// Evidence properties
@@ -487,6 +579,18 @@ func Registry() []FieldSpec {
 				logf(mid, "present %s ok=%t", ModelCardModelParametersTask, ok)
 				return ok
 			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("task value is empty")
+				}
+				mp := ensureModelParameters(tgt.ModelCard)
+				mp.Task = s
+				return nil
+			},
 		},
 		{
 			Key:      ModelCardModelParametersArchitectureFamily,
@@ -513,6 +617,18 @@ func Registry() []FieldSpec {
 				}
 				logf(mid, "present %s ok=%t", ModelCardModelParametersArchitectureFamily, ok)
 				return ok
+			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("architectureFamily value is empty")
+				}
+				mp := ensureModelParameters(tgt.ModelCard)
+				mp.ArchitectureFamily = s
+				return nil
 			},
 		},
 		{
@@ -543,6 +659,18 @@ func Registry() []FieldSpec {
 				}
 				logf(mid, "present %s ok=%t", ModelCardModelParametersModelArchitecture, ok)
 				return ok
+			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("modelArchitecture value is empty")
+				}
+				mp := ensureModelParameters(tgt.ModelCard)
+				mp.ModelArchitecture = s
+				return nil
 			},
 		},
 		{
@@ -606,6 +734,30 @@ func Registry() []FieldSpec {
 				logf(mid, "present %s ok=false", ModelCardModelParametersDatasets)
 				return false
 			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("datasets value is empty")
+				}
+				// Split by comma for multiple datasets
+				datasetRefs := strings.Split(s, ",")
+				choices := make([]cdx.MLDatasetChoice, 0, len(datasetRefs))
+				for _, ref := range datasetRefs {
+					ref = strings.TrimSpace(ref)
+					if ref != "" {
+						choices = append(choices, cdx.MLDatasetChoice{Ref: ref})
+					}
+				}
+				if len(choices) == 0 {
+					return fmt.Errorf("no valid dataset references found")
+				}
+				mp := ensureModelParameters(tgt.ModelCard)
+				mp.Datasets = &choices
+				return nil
+			},
 		},
 		{
 			Key:      ModelCardConsiderationsUseCases,
@@ -643,6 +795,29 @@ func Registry() []FieldSpec {
 				logf(mid, "present %s ok=%t", ModelCardConsiderationsUseCases, ok)
 				return ok
 			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("useCases value is empty")
+				}
+				cons := ensureConsiderations(tgt.ModelCard)
+				// Parse comma-separated values
+				useCases := []string{}
+				for _, item := range strings.Split(s, ",") {
+					item = strings.TrimSpace(item)
+					if item != "" {
+						useCases = append(useCases, item)
+					}
+				}
+				if len(useCases) == 0 {
+					return fmt.Errorf("no valid useCases found")
+				}
+				cons.UseCases = &useCases
+				return nil
+			},
 		},
 		{
 			Key:      ModelCardConsiderationsTechnicalLimitations,
@@ -673,6 +848,29 @@ func Registry() []FieldSpec {
 				}
 				logf(mid, "present %s ok=%t", ModelCardConsiderationsTechnicalLimitations, ok)
 				return ok
+			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("technicalLimitations value is empty")
+				}
+				cons := ensureConsiderations(tgt.ModelCard)
+				// Parse comma-separated values
+				vals := []string{}
+				for _, item := range strings.Split(s, ",") {
+					item = strings.TrimSpace(item)
+					if item != "" {
+						vals = append(vals, item)
+					}
+				}
+				if len(vals) == 0 {
+					return fmt.Errorf("no valid technicalLimitations found")
+				}
+				cons.TechnicalLimitations = &vals
+				return nil
 			},
 		},
 		{
@@ -708,6 +906,57 @@ func Registry() []FieldSpec {
 				}
 				logf(mid, "present %s ok=%t", ModelCardConsiderationsEthicalConsiderations, ok)
 				return ok
+			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("ethicalConsiderations value is empty")
+				}
+
+				cons := ensureConsiderations(tgt.ModelCard)
+				ethics := []cdx.MLModelCardEthicalConsideration{}
+
+				// Parse format: "name: mitigation" or "name1: mitigation1, name2: mitigation2"
+				// Split by comma for multiple considerations
+				items := strings.Split(s, ",")
+				for _, item := range items {
+					item = strings.TrimSpace(item)
+					if item == "" {
+						continue
+					}
+
+					// Check if it contains a colon separator
+					if strings.Contains(item, ":") {
+						parts := strings.SplitN(item, ":", 2)
+						name := strings.TrimSpace(parts[0])
+						mitigation := ""
+						if len(parts) > 1 {
+							mitigation = strings.TrimSpace(parts[1])
+						}
+						if name != "" {
+							ethics = append(ethics, cdx.MLModelCardEthicalConsideration{
+								Name:               name,
+								MitigationStrategy: mitigation,
+							})
+						}
+					} else {
+						// No colon - treat entire string as the name
+						ethics = append(ethics, cdx.MLModelCardEthicalConsideration{
+							Name:               item,
+							MitigationStrategy: "",
+						})
+					}
+				}
+
+				if len(ethics) == 0 {
+					return fmt.Errorf("no valid ethical considerations found")
+				}
+
+				cons.EthicalConsiderations = &ethics
+				return nil
 			},
 		},
 		{
@@ -794,6 +1043,40 @@ func Registry() []FieldSpec {
 				logf(mid, "present %s ok=%t", ModelCardQuantitativeAnalysisPerformanceMetrics, ok)
 				return ok
 			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("performanceMetrics value is empty")
+				}
+				// Parse as type:value pairs separated by commas
+				metrics := []cdx.MLPerformanceMetric{}
+				pairs := strings.Split(s, ",")
+				for _, pair := range pairs {
+					parts := strings.SplitN(strings.TrimSpace(pair), ":", 2)
+					if len(parts) == 2 {
+						mt := strings.TrimSpace(parts[0])
+						mv := strings.TrimSpace(parts[1])
+						if mt != "" {
+							metrics = append(metrics, cdx.MLPerformanceMetric{Type: mt, Value: mv})
+						}
+					} else if len(parts) == 1 {
+						// Just metric type without value
+						mt := strings.TrimSpace(parts[0])
+						if mt != "" {
+							metrics = append(metrics, cdx.MLPerformanceMetric{Type: mt, Value: ""})
+						}
+					}
+				}
+				if len(metrics) == 0 {
+					return fmt.Errorf("no valid performance metrics found")
+				}
+				qa := ensureQuantitativeAnalysis(tgt.ModelCard)
+				qa.PerformanceMetrics = &metrics
+				return nil
+			},
 		},
 		{
 			Key:      ModelCardConsiderationsEnvironmentalConsiderationsProperties,
@@ -848,6 +1131,41 @@ func Registry() []FieldSpec {
 				logf(mid, "present %s ok=%t", ModelCardConsiderationsEnvironmentalConsiderationsProperties, ok)
 				return ok
 			},
+			SetUserValue: func(value string, tgt Target) error {
+				if tgt.ModelCard == nil {
+					return fmt.Errorf("modelCard is nil")
+				}
+				// Parse key:value pairs from user input (e.g., "hardwareType:GPU, carbonEmitted:100kg")
+				s := strings.TrimSpace(value)
+				if s == "" {
+					return fmt.Errorf("environmentalConsiderations value is empty")
+				}
+
+				props := []cdx.Property{}
+				// Split by comma to get individual key:value pairs
+				pairs := strings.Split(s, ",")
+				for _, pair := range pairs {
+					parts := strings.SplitN(strings.TrimSpace(pair), ":", 2)
+					if len(parts) == 2 {
+						name := strings.TrimSpace(parts[0])
+						val := strings.TrimSpace(parts[1])
+						if name != "" && val != "" {
+							props = append(props, cdx.Property{Name: name, Value: val})
+						}
+					}
+				}
+
+				if len(props) == 0 {
+					return fmt.Errorf("no valid key:value pairs found in environmentalConsiderations")
+				}
+
+				cons := ensureConsiderations(tgt.ModelCard)
+				if cons.EnvironmentalConsiderations == nil {
+					cons.EnvironmentalConsiderations = &cdx.MLModelCardEnvironmentalConsiderations{}
+				}
+				cons.EnvironmentalConsiderations.Properties = &props
+				return nil
+			},
 		},
 	}
 }
@@ -879,6 +1197,18 @@ func hfProp(key Key, weight float64, get func(src Source) (any, bool)) FieldSpec
 			}
 			logf(mid, "present %s ok=%t", key, ok)
 			return ok
+		},
+		SetUserValue: func(value string, tgt Target) error {
+			if tgt.Component == nil {
+				return fmt.Errorf("component is nil")
+			}
+			s := strings.TrimSpace(value)
+			if s == "" {
+				return fmt.Errorf("property value is empty")
+			}
+			propName := strings.TrimPrefix(key.String(), "BOM.metadata.component.properties.")
+			setProperty(tgt.Component, propName, s)
+			return nil
 		},
 	}
 }

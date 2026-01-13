@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/builder"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/enricher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/generator"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
@@ -126,13 +125,9 @@ var generateCmd = &cobra.Command{
 		}
 
 		// Optional enrichment: only run when requested.
-		// Enricher is currently stubbed; do not fail generate if it errors.
+		// The enricher is now a separate command; this flag is deprecated.
 		if enrich {
-			for _, d := range discoveredBOMs {
-				if err := enricher.InteractiveCompleteBOM(d.BOM, true, cmd.InOrStdin(), cmd.OutOrStdout()); err != nil && level == "debug" {
-					fmt.Fprintf(cmd.ErrOrStderr(), "[enrich] %v\n", err)
-				}
-			}
+			fmt.Fprintf(cmd.ErrOrStderr(), "[warn] --enrich flag is deprecated. Use 'aibomgen-cli enrich' command instead.\n")
 		}
 
 		output := generateOutput
