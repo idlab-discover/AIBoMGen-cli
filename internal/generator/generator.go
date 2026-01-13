@@ -26,6 +26,55 @@ var newBOMBuilder = func() bomBuilder {
 	return builder.NewBOMBuilder(builder.DefaultOptions())
 }
 
+// BuildDummyBOM builds a single comprehensive dummy BOM with all fields populated.
+// This is used in dummy mode for testing/demo purposes without scanning or fetching real data.
+func BuildDummyBOM() ([]DiscoveredBOM, error) {
+	// Create dummy fetchers that return fixed responses
+	apiFetcher := &fetcher.DummyModelAPIFetcher{}
+	readmeFetcher := &fetcher.DummyModelReadmeFetcher{}
+
+	// Create a dummy discovery
+	dummyDiscovery := scanner.Discovery{
+		ID:       "dummy-org/dummy-model",
+		Name:     "dummy-model",
+		Type:     "huggingface",
+		Path:     "/dummy/path",
+		Evidence: "from_pretrained('dummy-org/dummy-model')",
+	}
+
+	// Fetch dummy metadata
+	apiResp, err := apiFetcher.Fetch(context.Background(), "dummy-org/dummy-model")
+	if err != nil {
+		return nil, err
+	}
+
+	readme, err := readmeFetcher.Fetch(context.Background(), "dummy-org/dummy-model")
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the BOM with all dummy data
+	ctx := builder.BuildContext{
+		ModelID: "dummy-org/dummy-model",
+		Scan:    dummyDiscovery,
+		HF:      apiResp,
+		Readme:  readme,
+	}
+
+	bomBuilder := newBOMBuilder()
+	bom, err := bomBuilder.Build(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return []DiscoveredBOM{
+		{
+			Discovery: dummyDiscovery,
+			BOM:       bom,
+		},
+	}, nil
+}
+
 // BuildPerDiscovery orchestrates: fetch HF API (optional) → build BOM per model via registry-driven builder.
 func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout time.Duration) ([]DiscoveredBOM, error) {
 	results := make([]DiscoveredBOM, 0, len(discoveries))

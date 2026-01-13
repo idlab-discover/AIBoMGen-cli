@@ -12,9 +12,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fixture: [ repo-10, repo-basic ]
-        format: [ json, xml ]
-        hf-mode: [ dummy, online ]
+        include:
+          # Dummy mode: only once per format (fixture doesn't matter)
+          - fixture: repo-basic
+            format: json
+            hf-mode: dummy
+          - fixture: repo-basic
+            format: xml
+            hf-mode: dummy
+          # Online mode: both fixtures, both formats
+          - fixture: repo-10
+            format: json
+            hf-mode: online
+          - fixture: repo-10
+            format: xml
+            hf-mode: online
+          - fixture: repo-basic
+            format: json
+            hf-mode: online
+          - fixture: repo-basic
+            format: xml
+            hf-mode: online
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

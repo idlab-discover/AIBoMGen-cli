@@ -110,28 +110,12 @@ var generateCmd = &cobra.Command{
 
 		var discoveredBOMs []generator.DiscoveredBOM
 		if mode == "dummy" {
-			// dummy mode: per discovery: store + build (no network).
-			// TODO: wire a real dummy method for mode==dummy.
-			bomBuilder := builder.NewBOMBuilder(builder.DefaultOptions())
-			discoveredBOMs = make([]generator.DiscoveredBOM, 0, len(discoveries))
-
-			for _, d := range discoveries {
-				modelID := discoveryModelID(d)
-
-				ctx := builder.BuildContext{
-					ModelID: modelID,
-					Scan:    d,
-					HF:      nil,
-				}
-
-				bom, err := bomBuilder.Build(ctx)
-				if err != nil {
-					return err
-				}
-				discoveredBOMs = append(discoveredBOMs, generator.DiscoveredBOM{
-					Discovery: d,
-					BOM:       bom,
-				})
+			// Dummy mode: do not look at the input (Scanner discoveries)
+			// Just build one fixed dummy BOM with all fields included.
+			// Uses dummy_model_api_fetcher.go and dummy_model_readme_fetcher.go
+			discoveredBOMs, err = generator.BuildDummyBOM()
+			if err != nil {
+				return err
 			}
 		} else {
 			// Online mode: per discovery: store + fetch + map + build (inside generator).
