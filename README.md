@@ -18,6 +18,7 @@ What works today:
 What is future work:
 
 - Improving the scanner beyond the current regex-based Hugging Face detection.
+- Implementing data components with dataset fetchers and linking them in the aibom.
 - Implementing the `internal/enricher` package (interactive completion is currently stubbed).
 - Implementing the possibility to merge aiboms with existing sboms from a different source.
 - Implementing the possibility to sign aiboms with cosign.
