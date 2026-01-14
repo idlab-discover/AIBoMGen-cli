@@ -34,8 +34,8 @@ const (
 	ComponentPropertiesHuggingFaceLibraryName  Key = "BOM.metadata.component.properties.huggingface:libraryName"
 	ComponentPropertiesHuggingFaceDownloads    Key = "BOM.metadata.component.properties.huggingface:downloads"
 	ComponentPropertiesHuggingFaceLikes        Key = "BOM.metadata.component.properties.huggingface:likes"
-	ComponentPropertiesModelCardBaseModel      Key = "BOM.metadata.component.properties.huggingface:baseModel"
-	ComponentPropertiesModelCardContact        Key = "BOM.metadata.component.properties.huggingface:modelCardContact"
+	ComponentPropertiesHuggingFaceBaseModel    Key = "BOM.metadata.component.properties.huggingface:baseModel"
+	ComponentPropertiesHuggingFaceContact      Key = "BOM.metadata.component.properties.huggingface:modelCardContact"
 
 	// BOM.metadata.component.modelCard.* (MODEL CARD)
 	ModelCardModelParametersTask                                 Key = "BOM.metadata.component.modelCard.modelParameters.task"
@@ -527,7 +527,7 @@ func Registry() []FieldSpec {
 			}
 			return r.Likes, true
 		}),
-		hfProp(ComponentPropertiesModelCardBaseModel, 0.2, func(src Source) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFaceBaseModel, 0.2, func(src Source) (any, bool) {
 			r := src.Readme
 			if r == nil {
 				return nil, false
@@ -535,7 +535,7 @@ func Registry() []FieldSpec {
 			s := strings.TrimSpace(r.BaseModel)
 			return s, s != ""
 		}),
-		hfProp(ComponentPropertiesModelCardContact, 0.2, func(src Source) (any, bool) {
+		hfProp(ComponentPropertiesHuggingFaceContact, 0.2, func(src Source) (any, bool) {
 			r := src.Readme
 			if r == nil {
 				return nil, false
