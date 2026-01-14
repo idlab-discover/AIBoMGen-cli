@@ -1,0 +1,81 @@
+# AIBoMGen-cli Global Configuration
+# This file provides default values for common settings across all commands.
+# Values can be overridden by command-line flags or by using --config to specify a different file.
+# Default location: $HOME/.aibomgen-cli.yaml or ./config/config.yaml
+
+# ============================================================================
+# Hugging Face API Settings
+# ============================================================================
+huggingface:
+  # API token for authenticated requests (optional)
+  # You can get a token from https://huggingface.co/settings/tokens
+  token: ""
+  
+  # Base URL for Hugging Face API (change only if using a private mirror)
+  baseURL: "https://huggingface.co"
+  
+  # API timeout in seconds
+  timeout: 10
+  
+  # Metadata fetching mode for generate command
+  # Options: online (fetch from API), dummy (use mock data)
+  mode: "online"
+
+# ============================================================================
+# Output Settings
+# ============================================================================
+output:
+  # Default output format for generated BOMs
+  # Options: json, xml, auto
+  format: "json"
+  
+  # CycloneDX specification version
+  # Options: 1.4, 1.5, 1.6 (empty = use latest)
+  specVersion: ""
+  
+  # Default output directory for generated BOMs
+  directory: "./dist"
+
+# ============================================================================
+# Logging Settings
+# ============================================================================
+log:
+  # Log verbosity level
+  # Options: quiet, standard, debug
+  level: "standard"
+
+# ============================================================================
+# Enrichment Settings
+# ============================================================================
+enrich:
+  # Default enrichment strategy
+  # Options: interactive (prompt for values), file (load from config)
+  strategy: "interactive"
+  
+  # Path to enrichment configuration file
+  configFile: "./config/enrichment.yaml"
+  
+  # Only enrich required fields
+  requiredOnly: false
+  
+  # Minimum field weight threshold (0.0 to 1.0)
+  minWeight: 0.0
+  
+  # Refetch metadata from Hugging Face before enrichment
+  refetch: true
+  
+  # Skip preview before saving changes
+  noPreview: false
+
+# ============================================================================
+# Validation Settings
+# ============================================================================
+validate:
+  # Strict validation mode (enforce all required fields)
+  strict: false
+  
+  # Minimum completeness score (0.0 to 1.0)
+  minScore: 0.0
+  
+  # Check model card fields
+  checkModelCard: true

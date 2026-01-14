@@ -9,6 +9,7 @@ import (
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/builder"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
@@ -50,8 +51,8 @@ var generateCmd = &cobra.Command{
 			return err
 		}
 
-		// Resolve effective log level.
-		level := strings.ToLower(strings.TrimSpace(generateLogLevel))
+		// Resolve effective log level (from config, env, or flag).
+		level := strings.ToLower(strings.TrimSpace(viper.GetString("log.level")))
 		if level == "" {
 			level = "standard"
 		}
@@ -59,11 +60,11 @@ var generateCmd = &cobra.Command{
 		case "quiet", "standard", "debug":
 			// ok
 		default:
-			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", generateLogLevel)
+			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", level)
 		}
 
-		// Resolve effective HF mode.
-		mode := strings.ToLower(strings.TrimSpace(hfMode))
+		// Resolve effective HF mode (from config, env, or flag).
+		mode := strings.ToLower(strings.TrimSpace(viper.GetString("huggingface.mode")))
 		if mode == "" {
 			mode = "online"
 		}
@@ -73,10 +74,19 @@ var generateCmd = &cobra.Command{
 		default:
 			return fmt.Errorf("invalid --hf-mode %q (expected online|dummy)", hfMode)
 		}
+		// Get format from viper (respects config file)
+		outputFormat := viper.GetString("output.format")
+		if outputFormat == "" {
+			outputFormat = "auto"
+		}
+
+		// Get spec version from viper
+		specVersion := viper.GetString("output.specVersion")
+
 		// Fail fast on explicit format/extension mismatch before scanning
-		if generateOutput != "" && generateOutputFormat != "" && generateOutputFormat != "auto" {
+		if generateOutput != "" && outputFormat != "" && outputFormat != "auto" {
 			ext := filepath.Ext(generateOutput)
-			if generateOutputFormat == "xml" && ext == ".json" {
+			if outputFormat == "xml" && ext == ".json" {
 				return fmt.Errorf("output path extension %q does not match format %q", ext, generateOutputFormat)
 			}
 			if generateOutputFormat == "json" && ext == ".xml" {
@@ -102,10 +112,13 @@ var generateCmd = &cobra.Command{
 			return err
 		}
 
-		if hfTimeoutSec <= 0 {
-			hfTimeoutSec = 10
+		// Get HF settings from viper
+		hfToken := viper.GetString("huggingface.token")
+		hfTimeout := viper.GetInt("huggingface.timeout")
+		if hfTimeout <= 0 {
+			hfTimeout = 10
 		}
-		timeout := time.Duration(hfTimeoutSec) * time.Second
+		timeout := time.Duration(hfTimeout) * time.Second
 
 		var discoveredBOMs []generator.DiscoveredBOM
 		if mode == "dummy" {
@@ -140,7 +153,7 @@ var generateCmd = &cobra.Command{
 			}
 		}
 
-		fmtChosen := generateOutputFormat
+		fmtChosen := outputFormat
 		if fmtChosen == "auto" || fmtChosen == "" {
 			ext := filepath.Ext(output)
 			if ext == ".xml" {
@@ -182,7 +195,7 @@ var generateCmd = &cobra.Command{
 			fileName := fmt.Sprintf("%s_aibom%s", sanitized, fileExt)
 			dest := filepath.Join(outputDir, fileName)
 
-			if err := bomio.WriteBOM(d.BOM, dest, fmtChosen, generateSpecVersion); err != nil {
+			if err := bomio.WriteBOM(d.BOM, dest, fmtChosen, specVersion); err != nil {
 				return err
 			}
 			written = append(written, dest)
@@ -209,6 +222,14 @@ func init() {
 	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token (string)")
 	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness")
 	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "standard", "Log level: quiet|standard|debug (default: standard)")
+
+	// Bind flags to viper for config file support
+	viper.BindPFlag("output.format", generateCmd.Flags().Lookup("format"))
+	viper.BindPFlag("output.specVersion", generateCmd.Flags().Lookup("spec"))
+	viper.BindPFlag("huggingface.mode", generateCmd.Flags().Lookup("hf-mode"))
+	viper.BindPFlag("huggingface.timeout", generateCmd.Flags().Lookup("hf-timeout"))
+	viper.BindPFlag("huggingface.token", generateCmd.Flags().Lookup("hf-token"))
+	viper.BindPFlag("log.level", generateCmd.Flags().Lookup("log-level"))
 }
 
 func bomMetadataComponentName(bom *cdx.BOM) string {

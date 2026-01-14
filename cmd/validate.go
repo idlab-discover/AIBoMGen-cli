@@ -9,6 +9,7 @@ import (
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/validator"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -29,8 +30,8 @@ var validateCmd = &cobra.Command{
 			return fmt.Errorf("--input is required")
 		}
 
-		// Resolve effective log level.
-		level := strings.ToLower(strings.TrimSpace(validateLogLevel))
+		// Get log level from viper (respects config file)
+		level := strings.ToLower(strings.TrimSpace(viper.GetString("log.level")))
 		if level == "" {
 			level = "standard"
 		}
@@ -38,7 +39,7 @@ var validateCmd = &cobra.Command{
 		case "quiet", "standard", "debug":
 			// ok
 		default:
-			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", validateLogLevel)
+			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", level)
 		}
 
 		// Wire internal package logging based on log level.
@@ -84,4 +85,10 @@ func init() {
 	validateCmd.Flags().StringVar(&validateLogLevel, "log-level", "standard", "Log level: quiet|standard|debug (default: standard)")
 
 	validateCmd.MarkFlagRequired("input")
+
+	// Bind flags to viper for config file support
+	viper.BindPFlag("validate.strict", validateCmd.Flags().Lookup("strict"))
+	viper.BindPFlag("validate.minScore", validateCmd.Flags().Lookup("min-score"))
+	viper.BindPFlag("validate.checkModelCard", validateCmd.Flags().Lookup("check-model-card"))
+	viper.BindPFlag("log.level", validateCmd.Flags().Lookup("log-level"))
 }

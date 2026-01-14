@@ -21,8 +21,8 @@ var enrichCmd = &cobra.Command{
 or by loading values from a configuration file. Optionally refetch model metadata
 from Hugging Face API and README before enrichment.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Validate strategy
-		strategy := strings.ToLower(strings.TrimSpace(enrichStrategy))
+		// Get strategy from viper (respects config file)
+		strategy := strings.ToLower(strings.TrimSpace(viper.GetString("enrich.strategy")))
 		if strategy == "" {
 			strategy = "interactive"
 		}
@@ -30,11 +30,11 @@ from Hugging Face API and README before enrichment.`,
 		case "interactive", "file":
 			// ok
 		default:
-			return fmt.Errorf("invalid --strategy %q (expected interactive|file)", enrichStrategy)
+			return fmt.Errorf("invalid strategy %q (expected interactive|file)", strategy)
 		}
 
-		// Validate log level
-		level := strings.ToLower(strings.TrimSpace(enrichLogLevel))
+		// Get log level from viper
+		level := strings.ToLower(strings.TrimSpace(viper.GetString("log.level")))
 		if level == "" {
 			level = "standard"
 		}
@@ -68,31 +68,35 @@ from Hugging Face API and README before enrichment.`,
 			outPath = enrichInput // overwrite by default
 		}
 
-		// Determine spec version (default to same version as input)
-		// Note: if not specified, WriteBOM will use the BOM's existing spec version
-		specVersion := strings.TrimSpace(enrichSpecVersion)
+		// Get settings from viper (respects config file)
+		specVersion := strings.TrimSpace(viper.GetString("output.specVersion"))
+		outputFormat := viper.GetString("output.format")
+		if outputFormat == "" {
+			outputFormat = "auto"
+		}
 
 		// Build enricher configuration
 		cfg := enricher.Config{
 			Strategy:     strategy,
-			ConfigFile:   enrichConfigFile,
-			RequiredOnly: enrichRequiredOnly,
-			MinWeight:    enrichMinWeight,
-			Refetch:      enrichRefetch,
-			NoPreview:    enrichNoPreview,
+			ConfigFile:   viper.GetString("enrich.configFile"),
+			RequiredOnly: viper.GetBool("enrich.requiredOnly"),
+			MinWeight:    viper.GetFloat64("enrich.minWeight"),
+			Refetch:      viper.GetBool("enrich.refetch"),
+			NoPreview:    viper.GetBool("enrich.noPreview"),
 			SpecVersion:  specVersion,
-			HFToken:      enrichHFToken,
-			HFBaseURL:    enrichHFBaseURL,
-			HFTimeout:    enrichHFTimeout,
+			HFToken:      viper.GetString("huggingface.token"),
+			HFBaseURL:    viper.GetString("huggingface.baseURL"),
+			HFTimeout:    viper.GetInt("huggingface.timeout"),
 		}
 
 		// Load config file values if using file strategy
 		var configViper *viper.Viper
 		if strategy == "file" {
-			if enrichConfigFile == "" {
-				return fmt.Errorf("--file is required when using --strategy file")
+			configFile := cfg.ConfigFile
+			if configFile == "" {
+				configFile = "./config/enrichment.yaml"
 			}
-			configViper, err = loadEnrichmentConfig(enrichConfigFile)
+			configViper, err = loadEnrichmentConfig(configFile)
 			if err != nil {
 				return fmt.Errorf("failed to load config file: %w", err)
 			}
@@ -112,7 +116,7 @@ from Hugging Face API and README before enrichment.`,
 		}
 
 		// Write output
-		if err := bomio.WriteBOM(enriched, outPath, enrichOutputFormat, specVersion); err != nil {
+		if err := bomio.WriteBOM(enriched, outPath, outputFormat, specVersion); err != nil {
 			return fmt.Errorf("failed to write output: %w", err)
 		}
 
@@ -162,6 +166,20 @@ func init() {
 	enrichCmd.Flags().IntVar(&enrichHFTimeout, "hf-timeout", 30, "Hugging Face API timeout in seconds (for refetch)")
 
 	_ = enrichCmd.MarkFlagRequired("input")
+
+	// Bind flags to viper for config file support
+	viper.BindPFlag("enrich.strategy", enrichCmd.Flags().Lookup("strategy"))
+	viper.BindPFlag("enrich.configFile", enrichCmd.Flags().Lookup("file"))
+	viper.BindPFlag("enrich.requiredOnly", enrichCmd.Flags().Lookup("required-only"))
+	viper.BindPFlag("enrich.minWeight", enrichCmd.Flags().Lookup("min-weight"))
+	viper.BindPFlag("enrich.refetch", enrichCmd.Flags().Lookup("refetch"))
+	viper.BindPFlag("enrich.noPreview", enrichCmd.Flags().Lookup("no-preview"))
+	viper.BindPFlag("log.level", enrichCmd.Flags().Lookup("log-level"))
+	viper.BindPFlag("huggingface.token", enrichCmd.Flags().Lookup("hf-token"))
+	viper.BindPFlag("huggingface.baseURL", enrichCmd.Flags().Lookup("hf-base-url"))
+	viper.BindPFlag("huggingface.timeout", enrichCmd.Flags().Lookup("hf-timeout"))
+	viper.BindPFlag("output.format", enrichCmd.Flags().Lookup("output-format"))
+	viper.BindPFlag("output.specVersion", enrichCmd.Flags().Lookup("spec"))
 }
 
 // loadEnrichmentConfig loads enrichment values from a YAML config file

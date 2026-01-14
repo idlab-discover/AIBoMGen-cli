@@ -65,20 +65,35 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 		logf("", "warning: could not extract model ID from BOM")
 	}
 
-	// Refetch metadata if requested
+	// Run initial completeness check
+	initialReport := completeness.Check(bom)
+	logf(modelID, "initial completeness: %.2f%% (%d/%d fields)", initialReport.Score, initialReport.Passed, initialReport.Total)
+
+	// Refetch metadata if requested and apply it to BOM
 	var hfAPI *fetcher.ModelAPIResponse
 	var hfReadme *fetcher.ModelReadmeCard
+	var postRefetchReport completeness.Report
 	if e.config.Refetch && modelID != "" {
 		logf(modelID, "refetching metadata from Hugging Face...")
 		hfAPI, hfReadme = e.refetchMetadata(modelID)
+
+		// Apply refetched metadata to BOM
+		if hfAPI != nil || hfReadme != nil {
+			e.applyRefetchedMetadata(bom, modelID, hfAPI, hfReadme)
+
+			// Check completeness after refetch
+			postRefetchReport = completeness.Check(bom)
+			logf(modelID, "completeness after refetch: %.2f%% (%d/%d fields)", postRefetchReport.Score, postRefetchReport.Passed, postRefetchReport.Total)
+		} else {
+			logf(modelID, "no metadata retrieved from refetch")
+			postRefetchReport = initialReport
+		}
+	} else {
+		postRefetchReport = initialReport
 	}
 
-	// Run initial completeness check
-	initialReport := completeness.Check(bom)
-	logf(modelID, "initial completeness: %.2f (%d/%d fields)", initialReport.Score, initialReport.Passed, initialReport.Total)
-
-	// Collect missing fields based on config
-	missingFields := e.collectMissingFields(initialReport)
+	// Collect missing fields based on config (using post-refetch state)
+	missingFields := e.collectMissingFields(postRefetchReport)
 	if len(missingFields) == 0 {
 		logf(modelID, "no fields to enrich")
 		return bom, nil
@@ -137,9 +152,13 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 
 	// Show preview if requested
 	if !e.config.NoPreview && len(changes) > 0 {
-		if !e.showPreviewAndConfirm(initialReport, bom, changes) {
+		if !e.showPreviewAndConfirm(initialReport, postRefetchReport, bom, changes) {
 			return nil, fmt.Errorf("enrichment cancelled by user")
 		}
+	} else if len(changes) > 0 {
+		// Show final completeness even without preview
+		finalReport := completeness.Check(bom)
+		logf(modelID, "final completeness: %.2f%% (%d/%d fields)", finalReport.Score, finalReport.Passed, finalReport.Total)
 	}
 
 	return bom, nil
@@ -206,6 +225,37 @@ func (e *Enricher) refetchMetadata(modelID string) (*fetcher.ModelAPIResponse, *
 	}
 
 	return apiResp, readme
+}
+
+// applyRefetchedMetadata applies all available metadata from HuggingFace to the BOM
+func (e *Enricher) applyRefetchedMetadata(bom *cdx.BOM, modelID string, hfAPI *fetcher.ModelAPIResponse, hfReadme *fetcher.ModelReadmeCard) {
+	src := metadata.Source{
+		ModelID: modelID,
+		HF:      hfAPI,
+		Readme:  hfReadme,
+	}
+
+	tgt := metadata.Target{
+		BOM:                bom,
+		Component:          bomComponent(bom),
+		ModelCard:          bomModelCard(bom),
+		HuggingFaceBaseURL: e.config.HFBaseURL,
+	}
+
+	// Apply all field specs that have Apply functions
+	totalSpecs := 0
+	specsWithWeight := 0
+	for _, spec := range metadata.Registry() {
+		if spec.Apply != nil {
+			spec.Apply(src, tgt)
+			totalSpecs++
+			if spec.Weight > 0 {
+				specsWithWeight++
+			}
+		}
+	}
+
+	logf(modelID, "applied refetched metadata (%d field specs total, %d counted for completeness)", totalSpecs, specsWithWeight)
 }
 
 // getValueFromFile extracts a value from the config file
@@ -315,7 +365,7 @@ func (e *Enricher) applyValue(spec metadata.FieldSpec, src *metadata.Source, tgt
 }
 
 // showPreviewAndConfirm shows changes and asks for confirmation
-func (e *Enricher) showPreviewAndConfirm(initial completeness.Report, enriched *cdx.BOM, changes map[metadata.Key]string) bool {
+func (e *Enricher) showPreviewAndConfirm(initial completeness.Report, postRefetch completeness.Report, enriched *cdx.BOM, changes map[metadata.Key]string) bool {
 	fmt.Fprintf(e.writer, "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	fmt.Fprintf(e.writer, "Preview Changes\n")
 	fmt.Fprintf(e.writer, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
@@ -324,10 +374,14 @@ func (e *Enricher) showPreviewAndConfirm(initial completeness.Report, enriched *
 		fmt.Fprintf(e.writer, "  + %s: %s\n", key, value)
 	}
 
-	// Show new completeness score
-	newReport := completeness.Check(enriched)
-	fmt.Fprintf(e.writer, "\nCompleteness: %.2f → %.2f\n", initial.Score, newReport.Score)
-	fmt.Fprintf(e.writer, "Fields: %d/%d → %d/%d\n", initial.Passed, initial.Total, newReport.Passed, newReport.Total)
+	// Show completeness progression
+	finalReport := completeness.Check(enriched)
+	fmt.Fprintf(e.writer, "\nCompleteness Progress:\n")
+	fmt.Fprintf(e.writer, "  Initial:         %.2f%% (%d/%d fields)\n", initial.Score, initial.Passed, initial.Total)
+	if postRefetch.Score != initial.Score {
+		fmt.Fprintf(e.writer, "  After refetch:   %.2f%% (%d/%d fields)\n", postRefetch.Score, postRefetch.Passed, postRefetch.Total)
+	}
+	fmt.Fprintf(e.writer, "  After enrichment: %.2f%% (%d/%d fields)\n", finalReport.Score, finalReport.Passed, finalReport.Total)
 
 	fmt.Fprintf(e.writer, "\nSave changes? [Y/n]: ")
 

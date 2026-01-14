@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -67,12 +68,20 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".cobra" (without extension).
+		// Search for config in multiple locations (in order of priority):
+		// 1. $HOME/.aibomgen-cli.yaml
+		// 2. ./config/config.yaml (project local)
 		viper.AddConfigPath(home)
+		viper.AddConfigPath("./config")
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".cobra")
+		viper.SetConfigName(".aibomgen-cli") // for $HOME/.aibomgen-cli.yaml
+		viper.SetConfigName("config")        // for ./config/config.yaml
 	}
 
+	// Enable environment variable support (e.g., AIBOMGEN_HUGGINGFACE_TOKEN)
+	// Replace dots with underscores: huggingface.token -> AIBOMGEN_HUGGINGFACE_TOKEN
+	viper.SetEnvPrefix("AIBOMGEN")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	err := viper.ReadInConfig()
