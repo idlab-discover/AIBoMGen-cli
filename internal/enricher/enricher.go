@@ -54,7 +54,7 @@ func New(opts Options) *Enricher {
 }
 
 // Enrich enriches a BOM with additional metadata
-func (e *Enricher) Enrich(bom *cdx.BOM, fileValues map[string]interface{}) (*cdx.BOM, error) {
+func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, error) {
 	if bom == nil {
 		return nil, fmt.Errorf("nil BOM")
 	}
@@ -111,7 +111,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, fileValues map[string]interface{}) (*cdx
 
 		switch e.config.Strategy {
 		case "file":
-			value, err = e.getValueFromFile(spec, fileValues)
+			value, err = e.getValueFromFile(spec, configViper)
 		case "interactive":
 			value, err = e.getValueInteractive(spec, src, tgt.BOM)
 		default:
@@ -209,12 +209,27 @@ func (e *Enricher) refetchMetadata(modelID string) (*fetcher.ModelAPIResponse, *
 }
 
 // getValueFromFile extracts a value from the config file
-func (e *Enricher) getValueFromFile(spec metadata.FieldSpec, values map[string]interface{}) (interface{}, error) {
-	// Map field spec key to config file key
-	// e.g. "BOM.metadata.component.licenses" -> "licenses"
-	key := configKeyFromSpec(spec.Key)
+func (e *Enricher) getValueFromFile(spec metadata.FieldSpec, configViper interface{}) (interface{}, error) {
+	// If no config provided, return nil
+	if configViper == nil {
+		return nil, nil
+	}
 
-	if val, ok := values[key]; ok {
+	// Type assert to viper.Viper
+	type viperGetter interface {
+		Get(key string) interface{}
+	}
+
+	v, ok := configViper.(viperGetter)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type")
+	}
+
+	// Use the full key - viper will handle the nested lookup and lowercasing
+	key := string(spec.Key)
+	val := v.Get(key)
+
+	if val != nil {
 		logf("", "loaded %s from config file", spec.Key)
 		return val, nil
 	}
@@ -349,11 +364,8 @@ func bomModelCard(bom *cdx.BOM) *cdx.MLModelCard {
 }
 
 func configKeyFromSpec(key metadata.Key) string {
-	// Convert "BOM.metadata.component.licenses" to "licenses"
-	parts := strings.Split(string(key), ".")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
+	// Use the full key to avoid ambiguity
+	// e.g. "BOM.metadata.component.properties.huggingface:baseModel" stays as-is
 	return string(key)
 }
 

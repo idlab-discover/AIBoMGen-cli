@@ -1,32 +1,27 @@
-# Component-level fields
-licenses: Apache-2.0
-tags:
+# AIBoMGen Enrichment Configuration
+# This file provides values to enrich an existing AIBOM when using --strategy file
+#
+# IMPORTANT: Use the full BOM path as the key to avoid ambiguity
+# Keys are case-insensitive (they are automatically lowercased during processing)
+
+BOM.metadata.component.name: "my-model-name"
+BOM.metadata.component.licenses: "Apache-2.0"
+BOM.metadata.component.manufacturer: "Google"
+BOM.metadata.component.group: "google"
+BOM.metadata.component.tags:
   - nlp
   - transformer
   - bert
-manufacturer: Google
-group: google
 
-# Model card fields
-task: text-classification
-architectureFamily: transformer
-modelArchitecture: bert-base
+BOM.metadata.component.properties.huggingface:language: "en"
+BOM.metadata.component.properties.huggingface:libraryName: "transformers"
+BOM.metadata.component.properties.huggingface:baseModel: "distilbert-base-uncased"
+BOM.metadata.component.properties.huggingface:modelCardContact: "contact@huggingface.co"
 
-# Hugging Face properties
-language: en
-libraryName: transformers
+BOM.metadata.component.modelCard.modelParameters.task: "text-classification"
+BOM.metadata.component.modelCard.modelParameters.architectureFamily: "transformer"
+BOM.metadata.component.modelCard.modelParameters.modelArchitecture: "bert-base"
 
-# Model card sections
-useCases: "Sentiment analysis, text classification"
-technicalLimitations: "Limited to English text, max 512 tokens"
-ethicalConsiderations: "May reflect biases present in training data"
-
-# External references
-paperUrl: https://arxiv.org/abs/1810.04805
-demoUrl: https://huggingface.co/spaces/demo
-
-# Environmental impact
-hardwareType: "NVIDIA V100"
-hoursUsed: "96"
-cloudProvider: "Google Cloud"
-computeRegion: "us-central1"
+BOM.metadata.component.modelCard.considerations.useCases: "Text generation, dialogue systems, creative writing"
+BOM.metadata.component.modelCard.considerations.technicalLimitations: "Limited context window of 512 tokens, may generate inconsistent or factually incorrect text"
+BOM.metadata.component.modelCard.considerations.ethicalConsiderations: "May generate biased or harmful content based on training data. Should not be used for sensitive applications without additional safeguards."

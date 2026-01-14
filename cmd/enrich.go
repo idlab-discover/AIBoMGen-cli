@@ -87,12 +87,12 @@ from Hugging Face API and README before enrichment.`,
 		}
 
 		// Load config file values if using file strategy
-		var fileValues map[string]interface{}
+		var configViper *viper.Viper
 		if strategy == "file" {
 			if enrichConfigFile == "" {
 				return fmt.Errorf("--file is required when using --strategy file")
 			}
-			fileValues, err = loadEnrichmentConfig(enrichConfigFile)
+			configViper, err = loadEnrichmentConfig(enrichConfigFile)
 			if err != nil {
 				return fmt.Errorf("failed to load config file: %w", err)
 			}
@@ -106,7 +106,7 @@ from Hugging Face API and README before enrichment.`,
 		})
 
 		// Run enrichment
-		enriched, err := e.Enrich(bom, fileValues)
+		enriched, err := e.Enrich(bom, configViper)
 		if err != nil {
 			return fmt.Errorf("enrichment failed: %w", err)
 		}
@@ -150,7 +150,7 @@ func init() {
 	enrichCmd.Flags().StringVar(&enrichSpecVersion, "spec", "", "CycloneDX spec version for output (default: same as input)")
 
 	enrichCmd.Flags().StringVar(&enrichStrategy, "strategy", "interactive", "Enrichment strategy: interactive|file")
-	enrichCmd.Flags().StringVar(&enrichConfigFile, "file", "/config/enrichment.yaml", "Path to enrichment config file (YAML)")
+	enrichCmd.Flags().StringVar(&enrichConfigFile, "file", "./config/enrichment.yaml", "Path to enrichment config file (YAML)")
 	enrichCmd.Flags().BoolVar(&enrichRequiredOnly, "required-only", false, "Only prompt for required fields")
 	enrichCmd.Flags().Float64Var(&enrichMinWeight, "min-weight", 0.0, "Only prompt for fields with weight >= this value")
 	enrichCmd.Flags().BoolVar(&enrichRefetch, "refetch", false, "Refetch model metadata from Hugging Face before enrichment")
@@ -165,7 +165,7 @@ func init() {
 }
 
 // loadEnrichmentConfig loads enrichment values from a YAML config file
-func loadEnrichmentConfig(path string) (map[string]interface{}, error) {
+func loadEnrichmentConfig(path string) (*viper.Viper, error) {
 	v := viper.New()
 	v.SetConfigFile(path)
 	v.SetConfigType("yaml")
@@ -174,5 +174,5 @@ func loadEnrichmentConfig(path string) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	return v.AllSettings(), nil
+	return v, nil
 }
