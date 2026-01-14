@@ -203,19 +203,12 @@ func init() {
 	generateCmd.Flags().StringVarP(&generatePath, "input", "i", "", "Path to scan (default: current directory)")
 	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "Output file path (directory is used; default: dist/aibom.json)")
 	generateCmd.Flags().StringVarP(&generateOutputFormat, "format", "f", "auto", "Output BOM format: json|xml|auto (default: auto)")
-	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.3, 1.4, 1.5, 1.6)")
+	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.4, 1.5, 1.6)")
 	generateCmd.Flags().StringVar(&hfMode, "hf-mode", "online", "Hugging Face metadata mode: online|dummy (default: online)")
 	generateCmd.Flags().IntVar(&hfTimeoutSec, "hf-timeout", 10, "HTTP timeout in seconds for Hugging Face API")
 	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token (string)")
 	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness")
 	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "standard", "Log level: quiet|standard|debug (default: standard)")
-}
-
-func discoveryModelID(d scanner.Discovery) string {
-	if strings.TrimSpace(d.ID) != "" {
-		return strings.TrimSpace(d.ID)
-	}
-	return strings.TrimSpace(d.Name)
 }
 
 func bomMetadataComponentName(bom *cdx.BOM) string {

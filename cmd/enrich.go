@@ -150,7 +150,7 @@ func init() {
 	enrichCmd.Flags().StringVar(&enrichSpecVersion, "spec", "", "CycloneDX spec version for output (default: same as input)")
 
 	enrichCmd.Flags().StringVar(&enrichStrategy, "strategy", "interactive", "Enrichment strategy: interactive|file")
-	enrichCmd.Flags().StringVar(&enrichConfigFile, "file", "", "Path to enrichment config file (YAML)")
+	enrichCmd.Flags().StringVar(&enrichConfigFile, "file", "/config/enrichment.yaml", "Path to enrichment config file (YAML)")
 	enrichCmd.Flags().BoolVar(&enrichRequiredOnly, "required-only", false, "Only prompt for required fields")
 	enrichCmd.Flags().Float64Var(&enrichMinWeight, "min-weight", 0.0, "Only prompt for fields with weight >= this value")
 	enrichCmd.Flags().BoolVar(&enrichRefetch, "refetch", false, "Refetch model metadata from Hugging Face before enrichment")

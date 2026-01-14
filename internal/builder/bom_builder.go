@@ -45,9 +45,6 @@ func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 		}
 	}
 
-	// Optional cleanup: drop empty ModelParameters
-	pruneEmptyModelParameters(comp)
-
 	logf(ctx.ModelID, "build ok")
 	return bom, nil
 }
@@ -66,19 +63,5 @@ func buildMetadataComponent(ctx BuildContext) *cdx.Component {
 		Type:      cdx.ComponentTypeMachineLearningModel,
 		Name:      name,
 		ModelCard: &cdx.MLModelCard{},
-	}
-}
-
-func pruneEmptyModelParameters(comp *cdx.Component) {
-	if comp == nil || comp.ModelCard == nil || comp.ModelCard.ModelParameters == nil {
-		return
-	}
-	mp := comp.ModelCard.ModelParameters
-	emptyDatasets := mp.Datasets == nil || len(*mp.Datasets) == 0
-	if strings.TrimSpace(mp.Task) == "" &&
-		strings.TrimSpace(mp.ArchitectureFamily) == "" &&
-		strings.TrimSpace(mp.ModelArchitecture) == "" &&
-		emptyDatasets {
-		comp.ModelCard.ModelParameters = nil
 	}
 }

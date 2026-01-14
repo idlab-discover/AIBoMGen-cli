@@ -767,10 +767,11 @@ func Registry() []FieldSpec {
 				if tgt.ModelCard == nil || src.Readme == nil {
 					return
 				}
-				cons := ensureConsiderations(tgt.ModelCard)
-				if cons.UseCases != nil && len(*cons.UseCases) > 0 {
+				// Check existing first
+				if tgt.ModelCard.Considerations != nil && tgt.ModelCard.Considerations.UseCases != nil && len(*tgt.ModelCard.Considerations.UseCases) > 0 {
 					return
 				}
+				// Collect data
 				useCases := []string{}
 				if s := strings.TrimSpace(src.Readme.DirectUse); s != "" {
 					useCases = append(useCases, s)
@@ -782,6 +783,8 @@ func Registry() []FieldSpec {
 				if len(useCases) == 0 {
 					return
 				}
+				// Only create structure when we have data
+				cons := ensureConsiderations(tgt.ModelCard)
 				cons.UseCases = &useCases
 				logf(src.ModelID, "apply %s set=%s", ModelCardConsiderationsUseCases, summarizeValue(useCases))
 			},
@@ -827,15 +830,18 @@ func Registry() []FieldSpec {
 				if tgt.ModelCard == nil || src.Readme == nil {
 					return
 				}
-				cons := ensureConsiderations(tgt.ModelCard)
-				if cons.TechnicalLimitations != nil && len(*cons.TechnicalLimitations) > 0 {
+				// Check existing first
+				if tgt.ModelCard.Considerations != nil && tgt.ModelCard.Considerations.TechnicalLimitations != nil && len(*tgt.ModelCard.Considerations.TechnicalLimitations) > 0 {
 					return
 				}
+				// Validate data exists
 				s := strings.TrimSpace(src.Readme.BiasRisksLimitations)
 				if s == "" {
 					return
 				}
+				// Only create structure when we have data
 				vals := []string{s}
+				cons := ensureConsiderations(tgt.ModelCard)
 				cons.TechnicalLimitations = &vals
 				logf(src.ModelID, "apply %s set=%s", ModelCardConsiderationsTechnicalLimitations, summarizeValue(s))
 			},
@@ -881,10 +887,11 @@ func Registry() []FieldSpec {
 				if tgt.ModelCard == nil || src.Readme == nil {
 					return
 				}
-				cons := ensureConsiderations(tgt.ModelCard)
-				if cons.EthicalConsiderations != nil && len(*cons.EthicalConsiderations) > 0 {
+				// Check existing first
+				if tgt.ModelCard.Considerations != nil && tgt.ModelCard.Considerations.EthicalConsiderations != nil && len(*tgt.ModelCard.Considerations.EthicalConsiderations) > 0 {
 					return
 				}
+				// Validate data exists
 				name := strings.TrimSpace(src.Readme.BiasRisksLimitations)
 				mit := strings.TrimSpace(src.Readme.BiasRecommendations)
 				if name == "" && mit == "" {
@@ -893,7 +900,9 @@ func Registry() []FieldSpec {
 				if name == "" {
 					name = "bias_risks_limitations"
 				}
+				// Only create structure when we have data
 				ethics := []cdx.MLModelCardEthicalConsideration{{Name: name, MitigationStrategy: mit}}
+				cons := ensureConsiderations(tgt.ModelCard)
 				cons.EthicalConsiderations = &ethics
 				logf(src.ModelID, "apply %s set=true", ModelCardConsiderationsEthicalConsiderations)
 			},
@@ -967,10 +976,11 @@ func Registry() []FieldSpec {
 				if tgt.ModelCard == nil || src.Readme == nil {
 					return
 				}
-				qa := ensureQuantitativeAnalysis(tgt.ModelCard)
-				if qa.PerformanceMetrics != nil && len(*qa.PerformanceMetrics) > 0 {
+				// Check existing first
+				if tgt.ModelCard.QuantitativeAnalysis != nil && tgt.ModelCard.QuantitativeAnalysis.PerformanceMetrics != nil && len(*tgt.ModelCard.QuantitativeAnalysis.PerformanceMetrics) > 0 {
 					return
 				}
+				// Collect metrics data
 				metrics := make([]cdx.MLPerformanceMetric, 0)
 
 				// 1) From model-index in README YAML (detailed metrics with values)
@@ -1030,6 +1040,8 @@ func Registry() []FieldSpec {
 				if len(metrics) == 0 {
 					return
 				}
+				// Only create structure when we have data
+				qa := ensureQuantitativeAnalysis(tgt.ModelCard)
 				qa.PerformanceMetrics = &metrics
 				logf(src.ModelID, "apply %s set=%s", ModelCardQuantitativeAnalysisPerformanceMetrics, summarizeValue(metrics))
 			},
