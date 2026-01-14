@@ -26,12 +26,14 @@ var validateCmd = &cobra.Command{
 	Short: "Validate an existing AIBOM file",
 	Long:  "Validates that a CycloneDX AIBOM JSON is well-formed and optionally checks for required model card fields in strict mode.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if validateInput == "" {
+		// Get input from viper (respects config file and CLI flag)
+		inputPath := viper.GetString("validate.input")
+		if inputPath == "" {
 			return fmt.Errorf("--input is required")
 		}
 
 		// Get log level from viper (respects config file)
-		level := strings.ToLower(strings.TrimSpace(viper.GetString("log.level")))
+		level := strings.ToLower(strings.TrimSpace(viper.GetString("validate.log-level")))
 		if level == "" {
 			level = "standard"
 		}
@@ -52,17 +54,23 @@ var validateCmd = &cobra.Command{
 			}
 		}
 
+		// Get format from viper
+		format := viper.GetString("validate.format")
+		if format == "" {
+			format = "auto"
+		}
+
 		// Read BOM
-		bom, err := bomio.ReadBOM(validateInput, validateFormat)
+		bom, err := bomio.ReadBOM(inputPath, format)
 		if err != nil {
 			return fmt.Errorf("failed to read BOM: %w", err)
 		}
 
-		// Validate
+		// Get validation options from viper
 		opts := validator.ValidationOptions{
-			StrictMode:           validateStrict,
-			MinCompletenessScore: validateMinScore,
-			CheckModelCard:       validateCheckModelCard,
+			StrictMode:           viper.GetBool("validate.strict"),
+			MinCompletenessScore: viper.GetFloat64("validate.min-score"),
+			CheckModelCard:       viper.GetBool("validate.check-model-card"),
 		}
 
 		result := validator.Validate(bom, opts)
@@ -78,17 +86,19 @@ var validateCmd = &cobra.Command{
 
 func init() {
 	validateCmd.Flags().StringVarP(&validateInput, "input", "i", "", "Path to AIBOM file (required)")
-	validateCmd.Flags().StringVarP(&validateFormat, "format", "f", "auto", "Input format: json|xml|auto")
+	validateCmd.Flags().StringVarP(&validateFormat, "format", "f", "", "Input format: json|xml|auto")
 	validateCmd.Flags().BoolVar(&validateStrict, "strict", false, "Strict mode: fail on missing required fields")
 	validateCmd.Flags().Float64Var(&validateMinScore, "min-score", 0.0, "Minimum completeness score (0.0-1.0)")
-	validateCmd.Flags().BoolVar(&validateCheckModelCard, "check-model-card", true, "Validate model card fields")
-	validateCmd.Flags().StringVar(&validateLogLevel, "log-level", "standard", "Log level: quiet|standard|debug (default: standard)")
+	validateCmd.Flags().BoolVar(&validateCheckModelCard, "check-model-card", false, "Validate model card fields")
+	validateCmd.Flags().StringVar(&validateLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 
 	validateCmd.MarkFlagRequired("input")
 
-	// Bind flags to viper for config file support
+	// Bind all flags to viper for config file support
+	viper.BindPFlag("validate.input", validateCmd.Flags().Lookup("input"))
+	viper.BindPFlag("validate.format", validateCmd.Flags().Lookup("format"))
 	viper.BindPFlag("validate.strict", validateCmd.Flags().Lookup("strict"))
-	viper.BindPFlag("validate.minScore", validateCmd.Flags().Lookup("min-score"))
-	viper.BindPFlag("validate.checkModelCard", validateCmd.Flags().Lookup("check-model-card"))
-	viper.BindPFlag("log.level", validateCmd.Flags().Lookup("log-level"))
+	viper.BindPFlag("validate.min-score", validateCmd.Flags().Lookup("min-score"))
+	viper.BindPFlag("validate.check-model-card", validateCmd.Flags().Lookup("check-model-card"))
+	viper.BindPFlag("validate.log-level", validateCmd.Flags().Lookup("log-level"))
 }

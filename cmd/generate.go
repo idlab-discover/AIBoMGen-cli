@@ -42,7 +42,8 @@ var generateCmd = &cobra.Command{
 	Short: "Generate an AI-aware BOM (AIBOM)",
 	Long:  "Scans the target path for AI Hugginface imports and produces a CycloneDX AIBOM JSON.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		target := generatePath
+		// Get input path from viper (respects config file and CLI flag)
+		target := viper.GetString("generate.input")
 		if target == "" {
 			target = "."
 		}
@@ -52,7 +53,7 @@ var generateCmd = &cobra.Command{
 		}
 
 		// Resolve effective log level (from config, env, or flag).
-		level := strings.ToLower(strings.TrimSpace(viper.GetString("log.level")))
+		level := strings.ToLower(strings.TrimSpace(viper.GetString("generate.log-level")))
 		if level == "" {
 			level = "standard"
 		}
@@ -64,7 +65,7 @@ var generateCmd = &cobra.Command{
 		}
 
 		// Resolve effective HF mode (from config, env, or flag).
-		mode := strings.ToLower(strings.TrimSpace(viper.GetString("huggingface.mode")))
+		mode := strings.ToLower(strings.TrimSpace(viper.GetString("generate.hf-mode")))
 		if mode == "" {
 			mode = "online"
 		}
@@ -72,25 +73,28 @@ var generateCmd = &cobra.Command{
 		case "online", "dummy":
 			// ok
 		default:
-			return fmt.Errorf("invalid --hf-mode %q (expected online|dummy)", hfMode)
+			return fmt.Errorf("invalid --hf-mode %q (expected online|dummy)", mode)
 		}
 		// Get format from viper (respects config file)
-		outputFormat := viper.GetString("output.format")
+		outputFormat := viper.GetString("generate.format")
 		if outputFormat == "" {
 			outputFormat = "auto"
 		}
 
 		// Get spec version from viper
-		specVersion := viper.GetString("output.specVersion")
+		specVersion := viper.GetString("generate.spec")
+
+		// Get output path from viper for early validation
+		outputPath := viper.GetString("generate.output")
 
 		// Fail fast on explicit format/extension mismatch before scanning
-		if generateOutput != "" && outputFormat != "" && outputFormat != "auto" {
-			ext := filepath.Ext(generateOutput)
+		if outputPath != "" && outputFormat != "" && outputFormat != "auto" {
+			ext := filepath.Ext(outputPath)
 			if outputFormat == "xml" && ext == ".json" {
-				return fmt.Errorf("output path extension %q does not match format %q", ext, generateOutputFormat)
+				return fmt.Errorf("output path extension %q does not match format %q", ext, outputFormat)
 			}
-			if generateOutputFormat == "json" && ext == ".xml" {
-				return fmt.Errorf("output path extension %q does not match format %q", ext, generateOutputFormat)
+			if outputFormat == "json" && ext == ".xml" {
+				return fmt.Errorf("output path extension %q does not match format %q", ext, outputFormat)
 			}
 		}
 
@@ -106,15 +110,9 @@ var generateCmd = &cobra.Command{
 			}
 		}
 
-		// Scan for AI components
-		discoveries, err := scanner.Scan(absTarget)
-		if err != nil {
-			return err
-		}
-
 		// Get HF settings from viper
-		hfToken := viper.GetString("huggingface.token")
-		hfTimeout := viper.GetInt("huggingface.timeout")
+		hfToken := viper.GetString("generate.hf-token")
+		hfTimeout := viper.GetInt("generate.hf-timeout")
 		if hfTimeout <= 0 {
 			hfTimeout = 10
 		}
@@ -130,6 +128,11 @@ var generateCmd = &cobra.Command{
 				return err
 			}
 		} else {
+			// Scan for AI components (only in non-dummy mode)
+			discoveries, err := scanner.Scan(absTarget)
+			if err != nil {
+				return err
+			}
 			// Online mode: per discovery: store + fetch + map + build (inside generator).
 			discoveredBOMs, err = generator.BuildPerDiscovery(discoveries, hfToken, timeout)
 			if err != nil {
@@ -139,14 +142,15 @@ var generateCmd = &cobra.Command{
 
 		// Optional enrichment: only run when requested.
 		// The enricher is now a separate command; this flag is deprecated.
-		if enrich {
+		if viper.GetBool("generate.enrich") {
 			fmt.Fprintf(cmd.ErrOrStderr(), "[warn] --enrich flag is deprecated. Use 'aibomgen-cli enrich' command instead.\n")
 		}
 
-		output := generateOutput
+		// Get output path from viper
+		output := viper.GetString("generate.output")
 		if output == "" {
 			// Default extension based on requested format (json unless explicitly xml)
-			if generateOutputFormat == "xml" {
+			if outputFormat == "xml" {
 				output = "dist/aibom.xml"
 			} else {
 				output = "dist/aibom.json"
@@ -213,23 +217,26 @@ var generateCmd = &cobra.Command{
 }
 
 func init() {
-	generateCmd.Flags().StringVarP(&generatePath, "input", "i", "", "Path to scan (default: current directory)")
-	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "Output file path (directory is used; default: dist/aibom.json)")
-	generateCmd.Flags().StringVarP(&generateOutputFormat, "format", "f", "auto", "Output BOM format: json|xml|auto (default: auto)")
+	generateCmd.Flags().StringVarP(&generatePath, "input", "i", "", "Path to scan")
+	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "Output file path (directory is used)")
+	generateCmd.Flags().StringVarP(&generateOutputFormat, "format", "f", "", "Output BOM format: json|xml|auto")
 	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.4, 1.5, 1.6)")
-	generateCmd.Flags().StringVar(&hfMode, "hf-mode", "online", "Hugging Face metadata mode: online|dummy (default: online)")
-	generateCmd.Flags().IntVar(&hfTimeoutSec, "hf-timeout", 10, "HTTP timeout in seconds for Hugging Face API")
-	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token (string)")
-	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness")
-	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "standard", "Log level: quiet|standard|debug (default: standard)")
+	generateCmd.Flags().StringVar(&hfMode, "hf-mode", "", "Hugging Face metadata mode: online|dummy")
+	generateCmd.Flags().IntVar(&hfTimeoutSec, "hf-timeout", 0, "HTTP timeout in seconds for Hugging Face API")
+	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token")
+	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness (deprecated)")
+	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 
-	// Bind flags to viper for config file support
-	viper.BindPFlag("output.format", generateCmd.Flags().Lookup("format"))
-	viper.BindPFlag("output.specVersion", generateCmd.Flags().Lookup("spec"))
-	viper.BindPFlag("huggingface.mode", generateCmd.Flags().Lookup("hf-mode"))
-	viper.BindPFlag("huggingface.timeout", generateCmd.Flags().Lookup("hf-timeout"))
-	viper.BindPFlag("huggingface.token", generateCmd.Flags().Lookup("hf-token"))
-	viper.BindPFlag("log.level", generateCmd.Flags().Lookup("log-level"))
+	// Bind all flags to viper for config file support
+	viper.BindPFlag("generate.input", generateCmd.Flags().Lookup("input"))
+	viper.BindPFlag("generate.output", generateCmd.Flags().Lookup("output"))
+	viper.BindPFlag("generate.format", generateCmd.Flags().Lookup("format"))
+	viper.BindPFlag("generate.spec", generateCmd.Flags().Lookup("spec"))
+	viper.BindPFlag("generate.hf-mode", generateCmd.Flags().Lookup("hf-mode"))
+	viper.BindPFlag("generate.hf-timeout", generateCmd.Flags().Lookup("hf-timeout"))
+	viper.BindPFlag("generate.hf-token", generateCmd.Flags().Lookup("hf-token"))
+	viper.BindPFlag("generate.enrich", generateCmd.Flags().Lookup("enrich"))
+	viper.BindPFlag("generate.log-level", generateCmd.Flags().Lookup("log-level"))
 }
 
 func bomMetadataComponentName(bom *cdx.BOM) string {

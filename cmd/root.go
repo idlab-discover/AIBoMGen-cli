@@ -45,7 +45,7 @@ func init() {
 
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.aibomgen-cli.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.aibomgen-cli.yaml or ./config/defaults.yaml)")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
 
 	// Ensure `--help` (and help subcommands) show a green banner consistently.
@@ -70,12 +70,12 @@ func initConfig() {
 
 		// Search for config in multiple locations (in order of priority):
 		// 1. $HOME/.aibomgen-cli.yaml
-		// 2. ./config/config.yaml (project local)
+		// 2. ./config/defaults.yaml (project local)
 		viper.AddConfigPath(home)
 		viper.AddConfigPath("./config")
 		viper.SetConfigType("yaml")
 		viper.SetConfigName(".aibomgen-cli") // for $HOME/.aibomgen-cli.yaml
-		viper.SetConfigName("config")        // for ./config/config.yaml
+		viper.SetConfigName("defaults")      // for ./config/defaults.yaml
 	}
 
 	// Enable environment variable support (e.g., AIBOMGEN_HUGGINGFACE_TOKEN)

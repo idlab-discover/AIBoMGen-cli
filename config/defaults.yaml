@@ -1,0 +1,90 @@
+# AIBoMGen-cli Global Configuration
+# This file provides default values for all command flags.
+# Values can be overridden by command-line flags or by using --config to specify a different file.
+# Default location: $HOME/.aibomgen-cli.yaml or ./config/defaults.yaml
+
+# ============================================================================
+# Command: generate
+# ============================================================================
+generate:
+  # Path to scan for AI components
+  input: "./testdata/repo-basic"
+  # Output file path (directory is used)
+  output: "./dist/aibom"
+  # Output BOM format: json|xml|auto
+  format: "auto"
+  # CycloneDX spec version for output (e.g., 1.4, 1.5, 1.6) empty is latest
+  spec: ""
+  # Hugging Face metadata mode: online|dummy
+  hf-mode: "online"
+  # HTTP timeout in seconds for Hugging Face API
+  hf-timeout: 10
+  # Hugging Face access token
+  hf-token: ""
+  # Prompt for missing fields and compute completeness (deprecated)
+  enrich: false
+  # Log level: quiet|standard|debug
+  log-level: "standard"
+
+# ============================================================================
+# Command: enrich
+# ============================================================================
+enrich:
+  # Path to existing AIBOM (required)
+  input: "./dist/distilbert_distilgpt2_aibom.json"
+  # Output file path (default: overwrite input)
+  output: "./dist/distilbert_distilgpt2_aibom.json"
+  # Input BOM format: json|xml|auto
+  format: "auto"
+  # Output BOM format: json|xml|auto
+  output-format: "auto"
+  # CycloneDX spec version for output (default: same as input)
+  spec: ""
+  # Enrichment strategy: interactive|file
+  strategy: "interactive"
+  # Path to enrichment config file (YAML)
+  file: "./config/enrichment.yaml"
+  # Only prompt for required fields
+  required-only: false
+  # Only prompt for fields with weight >= this value
+  min-weight: 0.0
+  # Refetch model metadata from Hugging Face before enrichment
+  refetch: true
+  # Skip preview before saving
+  no-preview: false
+  # Log level: quiet|standard|debug
+  log-level: "standard"
+  # Hugging Face API token (for refetch)
+  hf-token: ""
+  # Hugging Face base URL (for refetch)
+  hf-base-url: "https://huggingface.co"
+  # Hugging Face API timeout in seconds (for refetch)
+  hf-timeout: 10
+
+# ============================================================================
+# Command: validate
+# ============================================================================
+validate:
+  # Path to AIBOM file (required)
+  input: "./dist/distilbert_distilgpt2_aibom.json"
+  # Input format: json|xml|auto
+  format: "auto"
+  # Strict mode: fail on missing required fields
+  strict: false
+  # Minimum completeness score (0.0-1.0)
+  min-score: 0.0
+  # Validate model card fields
+  check-model-card: true
+  # Log level: quiet|standard|debug
+  log-level: "standard"
+
+# ============================================================================
+# Command: completeness
+# ============================================================================
+completeness:
+  # Path to existing AIBOM file (required)
+  input: "./dist/distilbert_distilgpt2_aibom.json"
+  # Input BOM format: json|xml|auto
+  format: "auto"
+  # Log level: quiet|standard|debug
+  log-level: "standard"

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
@@ -17,8 +18,8 @@ var completenessCmd = &cobra.Command{
 	Long:  "Reads an existing CycloneDX AIBOM (json/xml) and scores it against the configured field registry.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		// Resolve effective log level.
-		level := strings.ToLower(strings.TrimSpace(completenessLogLevel))
+		// Get log level from viper (respects config file and CLI flag)
+		level := strings.ToLower(strings.TrimSpace(viper.GetString("completeness.log-level")))
 		if level == "" {
 			level = "standard"
 		}
@@ -26,7 +27,7 @@ var completenessCmd = &cobra.Command{
 		case "quiet", "standard", "debug":
 			// ok
 		default:
-			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", completenessLogLevel)
+			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", level)
 		}
 
 		// Wire internal package logging based on log level.
@@ -38,7 +39,14 @@ var completenessCmd = &cobra.Command{
 			}
 		}
 
-		bom, err := bomio.ReadBOM(inPath, inFormat)
+		// Get input path and format from viper
+		inputPath := viper.GetString("completeness.input")
+		inputFormat := viper.GetString("completeness.format")
+		if inputFormat == "" {
+			inputFormat = "auto"
+		}
+
+		bom, err := bomio.ReadBOM(inputPath, inputFormat)
 		if err != nil {
 			return err
 		}
@@ -59,8 +67,13 @@ func init() {
 	rootCmd.AddCommand(completenessCmd)
 
 	completenessCmd.Flags().StringVarP(&inPath, "input", "i", "", "Path to existing AIBOM file (required)")
-	completenessCmd.Flags().StringVarP(&inFormat, "format", "f", "auto", "Input BOM format: json|xml|auto (default: auto)")
-	completenessCmd.Flags().StringVar(&completenessLogLevel, "log-level", "standard", "Log level: quiet|standard|debug (default: standard)")
+	completenessCmd.Flags().StringVarP(&inFormat, "format", "f", "", "Input BOM format: json|xml|auto")
+	completenessCmd.Flags().StringVar(&completenessLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 
 	_ = completenessCmd.MarkFlagRequired("input")
+
+	// Bind all flags to viper for config file support
+	viper.BindPFlag("completeness.input", completenessCmd.Flags().Lookup("input"))
+	viper.BindPFlag("completeness.format", completenessCmd.Flags().Lookup("format"))
+	viper.BindPFlag("completeness.log-level", completenessCmd.Flags().Lookup("log-level"))
 }
