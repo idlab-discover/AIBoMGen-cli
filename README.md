@@ -19,9 +19,11 @@ What works today:
 What is future work:
 
 - Improving the scanner beyond the current regex-based Hugging Face detection.
-- Implementing data components with dataset fetchers and linking them in the aibom.
-- Implementing the possibility to merge aiboms with existing sboms from a different source.
-- Implementing the possibility to sign aiboms with cosign.
+- Implementing data components with dataset fetchers and linking them in the AIBOM.
+- Implementing the possibility to merge AIBOMs with existing sboms from a different source.
+- Implementing the possibility to sign AIBOMs with cosign.
+- Implementing check-vuln command to check AI vulnerability databases
+- Implementing AIBOM generation based of model files not on Hugging Face
 
 ## Build
 
