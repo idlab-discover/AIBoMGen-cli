@@ -17,6 +17,18 @@ type ValidationResult struct {
 	CompletenessScore float64
 	MissingRequired   []metadata.Key
 	MissingOptional   []metadata.Key
+
+	// Dataset-specific results
+	DatasetResults map[string]DatasetValidationResult // key is dataset name
+}
+
+type DatasetValidationResult struct {
+	DatasetRef        string
+	CompletenessScore float64
+	MissingRequired   []metadata.DatasetKey
+	MissingOptional   []metadata.DatasetKey
+	Errors            []string
+	Warnings          []string
 }
 
 type ValidationOptions struct {
@@ -28,9 +40,10 @@ type ValidationOptions struct {
 func Validate(bom *cdx.BOM, opts ValidationOptions) ValidationResult {
 
 	result := ValidationResult{
-		Valid:    true,
-		Errors:   []string{},
-		Warnings: []string{},
+		Valid:          true,
+		Errors:         []string{},
+		Warnings:       []string{},
+		DatasetResults: make(map[string]DatasetValidationResult),
 	}
 
 	// 1. Basic structural validation
@@ -81,6 +94,35 @@ func Validate(bom *cdx.BOM, opts ValidationOptions) ValidationResult {
 	// 7. Model card validation
 	if opts.CheckModelCard {
 		validateModelCard(bom, &result)
+	}
+
+	// 8. Validate dataset components if they exist
+	for dsName, dsReport := range report.DatasetReports {
+		dsResult := DatasetValidationResult{
+			DatasetRef:        dsReport.DatasetRef,
+			CompletenessScore: dsReport.Score,
+			MissingRequired:   dsReport.MissingRequired,
+			MissingOptional:   dsReport.MissingOptional,
+			Errors:            []string{},
+			Warnings:          []string{},
+		}
+
+		// Strict mode for dataset components (optional fields only)
+		if opts.StrictMode && len(dsReport.MissingRequired) > 0 {
+			for _, key := range dsReport.MissingRequired {
+				msg := fmt.Sprintf("required dataset field missing: %s", key)
+				dsResult.Errors = append(dsResult.Errors, msg)
+				result.Warnings = append(result.Warnings, fmt.Sprintf("dataset %s: %s", dsName, msg))
+			}
+		}
+
+		// Add warnings for optional dataset fields
+		for _, key := range dsReport.MissingOptional {
+			msg := fmt.Sprintf("optional dataset field missing: %s", key)
+			dsResult.Warnings = append(dsResult.Warnings, msg)
+		}
+
+		result.DatasetResults[dsName] = dsResult
 	}
 
 	return result

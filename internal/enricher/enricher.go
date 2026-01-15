@@ -67,7 +67,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 
 	// Run initial completeness check
 	initialReport := completeness.Check(bom)
-	logf(modelID, "initial completeness: %.2f%% (%d/%d fields)", initialReport.Score, initialReport.Passed, initialReport.Total)
+	logf(modelID, "initial completeness: %.2f%% (%d/%d fields)", initialReport.Score*100, initialReport.Passed, initialReport.Total)
 
 	// Refetch metadata if requested and apply it to BOM
 	var hfAPI *fetcher.ModelAPIResponse
@@ -83,7 +83,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 
 			// Check completeness after refetch
 			postRefetchReport = completeness.Check(bom)
-			logf(modelID, "completeness after refetch: %.2f%% (%d/%d fields)", postRefetchReport.Score, postRefetchReport.Passed, postRefetchReport.Total)
+			logf(modelID, "completeness after refetch: %.2f%% (%d/%d fields)", postRefetchReport.Score*100, postRefetchReport.Passed, postRefetchReport.Total)
 		} else {
 			logf(modelID, "no metadata retrieved from refetch")
 			postRefetchReport = initialReport
@@ -92,14 +92,56 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 		postRefetchReport = initialReport
 	}
 
-	// Collect missing fields based on config (using post-refetch state)
-	missingFields := e.collectMissingFields(postRefetchReport)
-	if len(missingFields) == 0 {
-		logf(modelID, "no fields to enrich")
-		return bom, nil
+	// STEP 1: Enrich model fields
+	logf(modelID, "enriching model fields...")
+	modelChanges, err := e.enrichModel(bom, modelID, hfAPI, hfReadme, postRefetchReport, configViper)
+	if err != nil {
+		return nil, fmt.Errorf("failed to enrich model: %w", err)
 	}
 
-	logf(modelID, "found %d field(s) to enrich", len(missingFields))
+	// STEP 2: Enrich dataset components if they exist
+	datasetChanges := make(map[string]map[metadata.DatasetKey]string)
+	if bom.Components != nil {
+		for i := range *bom.Components {
+			comp := &(*bom.Components)[i]
+			if comp.Type == cdx.ComponentTypeData {
+				logf(modelID, "enriching dataset component: %s", comp.Name)
+				dsChanges, err := e.enrichDataset(bom, comp, configViper)
+				if err != nil {
+					logf(modelID, "warning: failed to enrich dataset %s: %v", comp.Name, err)
+					continue
+				}
+				if len(dsChanges) > 0 {
+					datasetChanges[comp.Name] = dsChanges
+				}
+			}
+		}
+	}
+
+	// Show preview if requested
+	if !e.config.NoPreview && (len(modelChanges) > 0 || len(datasetChanges) > 0) {
+		if !e.showPreviewAndConfirm(initialReport, postRefetchReport, bom, modelChanges, datasetChanges) {
+			return nil, fmt.Errorf("enrichment cancelled by user")
+		}
+	} else if len(modelChanges) > 0 || len(datasetChanges) > 0 {
+		// Show final completeness even without preview
+		finalReport := completeness.Check(bom)
+		logf(modelID, "final completeness: %.2f%% (%d/%d fields)", finalReport.Score*100, finalReport.Passed, finalReport.Total)
+	}
+
+	return bom, nil
+}
+
+// enrichModel enriches the main model component
+func (e *Enricher) enrichModel(bom *cdx.BOM, modelID string, hfAPI *fetcher.ModelAPIResponse, hfReadme *fetcher.ModelReadmeCard, report completeness.Report, configViper interface{}) (map[metadata.Key]string, error) {
+	// Collect missing fields based on config (using post-refetch state)
+	missingFields := e.collectMissingFields(report)
+	if len(missingFields) == 0 {
+		logf(modelID, "no model fields to enrich")
+		return nil, nil
+	}
+
+	logf(modelID, "found %d model field(s) to enrich", len(missingFields))
 
 	// Prepare enrichment source
 	src := metadata.Source{
@@ -128,7 +170,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 		case "file":
 			value, err = e.getValueFromFile(spec, configViper)
 		case "interactive":
-			value, err = e.getValueInteractive(spec, src, tgt.BOM)
+			value, err = e.getValueInteractive(spec, src, bom)
 		default:
 			return nil, fmt.Errorf("unknown strategy: %s", e.config.Strategy)
 		}
@@ -150,18 +192,82 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 		}
 	}
 
-	// Show preview if requested
-	if !e.config.NoPreview && len(changes) > 0 {
-		if !e.showPreviewAndConfirm(initialReport, postRefetchReport, bom, changes) {
-			return nil, fmt.Errorf("enrichment cancelled by user")
-		}
-	} else if len(changes) > 0 {
-		// Show final completeness even without preview
-		finalReport := completeness.Check(bom)
-		logf(modelID, "final completeness: %.2f%% (%d/%d fields)", finalReport.Score, finalReport.Passed, finalReport.Total)
+	return changes, nil
+}
+
+// enrichDataset enriches a single dataset component
+func (e *Enricher) enrichDataset(bom *cdx.BOM, comp *cdx.Component, configViper interface{}) (map[metadata.DatasetKey]string, error) {
+	datasetID := comp.Name
+
+	// Check dataset completeness
+	dsReport := completeness.CheckDataset(comp)
+	logf(datasetID, "dataset completeness: %.2f%% (%d/%d fields)", dsReport.Score*100, dsReport.Passed, dsReport.Total)
+
+	// Collect missing dataset fields
+	missingFields := e.collectMissingDatasetFields(dsReport)
+	if len(missingFields) == 0 {
+		logf(datasetID, "no dataset fields to enrich")
+		return nil, nil
 	}
 
-	return bom, nil
+	logf(datasetID, "found %d dataset field(s) to enrich", len(missingFields))
+
+	// Refetch dataset metadata if requested
+	var hfAPI *fetcher.DatasetAPIResponse
+	var hfReadme *fetcher.DatasetReadmeCard
+	if e.config.Refetch && datasetID != "" {
+		hfAPI, hfReadme = e.refetchDatasetMetadata(datasetID)
+	}
+
+	// Prepare enrichment source
+	src := metadata.DatasetSource{
+		DatasetID: datasetID,
+		HF:        hfAPI,
+		Readme:    hfReadme,
+	}
+
+	// Prepare enrichment target
+	tgt := metadata.DatasetTarget{
+		Component:                 comp,
+		IncludeEvidenceProperties: false,
+		HuggingFaceBaseURL:        e.config.HFBaseURL,
+	}
+
+	// Track changes
+	changes := make(map[metadata.DatasetKey]string)
+
+	// Enrich each field
+	for _, spec := range missingFields {
+		var value interface{}
+		var err error
+
+		switch e.config.Strategy {
+		case "file":
+			value, err = e.getDatasetValueFromFile(spec, configViper)
+		case "interactive":
+			value, err = e.getDatasetValueInteractive(spec, src, comp)
+		default:
+			return nil, fmt.Errorf("unknown strategy: %s", e.config.Strategy)
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to get value for %s: %w", spec.Key, err)
+		}
+
+		if value != nil {
+			// Apply the value
+			if err := e.applyDatasetValue(spec, &src, &tgt, value); err != nil {
+				logf(datasetID, "failed to apply %s: %v", spec.Key, err)
+				continue
+			}
+			// Only track the change if it was successfully applied
+			if spec.SetUserValue != nil {
+				changes[spec.Key] = formatValue(value)
+			}
+		}
+	}
+
+	return changes, nil
 }
 
 // collectMissingFields returns fields that need enrichment based on config
@@ -365,23 +471,47 @@ func (e *Enricher) applyValue(spec metadata.FieldSpec, src *metadata.Source, tgt
 }
 
 // showPreviewAndConfirm shows changes and asks for confirmation
-func (e *Enricher) showPreviewAndConfirm(initial completeness.Report, postRefetch completeness.Report, enriched *cdx.BOM, changes map[metadata.Key]string) bool {
+func (e *Enricher) showPreviewAndConfirm(initial completeness.Report, postRefetch completeness.Report, enriched *cdx.BOM, modelChanges map[metadata.Key]string, datasetChanges map[string]map[metadata.DatasetKey]string) bool {
 	fmt.Fprintf(e.writer, "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	fmt.Fprintf(e.writer, "Preview Changes\n")
 	fmt.Fprintf(e.writer, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 
-	for key, value := range changes {
-		fmt.Fprintf(e.writer, "  + %s: %s\n", key, value)
+	// Show model changes
+	if len(modelChanges) > 0 {
+		fmt.Fprintf(e.writer, "Model fields:\n")
+		for key, value := range modelChanges {
+			fmt.Fprintf(e.writer, "  + %s: %s\n", key, value)
+		}
+		fmt.Fprintf(e.writer, "\n")
+	}
+
+	// Show dataset changes
+	if len(datasetChanges) > 0 {
+		for dsName, changes := range datasetChanges {
+			fmt.Fprintf(e.writer, "Dataset '%s' fields:\n", dsName)
+			for key, value := range changes {
+				fmt.Fprintf(e.writer, "  + %s: %s\n", key, value)
+			}
+			fmt.Fprintf(e.writer, "\n")
+		}
 	}
 
 	// Show completeness progression
 	finalReport := completeness.Check(enriched)
-	fmt.Fprintf(e.writer, "\nCompleteness Progress:\n")
-	fmt.Fprintf(e.writer, "  Initial:         %.2f%% (%d/%d fields)\n", initial.Score, initial.Passed, initial.Total)
+	fmt.Fprintf(e.writer, "Completeness Progress:\n")
+	fmt.Fprintf(e.writer, "  Model Initial:        %.2f%% (%d/%d fields)\n", initial.Score*100, initial.Passed, initial.Total)
 	if postRefetch.Score != initial.Score {
-		fmt.Fprintf(e.writer, "  After refetch:   %.2f%% (%d/%d fields)\n", postRefetch.Score, postRefetch.Passed, postRefetch.Total)
+		fmt.Fprintf(e.writer, "  Model After refetch:  %.2f%% (%d/%d fields)\n", postRefetch.Score*100, postRefetch.Passed, postRefetch.Total)
 	}
-	fmt.Fprintf(e.writer, "  After enrichment: %.2f%% (%d/%d fields)\n", finalReport.Score, finalReport.Passed, finalReport.Total)
+	fmt.Fprintf(e.writer, "  Model After enrichment: %.2f%% (%d/%d fields)\n", finalReport.Score*100, finalReport.Passed, finalReport.Total)
+
+	// Show dataset completeness
+	if len(finalReport.DatasetReports) > 0 {
+		fmt.Fprintf(e.writer, "\n  Datasets:\n")
+		for dsName, dsReport := range finalReport.DatasetReports {
+			fmt.Fprintf(e.writer, "    %s: %.2f%% (%d/%d fields)\n", dsName, dsReport.Score*100, dsReport.Passed, dsReport.Total)
+		}
+	}
 
 	fmt.Fprintf(e.writer, "\nSave changes? [Y/n]: ")
 
@@ -434,4 +564,157 @@ func formatValue(v interface{}) string {
 	default:
 		return fmt.Sprintf("%v", val)
 	}
+}
+
+// Dataset-specific helper functions
+
+// collectMissingDatasetFields returns dataset fields that need enrichment
+func (e *Enricher) collectMissingDatasetFields(report completeness.DatasetReport) []metadata.DatasetFieldSpec {
+	var result []metadata.DatasetFieldSpec
+
+	for _, spec := range metadata.DatasetRegistry() {
+		// Skip if weight is 0 or below threshold
+		if spec.Weight <= 0 || spec.Weight < e.config.MinWeight {
+			continue
+		}
+
+		// Check if field is missing
+		isMissing := false
+		for _, k := range report.MissingRequired {
+			if k == spec.Key {
+				isMissing = true
+				break
+			}
+		}
+		if !isMissing && !e.config.RequiredOnly {
+			for _, k := range report.MissingOptional {
+				if k == spec.Key {
+					isMissing = true
+					break
+				}
+			}
+		}
+
+		if isMissing {
+			result = append(result, spec)
+		}
+	}
+
+	return result
+}
+
+// refetchDatasetMetadata fetches fresh metadata for a dataset from Hugging Face
+func (e *Enricher) refetchDatasetMetadata(datasetID string) (*fetcher.DatasetAPIResponse, *fetcher.DatasetReadmeCard) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(e.config.HFTimeout)*time.Second)
+	defer cancel()
+
+	// Fetch Dataset API
+	apiFetcher := &fetcher.DatasetAPIFetcher{
+		Token:   e.config.HFToken,
+		BaseURL: e.config.HFBaseURL,
+	}
+	apiResp, err := apiFetcher.Fetch(ctx, datasetID)
+	if err != nil {
+		logf(datasetID, "Dataset API fetch failed: %v", err)
+	}
+
+	// Fetch Dataset README
+	readmeFetcher := &fetcher.DatasetReadmeFetcher{
+		Token:   e.config.HFToken,
+		BaseURL: e.config.HFBaseURL,
+	}
+	readme, err := readmeFetcher.Fetch(ctx, datasetID)
+	if err != nil {
+		logf(datasetID, "Dataset README fetch failed: %v", err)
+	}
+
+	return apiResp, readme
+}
+
+// getDatasetValueFromFile extracts a dataset value from the config file
+func (e *Enricher) getDatasetValueFromFile(spec metadata.DatasetFieldSpec, configViper interface{}) (interface{}, error) {
+	if configViper == nil {
+		return nil, nil
+	}
+
+	type viperGetter interface {
+		Get(key string) interface{}
+	}
+
+	v, ok := configViper.(viperGetter)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type")
+	}
+
+	key := string(spec.Key)
+	val := v.Get(key)
+
+	if val != nil {
+		logf("", "loaded %s from config file", spec.Key)
+		return val, nil
+	}
+
+	logf("", "no value found for %s in config file", spec.Key)
+	return nil, nil
+}
+
+// getDatasetValueInteractive prompts the user for a dataset value
+func (e *Enricher) getDatasetValueInteractive(spec metadata.DatasetFieldSpec, src metadata.DatasetSource, comp *cdx.Component) (interface{}, error) {
+	// Print field info
+	required := ""
+	if spec.Required {
+		required = " [REQUIRED]"
+	}
+	fmt.Fprintf(e.writer, "\n%s (weight: %.1f)%s\n", spec.Key, spec.Weight, required)
+
+	// Show suggestions if available
+	suggestions := e.getDatasetSuggestions(spec)
+	if len(suggestions) > 0 {
+		fmt.Fprintf(e.writer, "  Suggestions: %s\n", strings.Join(suggestions, ", "))
+	}
+
+	// Prompt for input
+	fmt.Fprintf(e.writer, "  Enter value (or press Enter to skip): ")
+
+	if !e.scan.Scan() {
+		return nil, e.scan.Err()
+	}
+
+	input := strings.TrimSpace(e.scan.Text())
+	if input == "" {
+		return nil, nil
+	}
+
+	return input, nil
+}
+
+// getDatasetSuggestions returns suggested values for a dataset field
+func (e *Enricher) getDatasetSuggestions(spec metadata.DatasetFieldSpec) []string {
+	switch spec.Key {
+	case metadata.DatasetLicenses:
+		return []string{"MIT", "Apache-2.0", "CC-BY-4.0", "CC0-1.0"}
+	case metadata.DatasetTags:
+		return []string{"Comma-separated (e.g., 'nlp, text, classification')"}
+	case metadata.DatasetClassification:
+		return []string{"text-classification", "image-classification", "question-answering", "translation"}
+	default:
+		return nil
+	}
+}
+
+// applyDatasetValue applies a user-provided value to a dataset component
+func (e *Enricher) applyDatasetValue(spec metadata.DatasetFieldSpec, src *metadata.DatasetSource, tgt *metadata.DatasetTarget, value interface{}) error {
+	strValue := fmt.Sprintf("%v", value)
+
+	if spec.SetUserValue != nil {
+		err := spec.SetUserValue(strValue, *tgt)
+		if err != nil {
+			return fmt.Errorf("failed to set user value for %s: %w", spec.Key, err)
+		}
+		logf(src.DatasetID, "applied user value for %s", spec.Key)
+		return nil
+	}
+
+	logf(src.DatasetID, "warning: no SetUserValue function for %s, value not applied", spec.Key)
+	return nil
 }
