@@ -20,12 +20,19 @@ const (
 	DatasetExternalReferences DatasetKey = "BOM.components[DATA].externalReferences"
 	DatasetTags               DatasetKey = "BOM.components[DATA].tags"
 	DatasetLicenses           DatasetKey = "BOM.components[DATA].licenses"
-	DatasetDescription        DatasetKey = "BOM.components[DATA].description"
+	DatasetDescription        DatasetKey = "BOM.components[DATA].data.description"
 	DatasetManufacturer       DatasetKey = "BOM.components[DATA].manufacturer"
+	DatasetAuthor             DatasetKey = "BOM.components[DATA].author"
 	DatasetGroup              DatasetKey = "BOM.components[DATA].group"
 	DatasetContents           DatasetKey = "BOM.components[DATA].data.contents.attachments"
 	DatasetSensitiveData      DatasetKey = "BOM.components[DATA].data.sensitiveData"
+	DatasetClassification     DatasetKey = "BOM.components[DATA].data.classification"
+	DatasetGovernance         DatasetKey = "BOM.components[DATA].data.governance"
+	DatasetHashes             DatasetKey = "BOM.components[DATA].hashes"
 	DatasetContact            DatasetKey = "BOM.components[DATA].properties.contact"
+	DatasetCreatedAt          DatasetKey = "BOM.components[DATA].properties.createdAt"
+	DatasetUsedStorage        DatasetKey = "BOM.components[DATA].properties.usedStorage"
+	DatasetLastModified       DatasetKey = "BOM.components[DATA].tags.lastModified"
 )
 
 // DatasetSource mirrors Source but for datasets
@@ -43,6 +50,32 @@ type DatasetTarget struct {
 	// Options
 	IncludeEvidenceProperties bool
 	HuggingFaceBaseURL        string
+}
+
+// Helper functions for working with Component.Data slice
+func ensureComponentData(comp *cdx.Component) *cdx.ComponentData {
+	if comp.Data == nil {
+		comp.Data = &[]cdx.ComponentData{{
+			Type: cdx.ComponentDataTypeDataset,
+		}}
+	} else if len(*comp.Data) == 0 {
+		*comp.Data = []cdx.ComponentData{{
+			Type: cdx.ComponentDataTypeDataset,
+		}}
+	}
+	// Ensure Type is always set
+	data := &(*comp.Data)[0]
+	if data.Type == "" {
+		data.Type = cdx.ComponentDataTypeDataset
+	}
+	return data
+}
+
+func getComponentData(comp *cdx.Component) *cdx.ComponentData {
+	if comp.Data == nil || len(*comp.Data) == 0 {
+		return nil
+	}
+	return &(*comp.Data)[0]
 }
 
 // DatasetFieldSpec is the dataset analog of FieldSpec
@@ -245,18 +278,28 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Weight:   0.7,
 			Required: false,
 			Apply: func(src DatasetSource, tgt DatasetTarget) {
-				if tgt.Component == nil || src.Readme == nil {
+				if tgt.Component == nil {
 					return
 				}
-				desc := strings.TrimSpace(src.Readme.DatasetDescription)
+
+				var desc string
+				if src.Readme != nil {
+					desc = strings.TrimSpace(src.Readme.DatasetDescription)
+				}
+				if desc == "" && src.HF != nil {
+					desc = strings.TrimSpace(src.HF.Description)
+				}
 				if desc == "" {
 					return
 				}
-				tgt.Component.Description = desc
+
+				data := ensureComponentData(tgt.Component)
+				data.Description = desc
 				logf(src.DatasetID, "apply %s set=%s", DatasetDescription, summarizeValue(desc))
 			},
 			Present: func(comp *cdx.Component) bool {
-				return comp != nil && strings.TrimSpace(comp.Description) != ""
+				data := getComponentData(comp)
+				return data != nil && strings.TrimSpace(data.Description) != ""
 			},
 			SetUserValue: func(value string, tgt DatasetTarget) error {
 				if tgt.Component == nil {
@@ -266,7 +309,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 				if desc == "" {
 					return fmt.Errorf("description value is empty")
 				}
-				tgt.Component.Description = desc
+				data := ensureComponentData(tgt.Component)
+				data.Description = desc
 				return nil
 			},
 		},
@@ -338,30 +382,35 @@ func DatasetRegistry() []DatasetFieldSpec {
 				if tgt.Component == nil || src.Readme == nil {
 					return
 				}
+
 				if len(src.Readme.Configs) == 0 {
 					return
 				}
 
-				// Store config/datafile info in component description or properties
-				// as Contents/Attachments may not be available in all CycloneDX versions
-				var configInfo []string
+				data := ensureComponentData(tgt.Component)
+
+				// Build content string from configs and data files
+				var contentParts []string
 				for _, config := range src.Readme.Configs {
 					for _, df := range config.DataFiles {
-						info := fmt.Sprintf("%s/%s: %s", config.Name, df.Split, df.Path)
-						configInfo = append(configInfo, info)
+						contentParts = append(contentParts, fmt.Sprintf("config:%s split:%s path:%s", config.Name, df.Split, df.Path))
 					}
 				}
 
-				if len(configInfo) > 0 {
-					// Store as properties for now
-					for i, info := range configInfo {
-						setProperty(tgt.Component, fmt.Sprintf("config_%d", i), info)
+				if len(contentParts) > 0 {
+					if data.Contents == nil {
+						data.Contents = &cdx.ComponentDataContents{}
 					}
-					logf(src.DatasetID, "apply %s set=%d config items", DatasetContents, len(configInfo))
+					data.Contents.Attachment = &cdx.AttachedText{
+						Content:     strings.Join(contentParts, "\n"),
+						ContentType: "text/plain",
+					}
+					logf(src.DatasetID, "apply %s set=%d config items", DatasetContents, len(contentParts))
 				}
 			},
 			Present: func(comp *cdx.Component) bool {
-				return comp != nil && hasProperty(comp, "config_0")
+				data := getComponentData(comp)
+				return data != nil && data.Contents != nil && data.Contents.Attachment != nil
 			},
 			SetUserValue: func(value string, tgt DatasetTarget) error {
 				// Not typically set by user for configs
@@ -373,31 +422,47 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Weight:   0.6,
 			Required: false,
 			Apply: func(src DatasetSource, tgt DatasetTarget) {
-				if tgt.Component == nil || src.Readme == nil {
+				if tgt.Component == nil {
 					return
 				}
 
 				var sensitiveItems []string
-				if out := strings.TrimSpace(src.Readme.OutOfScopeUse); out != "" {
-					sensitiveItems = append(sensitiveItems, out)
+
+				// From tags in cardData (HF API)
+				if src.HF != nil && src.HF.CardData != nil {
+					if tagsData, ok := src.HF.CardData["tags"]; ok {
+						if tags, ok := tagsData.([]interface{}); ok {
+							for _, tag := range tags {
+								if tagStr, ok := tag.(string); ok {
+									sensitiveItems = append(sensitiveItems, tagStr)
+								}
+							}
+						}
+					}
 				}
-				if psi := strings.TrimSpace(src.Readme.PersonalSensitiveInfo); psi != "" {
-					sensitiveItems = append(sensitiveItems, psi)
-				}
-				if brl := strings.TrimSpace(src.Readme.BiasRisksLimitations); brl != "" {
-					sensitiveItems = append(sensitiveItems, brl)
+
+				// From Readme fields
+				if src.Readme != nil {
+					if out := strings.TrimSpace(src.Readme.OutOfScopeUse); out != "" {
+						sensitiveItems = append(sensitiveItems, "out-of-scope: "+out)
+					}
+					if psi := strings.TrimSpace(src.Readme.PersonalSensitiveInfo); psi != "" {
+						sensitiveItems = append(sensitiveItems, "personal-info: "+psi)
+					}
+					if brl := strings.TrimSpace(src.Readme.BiasRisksLimitations); brl != "" {
+						sensitiveItems = append(sensitiveItems, "bias-risks: "+brl)
+					}
 				}
 
 				if len(sensitiveItems) > 0 {
-					// Store sensitive data info in properties
-					for i, item := range sensitiveItems {
-						setProperty(tgt.Component, fmt.Sprintf("sensitive_%d", i), item)
-					}
-					logf(src.DatasetID, "apply %s marked sensitive", DatasetSensitiveData)
+					data := ensureComponentData(tgt.Component)
+					data.SensitiveData = &sensitiveItems
+					logf(src.DatasetID, "apply %s set=%d items", DatasetSensitiveData, len(sensitiveItems))
 				}
 			},
 			Present: func(comp *cdx.Component) bool {
-				return comp != nil && hasProperty(comp, "sensitive_0")
+				data := getComponentData(comp)
+				return data != nil && data.SensitiveData != nil && len(*data.SensitiveData) > 0
 			},
 			SetUserValue: func(value string, tgt DatasetTarget) error {
 				if tgt.Component == nil {
@@ -407,7 +472,263 @@ func DatasetRegistry() []DatasetFieldSpec {
 				if sensitive == "" {
 					return fmt.Errorf("sensitive data value is empty")
 				}
-				setProperty(tgt.Component, "sensitive_info", sensitive)
+				data := ensureComponentData(tgt.Component)
+				items := []string{sensitive}
+				data.SensitiveData = &items
+				return nil
+			},
+		},
+		{
+			Key:      DatasetClassification,
+			Weight:   0.6,
+			Required: false,
+			Apply: func(src DatasetSource, tgt DatasetTarget) {
+				if tgt.Component == nil {
+					return
+				}
+
+				var classification string
+				if src.HF != nil && src.HF.CardData != nil {
+					if taskCats, ok := src.HF.CardData["task_categories"]; ok {
+						if cats, ok := taskCats.([]interface{}); ok && len(cats) > 0 {
+							if cat, ok := cats[0].(string); ok {
+								classification = cat
+							}
+						}
+					}
+				}
+
+				if classification != "" {
+					data := ensureComponentData(tgt.Component)
+					data.Classification = classification
+					logf(src.DatasetID, "apply %s set=%s", DatasetClassification, classification)
+				}
+			},
+			Present: func(comp *cdx.Component) bool {
+				data := getComponentData(comp)
+				return data != nil && strings.TrimSpace(data.Classification) != ""
+			},
+			SetUserValue: func(value string, tgt DatasetTarget) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				classification := strings.TrimSpace(value)
+				if classification == "" {
+					return fmt.Errorf("classification value is empty")
+				}
+				data := ensureComponentData(tgt.Component)
+				data.Classification = classification
+				return nil
+			},
+		},
+		{
+			Key:      DatasetGovernance,
+			Weight:   0.7,
+			Required: false,
+			Apply: func(src DatasetSource, tgt DatasetTarget) {
+				if tgt.Component == nil {
+					return
+				}
+
+				governance := &cdx.DataGovernance{}
+				hasGovernance := false
+
+				// Custodians from author (HF API) or SharedBy/CuratedBy (Readme)
+				var custodianName string
+				if src.HF != nil && strings.TrimSpace(src.HF.Author) != "" {
+					custodianName = strings.TrimSpace(src.HF.Author)
+				} else if src.Readme != nil {
+					if strings.TrimSpace(src.Readme.SharedBy) != "" {
+						custodianName = strings.TrimSpace(src.Readme.SharedBy)
+					} else if strings.TrimSpace(src.Readme.CuratedBy) != "" {
+						custodianName = strings.TrimSpace(src.Readme.CuratedBy)
+					}
+				}
+				if custodianName != "" {
+					governance.Custodians = &[]cdx.ComponentDataGovernanceResponsibleParty{{
+						Organization: &cdx.OrganizationalEntity{Name: custodianName},
+					}}
+					hasGovernance = true
+				}
+
+				// Stewards from CuratedBy (Readme)
+				if src.Readme != nil && strings.TrimSpace(src.Readme.CuratedBy) != "" {
+					governance.Stewards = &[]cdx.ComponentDataGovernanceResponsibleParty{{
+						Organization: &cdx.OrganizationalEntity{Name: strings.TrimSpace(src.Readme.CuratedBy)},
+					}}
+					hasGovernance = true
+				}
+
+				// Owners from FundedBy (Readme)
+				if src.Readme != nil && strings.TrimSpace(src.Readme.FundedBy) != "" {
+					governance.Owners = &[]cdx.ComponentDataGovernanceResponsibleParty{{
+						Organization: &cdx.OrganizationalEntity{Name: strings.TrimSpace(src.Readme.FundedBy)},
+					}}
+					hasGovernance = true
+				}
+
+				if hasGovernance {
+					data := ensureComponentData(tgt.Component)
+					data.Governance = governance
+					logf(src.DatasetID, "apply %s set governance", DatasetGovernance)
+				}
+			},
+			Present: func(comp *cdx.Component) bool {
+				data := getComponentData(comp)
+				return data != nil && data.Governance != nil
+			},
+			SetUserValue: func(value string, tgt DatasetTarget) error {
+				// Governance is complex, not typically set by simple string
+				return nil
+			},
+		},
+		{
+			Key:      DatasetHashes,
+			Weight:   0.5,
+			Required: false,
+			Apply: func(src DatasetSource, tgt DatasetTarget) {
+				if tgt.Component == nil || src.HF == nil {
+					return
+				}
+
+				sha := strings.TrimSpace(src.HF.SHA)
+				if sha == "" {
+					return
+				}
+
+				hashes := []cdx.Hash{{
+					Algorithm: cdx.HashAlgoSHA1,
+					Value:     sha,
+				}}
+				tgt.Component.Hashes = &hashes
+				logf(src.DatasetID, "apply %s set=%s", DatasetHashes, sha)
+			},
+			Present: func(comp *cdx.Component) bool {
+				return comp != nil && comp.Hashes != nil && len(*comp.Hashes) > 0
+			},
+			SetUserValue: func(value string, tgt DatasetTarget) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				hash := strings.TrimSpace(value)
+				if hash == "" {
+					return fmt.Errorf("hash value is empty")
+				}
+				hashes := []cdx.Hash{{
+					Algorithm: cdx.HashAlgoSHA1,
+					Value:     hash,
+				}}
+				tgt.Component.Hashes = &hashes
+				return nil
+			},
+		},
+		{
+			Key:      DatasetCreatedAt,
+			Weight:   0.3,
+			Required: false,
+			Apply: func(src DatasetSource, tgt DatasetTarget) {
+				if tgt.Component == nil || src.HF == nil {
+					return
+				}
+
+				createdAt := strings.TrimSpace(src.HF.CreatedAt)
+				if createdAt == "" {
+					return
+				}
+
+				setProperty(tgt.Component, "createdAt", createdAt)
+				logf(src.DatasetID, "apply %s set=%s", DatasetCreatedAt, createdAt)
+			},
+			Present: func(comp *cdx.Component) bool {
+				return hasProperty(comp, "createdAt")
+			},
+			SetUserValue: func(value string, tgt DatasetTarget) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				setProperty(tgt.Component, "createdAt", strings.TrimSpace(value))
+				return nil
+			},
+		},
+		{
+			Key:      DatasetUsedStorage,
+			Weight:   0.3,
+			Required: false,
+			Apply: func(src DatasetSource, tgt DatasetTarget) {
+				if tgt.Component == nil || src.HF == nil {
+					return
+				}
+
+				if src.HF.UsedStorage <= 0 {
+					return
+				}
+
+				setProperty(tgt.Component, "usedStorage", fmt.Sprintf("%d", src.HF.UsedStorage))
+				logf(src.DatasetID, "apply %s set=%d", DatasetUsedStorage, src.HF.UsedStorage)
+			},
+			Present: func(comp *cdx.Component) bool {
+				return hasProperty(comp, "usedStorage")
+			},
+			SetUserValue: func(value string, tgt DatasetTarget) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				setProperty(tgt.Component, "usedStorage", strings.TrimSpace(value))
+				return nil
+			},
+		},
+		{
+			Key:      DatasetLastModified,
+			Weight:   0.3,
+			Required: false,
+			Apply: func(src DatasetSource, tgt DatasetTarget) {
+				if tgt.Component == nil || src.HF == nil {
+					return
+				}
+
+				lastMod := strings.TrimSpace(src.HF.LastMod)
+				if lastMod == "" {
+					return
+				}
+
+				// Add to tags for tracking
+				if tgt.Component.Tags != nil {
+					tags := *tgt.Component.Tags
+					tags = append(tags, "lastModified:"+lastMod)
+					tgt.Component.Tags = &tags
+				} else {
+					tags := []string{"lastModified:" + lastMod}
+					tgt.Component.Tags = &tags
+				}
+				logf(src.DatasetID, "apply %s set=%s", DatasetLastModified, lastMod)
+			},
+			Present: func(comp *cdx.Component) bool {
+				if comp == nil || comp.Tags == nil {
+					return false
+				}
+				for _, tag := range *comp.Tags {
+					if strings.HasPrefix(tag, "lastModified:") {
+						return true
+					}
+				}
+				return false
+			},
+			SetUserValue: func(value string, tgt DatasetTarget) error {
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				lastMod := strings.TrimSpace(value)
+				if lastMod == "" {
+					return fmt.Errorf("lastModified value is empty")
+				}
+				if tgt.Component.Tags != nil {
+					tags := *tgt.Component.Tags
+					tags = append(tags, "lastModified:"+lastMod)
+					tgt.Component.Tags = &tags
+				} else {
+					tags := []string{"lastModified:" + lastMod}
+					tgt.Component.Tags = &tags
+				}
 				return nil
 			},
 		},
