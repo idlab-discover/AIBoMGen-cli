@@ -22,6 +22,7 @@ func TestPrintReport_UsesConfiguredLoggerWriter(t *testing.T) {
 		CompletenessScore: 0.5,
 		MissingRequired:   []metadata.Key{metadata.ComponentName},
 		MissingOptional:   []metadata.Key{metadata.ComponentTags, metadata.ComponentLicenses},
+		DatasetResults:    make(map[string]DatasetValidationResult),
 	})
 
 	got := buf.String()
@@ -30,7 +31,7 @@ func TestPrintReport_UsesConfiguredLoggerWriter(t *testing.T) {
 		"Validation Report:   • required field missing\n" +
 		"Validation Report: warnings (1):\n" +
 		"Validation Report:   • optional field missing\n" +
-		"Validation Report: completeness score: 50.0% (1 required, 2 optional missing)\n"
+		"Validation Report: model completeness score: 50.0% (1 required, 2 optional missing)\n"
 
 	if got != want {
 		t.Fatalf("output = %q, want %q", got, want)
