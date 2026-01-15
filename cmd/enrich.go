@@ -170,8 +170,6 @@ func init() {
 	enrichCmd.Flags().StringVar(&enrichHFBaseURL, "hf-base-url", "", "Hugging Face base URL (for refetch)")
 	enrichCmd.Flags().IntVar(&enrichHFTimeout, "hf-timeout", 0, "Hugging Face API timeout in seconds (for refetch)")
 
-	_ = enrichCmd.MarkFlagRequired("input")
-
 	// Bind all flags to viper for config file support
 	viper.BindPFlag("enrich.input", enrichCmd.Flags().Lookup("input"))
 	viper.BindPFlag("enrich.output", enrichCmd.Flags().Lookup("output"))

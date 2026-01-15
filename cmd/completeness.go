@@ -70,8 +70,6 @@ func init() {
 	completenessCmd.Flags().StringVarP(&inFormat, "format", "f", "", "Input BOM format: json|xml|auto")
 	completenessCmd.Flags().StringVar(&completenessLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 
-	_ = completenessCmd.MarkFlagRequired("input")
-
 	// Bind all flags to viper for config file support
 	viper.BindPFlag("completeness.input", completenessCmd.Flags().Lookup("input"))
 	viper.BindPFlag("completeness.format", completenessCmd.Flags().Lookup("format"))

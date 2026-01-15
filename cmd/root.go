@@ -68,14 +68,30 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search for config in multiple locations (in order of priority):
-		// 1. $HOME/.aibomgen-cli.yaml
-		// 2. ./config/defaults.yaml (project local)
+		viper.SetConfigType("yaml")
 		viper.AddConfigPath(home)
 		viper.AddConfigPath("./config")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".aibomgen-cli") // for $HOME/.aibomgen-cli.yaml
-		viper.SetConfigName("defaults")      // for ./config/defaults.yaml
+
+		// Try .aibomgen-cli first
+		viper.SetConfigName(".aibomgen-cli")
+		err = viper.ReadInConfig()
+
+		// If not found, try defaults.yaml
+		notFound := &viper.ConfigFileNotFoundError{}
+		if err != nil && errors.As(err, notFound) {
+			viper.SetConfigName("defaults")
+			err = viper.ReadInConfig()
+		}
+
+		if err != nil && !errors.As(err, notFound) {
+			cobra.CheckErr(err)
+		}
+
+		if err == nil {
+			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		}
+
+		return
 	}
 
 	// Enable environment variable support (e.g., AIBOMGEN_HUGGINGFACE_TOKEN)

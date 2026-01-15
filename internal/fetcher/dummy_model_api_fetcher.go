@@ -43,6 +43,7 @@ func (f *DummyModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*Mode
 			"language": "en",
 			"license":  "mit",
 			"tags":     []string{"text-generation", "pytorch"},
+			"datasets": []string{"wikipedia", "openwebtext"},
 		},
 		Config: struct {
 			ModelType     string   `json:"model_type"`

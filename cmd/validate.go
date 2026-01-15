@@ -92,8 +92,6 @@ func init() {
 	validateCmd.Flags().BoolVar(&validateCheckModelCard, "check-model-card", false, "Validate model card fields")
 	validateCmd.Flags().StringVar(&validateLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 
-	validateCmd.MarkFlagRequired("input")
-
 	// Bind all flags to viper for config file support
 	viper.BindPFlag("validate.input", validateCmd.Flags().Lookup("input"))
 	viper.BindPFlag("validate.format", validateCmd.Flags().Lookup("format"))

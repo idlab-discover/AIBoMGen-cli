@@ -49,6 +49,35 @@ func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 	return bom, nil
 }
 
+// BuildDataset builds a dataset component into BOM.components
+func (b BOMBuilder) BuildDataset(ctx DatasetBuildContext) (*cdx.Component, error) {
+	logf(ctx.DatasetID, "build dataset start")
+
+	comp := buildDatasetComponent(ctx)
+
+	// Apply dataset registry
+	src := metadata.DatasetSource{
+		DatasetID: strings.TrimSpace(ctx.DatasetID),
+		Scan:      ctx.Scan,
+		HF:        ctx.HF,
+		Readme:    ctx.Readme,
+	}
+	tgt := metadata.DatasetTarget{
+		Component:                 comp,
+		IncludeEvidenceProperties: b.Opts.IncludeEvidenceProperties,
+		HuggingFaceBaseURL:        b.Opts.HuggingFaceBaseURL,
+	}
+
+	for _, spec := range metadata.DatasetRegistry() {
+		if spec.Apply != nil {
+			spec.Apply(src, tgt)
+		}
+	}
+
+	logf(ctx.DatasetID, "build dataset ok")
+	return comp, nil
+}
+
 func buildMetadataComponent(ctx BuildContext) *cdx.Component {
 	// Minimal skeleton; registry fills the rest
 	name := strings.TrimSpace(ctx.ModelID)
@@ -63,5 +92,21 @@ func buildMetadataComponent(ctx BuildContext) *cdx.Component {
 		Type:      cdx.ComponentTypeMachineLearningModel,
 		Name:      name,
 		ModelCard: &cdx.MLModelCard{},
+	}
+}
+
+// buildDatasetComponent creates skeleton for DATASET component (DATA type)
+func buildDatasetComponent(ctx DatasetBuildContext) *cdx.Component {
+	name := strings.TrimSpace(ctx.DatasetID)
+	if name == "" && strings.TrimSpace(ctx.Scan.Name) != "" {
+		name = strings.TrimSpace(ctx.Scan.Name)
+	}
+	if name == "" {
+		name = "dataset"
+	}
+
+	return &cdx.Component{
+		Type: cdx.ComponentTypeData,
+		Name: name,
 	}
 }

@@ -12,6 +12,14 @@ type BuildContext struct {
 	Readme  *fetcher.ModelReadmeCard
 }
 
+// DatasetBuildContext for dataset component building
+type DatasetBuildContext struct {
+	DatasetID string
+	Scan      scanner.Discovery
+	HF        *fetcher.DatasetAPIResponse
+	Readme    *fetcher.DatasetReadmeCard
+}
+
 type Options struct {
 	IncludeEvidenceProperties bool
 	HuggingFaceBaseURL        string

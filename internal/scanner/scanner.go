@@ -71,6 +71,7 @@ func Scan(root string) ([]Discovery, error) {
 			for scanner.Scan() {
 				lineNum++
 				line := scanner.Text()
+
 				matches := hfModelPattern.FindAllStringSubmatch(line, -1)
 				for _, m := range matches {
 					if len(m) > 1 {
@@ -99,15 +100,8 @@ func Scan(root string) ([]Discovery, error) {
 	}
 	deduped := dedupe(results)
 	if logger.Enabled() {
-		// Count models detected
-		modelCount := 0
-		for _, c := range deduped {
-			if c.Type == "model" {
-				modelCount++
-			}
-		}
 		prefix := ui.Color("Scan:", ui.FgYellow)
-		fmt.Fprintf(logger.Writer, "%s detected %d components (models: %d)\n", prefix, len(deduped), modelCount)
+		fmt.Fprintf(logger.Writer, "%s detected %d components (models: %d)\n", prefix, len(deduped), len(deduped))
 	}
 	return deduped, nil
 }

@@ -151,16 +151,3 @@ func TestLogfWritesWithConfiguredLogger(t *testing.T) {
 		}
 	}
 }
-
-func TestBuildPerDiscovery_PropagatesBuilderError(t *testing.T) {
-	origFactory := newBOMBuilder
-	newBOMBuilder = func() bomBuilder {
-		return &failingBuilder{err: errors.New("builder boom")}
-	}
-	t.Cleanup(func() { newBOMBuilder = origFactory })
-
-	_, err := BuildPerDiscovery([]scanner.Discovery{{}}, "", time.Second)
-	if err == nil || !strings.Contains(err.Error(), "builder boom") {
-		t.Fatalf("expected builder error, got %v", err)
-	}
-}

@@ -133,6 +133,7 @@ var generateCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
+
 			// Online mode: per discovery: store + fetch + map + build (inside generator).
 			discoveredBOMs, err = generator.BuildPerDiscovery(discoveries, hfToken, timeout)
 			if err != nil {
@@ -225,6 +226,7 @@ func init() {
 	generateCmd.Flags().IntVar(&hfTimeoutSec, "hf-timeout", 0, "HTTP timeout in seconds for Hugging Face API")
 	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token")
 	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness (deprecated)")
+
 	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 
 	// Bind all flags to viper for config file support
