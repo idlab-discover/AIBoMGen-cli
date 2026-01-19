@@ -31,7 +31,6 @@ var rootCmd = &cobra.Command{
 }
 
 var cfgFile string
-var noColor bool
 
 // Execute executes the root command.
 func Execute() {
@@ -46,7 +45,6 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.aibomgen-cli.yaml or ./config/defaults.yaml)")
-	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
 
 	// Ensure `--help` (and help subcommands) show a green banner consistently.
 	defaultHelp := rootCmd.HelpFunc()
@@ -128,7 +126,6 @@ const bannerASCII = `
 const longDescription = "BOM Generator for Software Projects using AI. Helps PDE manufacturers create accurate Bills of Materials for their AI-based software projects."
 
 func initUIAndBanner(cmd *cobra.Command) {
-	ui.Init(noColor)
 	if cmd == nil {
 		return
 	}

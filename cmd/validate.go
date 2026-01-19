@@ -7,6 +7,7 @@ import (
 	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/validator"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -74,7 +75,16 @@ var validateCmd = &cobra.Command{
 		}
 
 		result := validator.Validate(bom, opts)
-		validator.PrintReport(result)
+
+		// Extract model ID from BOM
+		modelID := "(unknown)"
+		if bom != nil && bom.Metadata != nil && bom.Metadata.Component != nil && bom.Metadata.Component.Name != "" {
+			modelID = bom.Metadata.Component.Name
+		}
+
+		// Use the new UI for rendering if not in quiet mode
+		ui := ui.NewValidationUI(cmd.OutOrStdout(), level == "quiet")
+		ui.PrintReport(result.ToUIReport(modelID))
 
 		if !result.Valid {
 			return fmt.Errorf("validation failed")

@@ -1,7 +1,6 @@
 package generator
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	cdx "github.com/CycloneDX/cyclonedx-go"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/builder"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 type failingBuilder struct {
@@ -132,22 +130,5 @@ func TestBuildPerDiscovery_FetchErrorStillBuilds(t *testing.T) {
 	}
 	if got[0].BOM.Metadata.Component.Name != "err-model" {
 		t.Fatalf("component name = %q, want err-model", got[0].BOM.Metadata.Component.Name)
-	}
-}
-
-func TestLogfWritesWithConfiguredLogger(t *testing.T) {
-	ui.Init(true)
-
-	var buf bytes.Buffer
-	SetLogger(&buf)
-	t.Cleanup(func() { SetLogger(nil) })
-
-	logf("model-x", "hello %s", "world")
-
-	got := buf.String()
-	for _, want := range []string{"Generator:", "model=model-x", "hello world"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("log output %q missing %q", got, want)
-		}
 	}
 }

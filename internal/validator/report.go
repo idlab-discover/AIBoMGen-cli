@@ -1,6 +1,60 @@
 package validator
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
+)
+
+// ToUIReport converts a validator.ValidationResult to a ui.ValidationReport
+// This avoids circular import issues
+func (r ValidationResult) ToUIReport(modelID string) ui.ValidationReport {
+	// Convert missing required fields
+	missingReq := make([]ui.FieldKey, len(r.MissingRequired))
+	for i, k := range r.MissingRequired {
+		missingReq[i] = k
+	}
+
+	// Convert missing optional fields
+	missingOpt := make([]ui.FieldKey, len(r.MissingOptional))
+	for i, k := range r.MissingOptional {
+		missingOpt[i] = k
+	}
+
+	// Convert dataset results
+	datasetResults := make(map[string]ui.DatasetValidationResult)
+	for name, dr := range r.DatasetResults {
+		missingReqDS := make([]ui.FieldKey, len(dr.MissingRequired))
+		for i, k := range dr.MissingRequired {
+			missingReqDS[i] = k
+		}
+
+		missingOptDS := make([]ui.FieldKey, len(dr.MissingOptional))
+		for i, k := range dr.MissingOptional {
+			missingOptDS[i] = k
+		}
+
+		datasetResults[name] = ui.DatasetValidationResult{
+			DatasetRef:        dr.DatasetRef,
+			CompletenessScore: dr.CompletenessScore,
+			MissingRequired:   missingReqDS,
+			MissingOptional:   missingOptDS,
+			Errors:            dr.Errors,
+			Warnings:          dr.Warnings,
+		}
+	}
+
+	return ui.ValidationReport{
+		ModelID:           modelID,
+		Valid:             r.Valid,
+		Errors:            r.Errors,
+		Warnings:          r.Warnings,
+		CompletenessScore: r.CompletenessScore,
+		MissingRequired:   missingReq,
+		MissingOptional:   missingOpt,
+		DatasetResults:    datasetResults,
+	}
+}
 
 // PrintReport writes the validation report to the configured logger writer.
 // If no logger writer is configured, it produces no output.

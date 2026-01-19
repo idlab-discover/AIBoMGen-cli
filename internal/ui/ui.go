@@ -1,32 +1,20 @@
 package ui
 
-// Enabled controls whether color codes are applied.
-var Enabled = true
-
-// Basic ANSI color codes.
+// Basic ANSI color codes (legacy - used by logging package).
+// New code should use lipgloss styles from styles.go instead.
 const (
-	Reset     = "\033[0m"
-	Bold      = "\033[1m"
-	FgCyan    = "\033[36m"
-	FgGreen   = "\033[32m"
-	FgMagenta = "\033[35m"
-	FgYellow  = "\033[33m"
-	FgRed     = "\033[31m"
+	Reset = "\033[0m"
+	// LegacyBold is the raw ANSI code for bold text
+	LegacyBold = "\033[1m"
+	FgCyan     = "\033[36m"
+	FgGreen    = "\033[32m"
+	FgMagenta  = "\033[35m"
+	FgYellow   = "\033[33m"
+	FgRed      = "\033[31m"
 )
 
-// Init sets Enabled based solely on the provided flag.
-func Init(noColor bool) {
-	if noColor {
-		Enabled = false
-	} else {
-		Enabled = true
-	}
-}
-
-// Color wraps a string with the given ANSI code when Enabled.
+// Color wraps a string with the given ANSI code.
+// Deprecated: Use lipgloss styles from styles.go instead.
 func Color(s string, code string) string {
-	if !Enabled {
-		return s
-	}
 	return code + s + Reset
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 var completenessCmd = &cobra.Command{
@@ -52,7 +53,11 @@ var completenessCmd = &cobra.Command{
 		}
 
 		res := completeness.Check(bom)
-		completeness.PrintReport(res)
+
+		// Use the new UI for rendering if not in quiet mode
+		ui := ui.NewCompletenessUI(cmd.OutOrStdout(), level == "quiet")
+		ui.PrintReport(res.ToUIReport())
+
 		return nil
 	},
 }

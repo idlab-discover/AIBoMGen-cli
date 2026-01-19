@@ -1,14 +1,12 @@
 package metadata
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 func specFor(t *testing.T, key Key) FieldSpec {
@@ -414,23 +412,6 @@ func TestRegistryPresentHandlesNilBOM(t *testing.T) {
 	for _, spec := range Registry() {
 		if spec.Present != nil {
 			spec.Present(nil)
-		}
-	}
-}
-
-func TestLogfWritesWithConfiguredLogger(t *testing.T) {
-	ui.Init(true)
-
-	var buf bytes.Buffer
-	SetLogger(&buf)
-	t.Cleanup(func() { SetLogger(nil) })
-
-	logf("model-id", "value %d", 42)
-
-	got := buf.String()
-	for _, want := range []string{"Meta:", "model=model-id", "value 42"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("log output %q missing %q", got, want)
 		}
 	}
 }

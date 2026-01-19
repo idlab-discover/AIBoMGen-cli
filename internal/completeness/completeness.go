@@ -7,7 +7,8 @@ import (
 )
 
 type Report struct {
-	Score float64 // 0..1
+	ModelID string  // Model identifier/name
+	Score   float64 // 0..1
 
 	Passed int
 	Total  int
@@ -86,7 +87,14 @@ func Check(bom *cdx.BOM) Report {
 		score = earned / max
 	}
 
+	// Extract model ID from BOM
+	modelID := "(unknown)"
+	if bom != nil && bom.Metadata != nil && bom.Metadata.Component != nil && bom.Metadata.Component.Name != "" {
+		modelID = bom.Metadata.Component.Name
+	}
+
 	report := Report{
+		ModelID:         modelID,
 		Score:           score,
 		Passed:          passed,
 		Total:           total,

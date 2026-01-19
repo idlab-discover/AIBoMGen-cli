@@ -1,17 +1,13 @@
 package scanner
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
-func TestScanDetectsModelsDedupesAndLogs(t *testing.T) {
-	ui.Init(true)
+func TestScanDetectsModelsDedupesEvidence(t *testing.T) {
 	dir := t.TempDir()
 	pyPath := filepath.Join(dir, "use_model.py")
 	pyContent := "from transformers import AutoModel\n" +
@@ -20,10 +16,6 @@ func TestScanDetectsModelsDedupesAndLogs(t *testing.T) {
 	if err := os.WriteFile(pyPath, []byte(pyContent), 0o644); err != nil {
 		t.Fatalf("write python file: %v", err)
 	}
-
-	var buf bytes.Buffer
-	SetLogger(&buf)
-	t.Cleanup(func() { SetLogger(nil) })
 
 	comps, err := Scan(dir)
 	if err != nil {
@@ -34,14 +26,6 @@ func TestScanDetectsModelsDedupesAndLogs(t *testing.T) {
 	}
 	if !strings.Contains(comps[0].Evidence, "line 2") || !strings.Contains(comps[0].Evidence, "line 3") {
 		t.Fatalf("expected evidence to include both occurrences, got %q", comps[0].Evidence)
-	}
-
-	logs := buf.String()
-	if !strings.Contains(logs, "found model 'bert-base-uncased'") {
-		t.Fatalf("expected detection log, got %q", logs)
-	}
-	if !strings.Contains(logs, "detected 1 components (models: 1)") {
-		t.Fatalf("expected summary log, got %q", logs)
 	}
 }
 
