@@ -90,8 +90,6 @@ func bomModelParameters(b *cdx.BOM) *cdx.MLModelParameters {
 	return c.ModelCard.ModelParameters
 }
 
-// ---- helpers  ----
-
 func extractLicense(cardData map[string]any, tags []string) string {
 	// cardData.license
 	if cardData != nil {
