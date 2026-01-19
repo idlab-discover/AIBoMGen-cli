@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -271,4 +272,126 @@ func extractDatasetsFromModel(modelResp *fetcher.ModelAPIResponse, readme *fetch
 	}
 
 	return nil
+}
+
+// BuildFromModelIDs generates BOMs from one or more Hugging Face model IDs without scanning.
+// This is used when --model-id is provided instead of --input.
+func BuildFromModelIDs(modelIDs []string, hfToken string, timeout time.Duration) ([]DiscoveredBOM, error) {
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+
+	results := make([]DiscoveredBOM, 0, len(modelIDs))
+
+	httpClient := &http.Client{Timeout: timeout}
+	modelApiFetcher := &fetcher.ModelAPIFetcher{Client: httpClient, Token: hfToken}
+	modelReadmeFetcher := &fetcher.ModelReadmeFetcher{Client: httpClient, Token: hfToken}
+	datasetApiFetcher := &fetcher.DatasetAPIFetcher{Client: httpClient, Token: hfToken}
+	datasetReadmeFetcher := &fetcher.DatasetReadmeFetcher{Client: httpClient, Token: hfToken}
+
+	for _, modelID := range modelIDs {
+		modelID = strings.TrimSpace(modelID)
+		if modelID == "" {
+			continue
+		}
+
+		bomBuilder := newBOMBuilder()
+
+		logf(modelID, "start (from model-id)")
+
+		logf(modelID, "fetch HF model metadata")
+		resp, err := modelApiFetcher.Fetch(context.Background(), modelID)
+		if err != nil {
+			logf(modelID, "fetch failed (%v)", err)
+			resp = nil
+		} else {
+			logf(modelID, "metadata fetched")
+		}
+
+		logf(modelID, "fetch HF README model card")
+		readme, err := modelReadmeFetcher.Fetch(context.Background(), modelID)
+		if err != nil {
+			logf(modelID, "readme fetch failed (%v)", err)
+			readme = nil
+		} else {
+			logf(modelID, "readme fetched")
+		}
+
+		// Create a discovery from the model ID
+		discovery := scanner.Discovery{
+			ID:       modelID,
+			Name:     modelID,
+			Type:     "huggingface",
+			Path:     "",
+			Evidence: fmt.Sprintf("from model-id: %s", modelID),
+		}
+
+		ctx := builder.BuildContext{
+			ModelID: modelID,
+			Scan:    discovery,
+			HF:      resp,
+			Readme:  readme,
+		}
+
+		logf(modelID, "build BOM")
+		bom, err := bomBuilder.Build(ctx)
+		if err != nil {
+			logf(modelID, "failed to build BOM: %v", err)
+			continue
+		}
+
+		// Extract datasets from model training data and build dataset components
+		datasets := extractDatasetsFromModel(resp, readme)
+
+		for _, dsID := range datasets {
+			logf(modelID, "building dataset component for %s", dsID)
+
+			var dsResp *fetcher.DatasetAPIResponse
+			var dsReadme *fetcher.DatasetReadmeCard
+
+			r, err := datasetApiFetcher.Fetch(context.Background(), dsID)
+			if err != nil {
+				logf(dsID, "dataset fetch failed, skipping component (dataset may not exist on HuggingFace): %v", err)
+				continue
+			}
+			dsResp = r
+
+			c, err := datasetReadmeFetcher.Fetch(context.Background(), dsID)
+			if err != nil {
+				logf(dsID, "dataset readme fetch failed, building component without readme: %v", err)
+			} else {
+				dsReadme = c
+			}
+
+			dsBomBuilder := newBOMBuilder()
+			dsCtx := builder.DatasetBuildContext{
+				DatasetID: dsID,
+				Scan:      scanner.Discovery{ID: dsID, Name: dsID, Type: "dataset"},
+				HF:        dsResp,
+				Readme:    dsReadme,
+			}
+
+			dsComp, err := dsBomBuilder.BuildDataset(dsCtx)
+			if err != nil {
+				logf(modelID, "failed to build dataset %s: %v", dsID, err)
+				continue
+			}
+
+			// Only initialize components slice when we have an actual component to add
+			if bom.Components == nil {
+				bom.Components = &[]cdx.Component{}
+			}
+			*bom.Components = append(*bom.Components, *dsComp)
+			logf(modelID, "added dataset component %s", dsID)
+		}
+
+		logf(modelID, "done")
+
+		results = append(results, DiscoveredBOM{
+			Discovery: discovery,
+			BOM:       bom,
+		})
+	}
+
+	return results, nil
 }

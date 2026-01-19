@@ -24,9 +24,10 @@ var (
 	generateOutput       string
 	generateOutputFormat string
 	generateSpecVersion  string
+	generateModelIDs     []string
 
 	// hfMode controls whether metadata is fetched from Hugging Face.
-	// Supported values: online|offline|dummy
+	// Supported values: online|dummy
 	hfMode       string
 	hfTimeoutSec int
 	hfToken      string
@@ -40,18 +41,8 @@ var (
 var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Generate an AI-aware BOM (AIBOM)",
-	Long:  "Scans the target path for AI Hugginface imports and produces a CycloneDX AIBOM JSON.",
+	Long:  "Generate BOM from Hugging Face imports: either scan a directory or provide model ID(s) directly.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Get input path from viper (respects config file and CLI flag)
-		target := viper.GetString("generate.input")
-		if target == "" {
-			target = "."
-		}
-		absTarget, err := filepath.Abs(target)
-		if err != nil {
-			return err
-		}
-
 		// Resolve effective log level (from config, env, or flag).
 		level := strings.ToLower(strings.TrimSpace(viper.GetString("generate.log-level")))
 		if level == "" {
@@ -75,6 +66,47 @@ var generateCmd = &cobra.Command{
 		default:
 			return fmt.Errorf("invalid --hf-mode %q (expected online|dummy)", mode)
 		}
+
+		// Check if --model-id was explicitly provided on the command line
+		modelIDFlagProvided := cmd.Flags().Changed("model-id")
+
+		// Get model IDs from viper (respects config file and CLI flag)
+		modelIDs := viper.GetStringSlice("generate.model-ids")
+		// Filter out empty strings
+		var cleanModelIDs []string
+		for _, id := range modelIDs {
+			if trimmed := strings.TrimSpace(id); trimmed != "" {
+				cleanModelIDs = append(cleanModelIDs, trimmed)
+			}
+		}
+
+		inputPath := viper.GetString("generate.input")
+		inputPathProvided := cmd.Flags().Changed("input")
+
+		// Determine which mode we're in
+		// Priority: explicit --model-id flag > explicit --input flag > defaults
+		var useModelIDMode bool
+		if modelIDFlagProvided && len(cleanModelIDs) > 0 {
+			useModelIDMode = true
+			// If both are explicitly provided, that's an error
+			if inputPathProvided && inputPath != "" {
+				return fmt.Errorf("cannot specify both --model-id and --input (folder scan)")
+			}
+		} else if inputPathProvided && inputPath != "" {
+			// Explicit --input provided
+			useModelIDMode = false
+		} else if len(cleanModelIDs) > 0 {
+			// Model IDs from config, no explicit --input
+			useModelIDMode = true
+			inputPath = ""
+		} else {
+			// Use default input path
+			useModelIDMode = false
+			if inputPath == "" {
+				inputPath = "."
+			}
+		}
+
 		// Get format from viper (respects config file)
 		outputFormat := viper.GetString("generate.format")
 		if outputFormat == "" {
@@ -101,8 +133,12 @@ var generateCmd = &cobra.Command{
 		// Wire internal package logging based on log level.
 		if level != "quiet" {
 			lw := cmd.ErrOrStderr()
-			scanner.SetLogger(lw)
-			generator.SetLogger(lw)
+			if useModelIDMode {
+				generator.SetLogger(lw)
+			} else {
+				scanner.SetLogger(lw)
+				generator.SetLogger(lw)
+			}
 			if level == "debug" {
 				fetcher.SetLogger(lw)
 				metadata.SetLogger(lw)
@@ -119,25 +155,46 @@ var generateCmd = &cobra.Command{
 		timeout := time.Duration(hfTimeout) * time.Second
 
 		var discoveredBOMs []generator.DiscoveredBOM
-		if mode == "dummy" {
-			// Dummy mode: do not look at the input (Scanner discoveries)
-			// Just build one fixed dummy BOM with all fields included.
-			// Uses dummy_model_api_fetcher.go and dummy_model_readme_fetcher.go
-			discoveredBOMs, err = generator.BuildDummyBOM()
-			if err != nil {
-				return err
+		var err error
+
+		if useModelIDMode {
+			// Model ID mode: generate from one or more model IDs
+			if mode == "dummy" {
+				discoveredBOMs, err = generator.BuildDummyBOM()
+				if err != nil {
+					return err
+				}
+			} else {
+				// Online mode: fetch and build BOM for the given model IDs
+				discoveredBOMs, err = generator.BuildFromModelIDs(cleanModelIDs, hfToken, timeout)
+				if err != nil {
+					return err
+				}
 			}
 		} else {
-			// Scan for AI components (only in non-dummy mode)
-			discoveries, err := scanner.Scan(absTarget)
+			// Folder scan mode: scan directory for Hugging Face imports
+			absTarget, err := filepath.Abs(inputPath)
 			if err != nil {
 				return err
 			}
 
-			// Online mode: per discovery: store + fetch + map + build (inside generator).
-			discoveredBOMs, err = generator.BuildPerDiscovery(discoveries, hfToken, timeout)
-			if err != nil {
-				return err
+			if mode == "dummy" {
+				discoveredBOMs, err = generator.BuildDummyBOM()
+				if err != nil {
+					return err
+				}
+			} else {
+				// Scan for AI components
+				discoveries, err := scanner.Scan(absTarget)
+				if err != nil {
+					return err
+				}
+
+				// Online mode: per discovery: fetch + map + build
+				discoveredBOMs, err = generator.BuildPerDiscovery(discoveries, hfToken, timeout)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -218,7 +275,8 @@ var generateCmd = &cobra.Command{
 }
 
 func init() {
-	generateCmd.Flags().StringVarP(&generatePath, "input", "i", "", "Path to scan")
+	generateCmd.Flags().StringVarP(&generatePath, "input", "i", "", "Path to scan (folder scan mode)")
+	generateCmd.Flags().StringSliceVarP(&generateModelIDs, "model-id", "m", []string{}, "Hugging Face model ID(s) (e.g., gpt2 or org/model-name) - can be used multiple times or comma-separated")
 	generateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "Output file path (directory is used)")
 	generateCmd.Flags().StringVarP(&generateOutputFormat, "format", "f", "", "Output BOM format: json|xml|auto")
 	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.4, 1.5, 1.6)")
@@ -231,6 +289,7 @@ func init() {
 
 	// Bind all flags to viper for config file support
 	viper.BindPFlag("generate.input", generateCmd.Flags().Lookup("input"))
+	viper.BindPFlag("generate.model-ids", generateCmd.Flags().Lookup("model-id"))
 	viper.BindPFlag("generate.output", generateCmd.Flags().Lookup("output"))
 	viper.BindPFlag("generate.format", generateCmd.Flags().Lookup("format"))
 	viper.BindPFlag("generate.spec", generateCmd.Flags().Lookup("spec"))
