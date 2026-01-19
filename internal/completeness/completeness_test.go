@@ -91,9 +91,7 @@ func buildFullyPopulatedBOMForRegistry(t *testing.T) *cdx.BOM {
 	}
 
 	for _, spec := range metadata.Registry() {
-		if spec.Apply != nil {
-			spec.Apply(src, tgt)
-		}
+		metadata.ApplyFromSources(spec, src, tgt)
 	}
 
 	return bom

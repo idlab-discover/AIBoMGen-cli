@@ -40,9 +40,7 @@ func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 	}
 
 	for _, spec := range metadata.Registry() {
-		if spec.Apply != nil {
-			spec.Apply(src, tgt)
-		}
+		metadata.ApplyFromSources(spec, src, tgt)
 	}
 
 	logf(ctx.ModelID, "build ok")
@@ -69,9 +67,7 @@ func (b BOMBuilder) BuildDataset(ctx DatasetBuildContext) (*cdx.Component, error
 	}
 
 	for _, spec := range metadata.DatasetRegistry() {
-		if spec.Apply != nil {
-			spec.Apply(src, tgt)
-		}
+		metadata.ApplyDatasetFromSources(spec, src, tgt)
 	}
 
 	logf(ctx.DatasetID, "build dataset ok")

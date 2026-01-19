@@ -88,9 +88,7 @@ func TestRegistryApplyAndPresent(t *testing.T) {
 
 	specs := Registry()
 	for _, spec := range specs {
-		if spec.Apply != nil {
-			spec.Apply(src, tgt)
-		}
+		ApplyFromSources(spec, src, tgt)
 	}
 
 	if comp.Name != "scan-name" {
@@ -172,9 +170,7 @@ func TestDatasetPresentHandlesMissingRefs(t *testing.T) {
 
 func TestRegistryApplyHandlesNilTargets(t *testing.T) {
 	for _, spec := range Registry() {
-		if spec.Apply != nil {
-			spec.Apply(Source{}, Target{})
-		}
+		ApplyFromSources(spec, Source{}, Target{})
 	}
 }
 
@@ -182,7 +178,7 @@ func TestComponentNameFallbacks(t *testing.T) {
 	spec := specFor(t, ComponentName)
 	comp := &cdx.Component{}
 	src := Source{ModelID: "base", HF: &fetcher.ModelAPIResponse{ID: " ", ModelID: "hf/model"}}
-	spec.Apply(src, Target{Component: comp})
+	ApplyFromSources(spec, src, Target{Component: comp})
 	if comp.Name != "hf/model" {
 		t.Fatalf("expected HF model ID fallback, got %q", comp.Name)
 	}
@@ -192,14 +188,14 @@ func TestComponentExternalReferenceBranches(t *testing.T) {
 	spec := specFor(t, ComponentExternalReferences)
 	t.Run("missing model id", func(t *testing.T) {
 		comp := &cdx.Component{}
-		spec.Apply(Source{}, Target{Component: comp, HuggingFaceBaseURL: "https://example.com"})
+		ApplyFromSources(spec, Source{}, Target{Component: comp, HuggingFaceBaseURL: "https://example.com"})
 		if comp.ExternalReferences != nil {
 			t.Fatalf("expected no references when model id missing")
 		}
 	})
 	t.Run("defaults base url", func(t *testing.T) {
 		comp := &cdx.Component{}
-		spec.Apply(Source{ModelID: "org/model"}, Target{Component: comp})
+		ApplyFromSources(spec, Source{ModelID: "org/model"}, Target{Component: comp})
 		if comp.ExternalReferences == nil || len(*comp.ExternalReferences) != 1 {
 			t.Fatalf("expected one reference")
 		}
@@ -212,7 +208,7 @@ func TestComponentExternalReferenceBranches(t *testing.T) {
 func TestComponentTagsSkipEmpty(t *testing.T) {
 	spec := specFor(t, ComponentTags)
 	comp := &cdx.Component{}
-	spec.Apply(Source{HF: &fetcher.ModelAPIResponse{Tags: []string{" ", "\t"}}}, Target{Component: comp})
+	ApplyFromSources(spec, Source{HF: &fetcher.ModelAPIResponse{Tags: []string{" ", "\t"}}}, Target{Component: comp})
 	if comp.Tags != nil {
 		t.Fatalf("expected tags to remain nil when inputs empty")
 	}
@@ -221,7 +217,7 @@ func TestComponentTagsSkipEmpty(t *testing.T) {
 func TestComponentLicensesSkipMissing(t *testing.T) {
 	spec := specFor(t, ComponentLicenses)
 	comp := &cdx.Component{}
-	spec.Apply(Source{HF: &fetcher.ModelAPIResponse{}}, Target{Component: comp})
+	ApplyFromSources(spec, Source{HF: &fetcher.ModelAPIResponse{}}, Target{Component: comp})
 	if comp.Licenses != nil {
 		t.Fatalf("expected licenses to be nil when missing")
 	}
@@ -230,7 +226,7 @@ func TestComponentLicensesSkipMissing(t *testing.T) {
 func TestComponentHashesSkipMissing(t *testing.T) {
 	spec := specFor(t, ComponentHashes)
 	comp := &cdx.Component{}
-	spec.Apply(Source{HF: &fetcher.ModelAPIResponse{SHA: " "}}, Target{Component: comp})
+	ApplyFromSources(spec, Source{HF: &fetcher.ModelAPIResponse{SHA: " "}}, Target{Component: comp})
 	if comp.Hashes != nil {
 		t.Fatalf("expected hashes to be nil when sha missing")
 	}
@@ -239,8 +235,8 @@ func TestComponentHashesSkipMissing(t *testing.T) {
 func TestManufacturerAndGroupSkipEmptyAuthor(t *testing.T) {
 	comp := &cdx.Component{}
 	src := Source{HF: &fetcher.ModelAPIResponse{Author: " "}}
-	specFor(t, ComponentManufacturer).Apply(src, Target{Component: comp})
-	specFor(t, ComponentGroup).Apply(src, Target{Component: comp})
+	ApplyFromSources(specFor(t, ComponentManufacturer), src, Target{Component: comp})
+	ApplyFromSources(specFor(t, ComponentGroup), src, Target{Component: comp})
 	if comp.Manufacturer != nil || comp.Group != "" {
 		t.Fatalf("expected manufacturer and group to remain empty")
 	}
@@ -249,14 +245,14 @@ func TestManufacturerAndGroupSkipEmptyAuthor(t *testing.T) {
 func TestModelCardSpecsSkipEmptyValues(t *testing.T) {
 	t.Run("task", func(t *testing.T) {
 		card := &cdx.MLModelCard{}
-		specFor(t, ModelCardModelParametersTask).Apply(Source{HF: &fetcher.ModelAPIResponse{PipelineTag: " "}}, Target{ModelCard: card})
+		ApplyFromSources(specFor(t, ModelCardModelParametersTask), Source{HF: &fetcher.ModelAPIResponse{PipelineTag: " "}}, Target{ModelCard: card})
 		if card.ModelParameters != nil {
 			t.Fatalf("expected model parameters to remain nil")
 		}
 	})
 	t.Run("architecture family", func(t *testing.T) {
 		card := &cdx.MLModelCard{}
-		specFor(t, ModelCardModelParametersArchitectureFamily).Apply(Source{HF: &fetcher.ModelAPIResponse{}}, Target{ModelCard: card})
+		ApplyFromSources(specFor(t, ModelCardModelParametersArchitectureFamily), Source{HF: &fetcher.ModelAPIResponse{}}, Target{ModelCard: card})
 		if card.ModelParameters != nil {
 			t.Fatalf("expected model parameters to remain nil")
 		}
@@ -264,7 +260,7 @@ func TestModelCardSpecsSkipEmptyValues(t *testing.T) {
 	t.Run("model architecture guards", func(t *testing.T) {
 		card := &cdx.MLModelCard{}
 		// len(architectures) == 0
-		specFor(t, ModelCardModelParametersModelArchitecture).Apply(Source{HF: &fetcher.ModelAPIResponse{}}, Target{ModelCard: card})
+		ApplyFromSources(specFor(t, ModelCardModelParametersModelArchitecture), Source{HF: &fetcher.ModelAPIResponse{}}, Target{ModelCard: card})
 		if card.ModelParameters != nil {
 			t.Fatalf("expected model parameters to remain nil for empty list")
 		}
@@ -272,7 +268,7 @@ func TestModelCardSpecsSkipEmptyValues(t *testing.T) {
 		card2 := &cdx.MLModelCard{}
 		hf := &fetcher.ModelAPIResponse{}
 		hf.Config.Architectures = []string{" "}
-		specFor(t, ModelCardModelParametersModelArchitecture).Apply(Source{HF: hf}, Target{ModelCard: card2})
+		ApplyFromSources(specFor(t, ModelCardModelParametersModelArchitecture), Source{HF: hf}, Target{ModelCard: card2})
 		if card2.ModelParameters != nil {
 			t.Fatalf("expected model parameters to remain nil for blank architecture")
 		}
@@ -282,7 +278,7 @@ func TestModelCardSpecsSkipEmptyValues(t *testing.T) {
 func TestDatasetApplySkipsEmptySources(t *testing.T) {
 	card := &cdx.MLModelCard{}
 	spec := specFor(t, ModelCardModelParametersDatasets)
-	spec.Apply(Source{HF: &fetcher.ModelAPIResponse{}}, Target{ModelCard: card})
+	ApplyFromSources(spec, Source{HF: &fetcher.ModelAPIResponse{}}, Target{ModelCard: card})
 	if card.ModelParameters != nil {
 		t.Fatalf("expected dataset spec to skip when no data available")
 	}
@@ -292,8 +288,8 @@ func TestHFPropsSkipWithoutHFData(t *testing.T) {
 	comp := &cdx.Component{}
 	tgt := Target{Component: comp}
 	for _, spec := range Registry() {
-		if strings.Contains(spec.Key.String(), "properties.huggingface") && spec.Apply != nil {
-			spec.Apply(Source{}, tgt)
+		if strings.Contains(spec.Key.String(), "properties.huggingface") {
+			ApplyFromSources(spec, Source{}, tgt)
 		}
 	}
 	if comp.Properties != nil {

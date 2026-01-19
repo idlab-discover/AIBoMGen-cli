@@ -185,10 +185,8 @@ func (e *Enricher) enrichModel(bom *cdx.BOM, modelID string, hfAPI *fetcher.Mode
 				logf(modelID, "failed to apply %s: %v", spec.Key, err)
 				continue
 			}
-			// Only track the change if it was successfully applied
-			if spec.SetUserValue != nil {
-				changes[spec.Key] = formatValue(value)
-			}
+			// Track the change if it was successfully applied
+			changes[spec.Key] = formatValue(value)
 		}
 	}
 
@@ -260,10 +258,8 @@ func (e *Enricher) enrichDataset(bom *cdx.BOM, comp *cdx.Component, configViper 
 				logf(datasetID, "failed to apply %s: %v", spec.Key, err)
 				continue
 			}
-			// Only track the change if it was successfully applied
-			if spec.SetUserValue != nil {
-				changes[spec.Key] = formatValue(value)
-			}
+			// Track the change if it was successfully applied
+			changes[spec.Key] = formatValue(value)
 		}
 	}
 
@@ -352,12 +348,10 @@ func (e *Enricher) applyRefetchedMetadata(bom *cdx.BOM, modelID string, hfAPI *f
 	totalSpecs := 0
 	specsWithWeight := 0
 	for _, spec := range metadata.Registry() {
-		if spec.Apply != nil {
-			spec.Apply(src, tgt)
-			totalSpecs++
-			if spec.Weight > 0 {
-				specsWithWeight++
-			}
+		metadata.ApplyFromSources(spec, src, tgt)
+		totalSpecs++
+		if spec.Weight > 0 {
+			specsWithWeight++
 		}
 	}
 
@@ -456,17 +450,11 @@ func (e *Enricher) applyValue(spec metadata.FieldSpec, src *metadata.Source, tgt
 	strValue := fmt.Sprintf("%v", value)
 
 	// Use the FieldSpec's SetUserValue if available
-	if spec.SetUserValue != nil {
-		err := spec.SetUserValue(strValue, *tgt)
-		if err != nil {
-			return fmt.Errorf("failed to set user value for %s: %w", spec.Key, err)
-		}
-		logf(src.ModelID, "applied user value for %s", spec.Key)
-		return nil
+	err := metadata.ApplyUserValue(spec, strValue, *tgt)
+	if err != nil {
+		return fmt.Errorf("failed to set user value for %s: %w", spec.Key, err)
 	}
-
-	// Fallback: if no SetUserValue, log a warning
-	logf(src.ModelID, "warning: no SetUserValue function for %s, value not applied", spec.Key)
+	logf(src.ModelID, "applied user value for %s", spec.Key)
 	return nil
 }
 
@@ -706,15 +694,10 @@ func (e *Enricher) getDatasetSuggestions(spec metadata.DatasetFieldSpec) []strin
 func (e *Enricher) applyDatasetValue(spec metadata.DatasetFieldSpec, src *metadata.DatasetSource, tgt *metadata.DatasetTarget, value interface{}) error {
 	strValue := fmt.Sprintf("%v", value)
 
-	if spec.SetUserValue != nil {
-		err := spec.SetUserValue(strValue, *tgt)
-		if err != nil {
-			return fmt.Errorf("failed to set user value for %s: %w", spec.Key, err)
-		}
-		logf(src.DatasetID, "applied user value for %s", spec.Key)
-		return nil
+	err := metadata.ApplyDatasetUserValue(spec, strValue, *tgt)
+	if err != nil {
+		return fmt.Errorf("failed to set user value for %s: %w", spec.Key, err)
 	}
-
-	logf(src.DatasetID, "warning: no SetUserValue function for %s, value not applied", spec.Key)
+	logf(src.DatasetID, "applied user value for %s", spec.Key)
 	return nil
 }
