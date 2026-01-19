@@ -415,27 +415,3 @@ func TestRegistryPresentHandlesNilBOM(t *testing.T) {
 		}
 	}
 }
-
-func TestSummarizeValueVariants(t *testing.T) {
-	long := strings.Repeat("x", 90)
-	gotLong := summarizeValue(long)
-	if !strings.HasPrefix(gotLong, "\""+strings.Repeat("x", 77)) || !strings.HasSuffix(gotLong, "...\"") {
-		t.Fatalf("expected truncated string, got %q", gotLong)
-	}
-
-	if got := summarizeValue([]string{"a", "b"}); got != "[]string(len=2)" {
-		t.Fatalf("slice summary = %q", got)
-	}
-
-	if got := summarizeValue(map[string]any{"k": 1}); got != "map(len=1)" {
-		t.Fatalf("map summary = %q", got)
-	}
-
-	if got := summarizeValue(123); got != "int" {
-		t.Fatalf("default summary = %q", got)
-	}
-
-	if got := summarizeValue(nil); got != "<nil>" {
-		t.Fatalf("nil summary = %q", got)
-	}
-}

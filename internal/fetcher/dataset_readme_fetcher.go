@@ -81,7 +81,6 @@ func (f *DatasetReadmeFetcher) Fetch(ctx context.Context, datasetID string) (*Da
 
 	var lastErr error
 	for _, url := range candidates {
-		logf(datasetID, "GET %s", strings.TrimPrefix(url, baseURL))
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return nil, err
@@ -110,7 +109,6 @@ func (f *DatasetReadmeFetcher) Fetch(ctx context.Context, datasetID string) (*Da
 
 		raw := string(bodyBytes)
 		card := parseDatasetReadmeCard(raw)
-		logf(datasetID, "ok")
 
 		return card, nil
 	}
@@ -118,7 +116,6 @@ func (f *DatasetReadmeFetcher) Fetch(ctx context.Context, datasetID string) (*Da
 	if lastErr == nil {
 		lastErr = fmt.Errorf("unable to fetch README")
 	}
-	logf(datasetID, "readme fetch failed (%v)", lastErr)
 
 	return nil, lastErr
 }

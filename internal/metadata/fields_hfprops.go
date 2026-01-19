@@ -115,18 +115,14 @@ func hfProp(key Key, weight float64, get func(src Source) (any, bool)) FieldSpec
 			v := input.Value
 			propName := strings.TrimPrefix(key.String(), "BOM.metadata.component.properties.")
 			setProperty(tgt.Component, propName, strings.TrimSpace(fmt.Sprint(v)))
-			logf("", "apply %s set=%s", key, summarizeValue(v))
 			return nil
 		},
 		Present: func(b *cdx.BOM) bool {
 			c := bomComponent(b)
 			propName := strings.TrimPrefix(key.String(), "BOM.metadata.component.properties.")
 			ok := c != nil && hasProperty(c, propName)
-			mid := ""
 			if c != nil {
-				mid = c.Name
 			}
-			logf(mid, "present %s ok=%t", key, ok)
 			return ok
 		},
 	}

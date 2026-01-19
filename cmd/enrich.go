@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/enricher"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -47,13 +44,7 @@ from Hugging Face API and README before enrichment.`,
 
 		// Wire internal package logging
 		if level != "quiet" {
-			lw := cmd.ErrOrStderr()
-			enricher.SetLogger(lw)
-			completeness.SetLogger(lw)
-			fetcher.SetLogger(lw)
-			if level == "debug" {
-				metadata.SetLogger(lw)
-			}
+			// Logging removed
 		}
 
 		// Read existing BOM

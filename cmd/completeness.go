@@ -9,7 +9,6 @@ import (
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
@@ -33,11 +32,7 @@ var completenessCmd = &cobra.Command{
 
 		// Wire internal package logging based on log level.
 		if level != "quiet" {
-			lw := cmd.ErrOrStderr()
-			completeness.SetLogger(lw)
-			if level == "debug" {
-				metadata.SetLogger(lw)
-			}
+			// Logging removed
 		}
 
 		// Get input path and format from viper

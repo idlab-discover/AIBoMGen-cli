@@ -68,16 +68,12 @@ func componentFields() []FieldSpec {
 					return fmt.Errorf("component is nil")
 				}
 				tgt.Component.Name = name
-				logf("", "apply %s set=%s", ComponentName, summarizeValue(name))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				ok := bomHasComponentName(b)
-				mid := ""
 				if c := bomComponent(b); c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ComponentName, ok)
 				return ok
 			},
 		},
@@ -153,17 +149,13 @@ func componentFields() []FieldSpec {
 				}
 
 				tgt.Component.ExternalReferences = &refs
-				logf("", "apply %s set=%s", ComponentExternalReferences, summarizeValue(refs))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.ExternalReferences != nil && len(*c.ExternalReferences) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ComponentExternalReferences, ok)
 				return ok
 			},
 		},
@@ -210,17 +202,13 @@ func componentFields() []FieldSpec {
 					return nil
 				}
 				tgt.Component.Tags = &tags
-				logf("", "apply %s set=%s", ComponentTags, summarizeValue(tags))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.Tags != nil && len(*c.Tags) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ComponentTags, ok)
 				return ok
 			},
 		},
@@ -273,17 +261,13 @@ func componentFields() []FieldSpec {
 					{License: &cdx.License{Name: lic}},
 				}
 				tgt.Component.Licenses = &ls
-				logf("", "apply %s set=%s", ComponentLicenses, summarizeValue(lic))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.Licenses != nil && len(*c.Licenses) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ComponentLicenses, ok)
 				return ok
 			},
 		},
@@ -321,17 +305,13 @@ func componentFields() []FieldSpec {
 				}
 				hs := []cdx.Hash{{Algorithm: cdx.HashAlgoSHA1, Value: sha}}
 				tgt.Component.Hashes = &hs
-				logf("", "apply %s set=%s", ComponentHashes, summarizeValue(sha))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.Hashes != nil && len(*c.Hashes) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ComponentHashes, ok)
 				return ok
 			},
 		},
@@ -377,17 +357,13 @@ func componentFields() []FieldSpec {
 					return nil
 				}
 				tgt.Component.Manufacturer = &cdx.OrganizationalEntity{Name: s}
-				logf("", "apply %s set=%s", ComponentManufacturer, summarizeValue(s))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.Manufacturer != nil && strings.TrimSpace(c.Manufacturer.Name) != ""
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ComponentManufacturer, ok)
 				return ok
 			},
 		},
@@ -433,17 +409,13 @@ func componentFields() []FieldSpec {
 					return nil
 				}
 				tgt.Component.Group = s
-				logf("", "apply %s set=%s", ComponentGroup, summarizeValue(s))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && strings.TrimSpace(c.Group) != ""
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ComponentGroup, ok)
 				return ok
 			},
 		},
@@ -476,15 +448,11 @@ func evidenceFields() []FieldSpec {
 				setProperty(tgt.Component, "aibomgen.type", src.Scan.Type)
 				setProperty(tgt.Component, "aibomgen.evidence", src.Scan.Evidence)
 				setProperty(tgt.Component, "aibomgen.path", src.Scan.Path)
-				logf(src.ModelID, "apply aibomgen.evidence type=%s path=%s evidence=%s", summarizeValue(src.Scan.Type), summarizeValue(src.Scan.Path), summarizeValue(src.Scan.Evidence))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
-				mid := ""
 				if c := bomComponent(b); c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present aibomgen.evidence ok=true")
 				return true
 			},
 		},

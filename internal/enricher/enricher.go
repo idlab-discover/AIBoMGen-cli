@@ -62,19 +62,16 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 	// Get model ID from BOM
 	modelID := extractModelID(bom)
 	if modelID == "" {
-		logf("", "warning: could not extract model ID from BOM")
 	}
 
 	// Run initial completeness check
 	initialReport := completeness.Check(bom)
-	logf(modelID, "initial completeness: %.2f%% (%d/%d fields)", initialReport.Score*100, initialReport.Passed, initialReport.Total)
 
 	// Refetch metadata if requested and apply it to BOM
 	var hfAPI *fetcher.ModelAPIResponse
 	var hfReadme *fetcher.ModelReadmeCard
 	var postRefetchReport completeness.Report
 	if e.config.Refetch && modelID != "" {
-		logf(modelID, "refetching metadata from Hugging Face...")
 		hfAPI, hfReadme = e.refetchMetadata(modelID)
 
 		// Apply refetched metadata to BOM
@@ -83,9 +80,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 
 			// Check completeness after refetch
 			postRefetchReport = completeness.Check(bom)
-			logf(modelID, "completeness after refetch: %.2f%% (%d/%d fields)", postRefetchReport.Score*100, postRefetchReport.Passed, postRefetchReport.Total)
 		} else {
-			logf(modelID, "no metadata retrieved from refetch")
 			postRefetchReport = initialReport
 		}
 	} else {
@@ -93,7 +88,6 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 	}
 
 	// STEP 1: Enrich model fields
-	logf(modelID, "enriching model fields...")
 	modelChanges, err := e.enrichModel(bom, modelID, hfAPI, hfReadme, postRefetchReport, configViper)
 	if err != nil {
 		return nil, fmt.Errorf("failed to enrich model: %w", err)
@@ -105,10 +99,8 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 		for i := range *bom.Components {
 			comp := &(*bom.Components)[i]
 			if comp.Type == cdx.ComponentTypeData {
-				logf(modelID, "enriching dataset component: %s", comp.Name)
 				dsChanges, err := e.enrichDataset(bom, comp, configViper)
 				if err != nil {
-					logf(modelID, "warning: failed to enrich dataset %s: %v", comp.Name, err)
 					continue
 				}
 				if len(dsChanges) > 0 {
@@ -125,8 +117,6 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 		}
 	} else if len(modelChanges) > 0 || len(datasetChanges) > 0 {
 		// Show final completeness even without preview
-		finalReport := completeness.Check(bom)
-		logf(modelID, "final completeness: %.2f%% (%d/%d fields)", finalReport.Score*100, finalReport.Passed, finalReport.Total)
 	}
 
 	return bom, nil
@@ -137,11 +127,9 @@ func (e *Enricher) enrichModel(bom *cdx.BOM, modelID string, hfAPI *fetcher.Mode
 	// Collect missing fields based on config (using post-refetch state)
 	missingFields := e.collectMissingFields(report)
 	if len(missingFields) == 0 {
-		logf(modelID, "no model fields to enrich")
 		return nil, nil
 	}
 
-	logf(modelID, "found %d model field(s) to enrich", len(missingFields))
 
 	// Prepare enrichment source
 	src := metadata.Source{
@@ -182,7 +170,6 @@ func (e *Enricher) enrichModel(bom *cdx.BOM, modelID string, hfAPI *fetcher.Mode
 		if value != nil {
 			// Apply the value
 			if err := e.applyValue(spec, &src, &tgt, value); err != nil {
-				logf(modelID, "failed to apply %s: %v", spec.Key, err)
 				continue
 			}
 			// Track the change if it was successfully applied
@@ -199,16 +186,13 @@ func (e *Enricher) enrichDataset(bom *cdx.BOM, comp *cdx.Component, configViper 
 
 	// Check dataset completeness
 	dsReport := completeness.CheckDataset(comp)
-	logf(datasetID, "dataset completeness: %.2f%% (%d/%d fields)", dsReport.Score*100, dsReport.Passed, dsReport.Total)
 
 	// Collect missing dataset fields
 	missingFields := e.collectMissingDatasetFields(dsReport)
 	if len(missingFields) == 0 {
-		logf(datasetID, "no dataset fields to enrich")
 		return nil, nil
 	}
 
-	logf(datasetID, "found %d dataset field(s) to enrich", len(missingFields))
 
 	// Refetch dataset metadata if requested
 	var hfAPI *fetcher.DatasetAPIResponse
@@ -255,7 +239,6 @@ func (e *Enricher) enrichDataset(bom *cdx.BOM, comp *cdx.Component, configViper 
 		if value != nil {
 			// Apply the value
 			if err := e.applyDatasetValue(spec, &src, &tgt, value); err != nil {
-				logf(datasetID, "failed to apply %s: %v", spec.Key, err)
 				continue
 			}
 			// Track the change if it was successfully applied
@@ -313,7 +296,6 @@ func (e *Enricher) refetchMetadata(modelID string) (*fetcher.ModelAPIResponse, *
 	}
 	apiResp, err := apiFetcher.Fetch(ctx, modelID)
 	if err != nil {
-		logf(modelID, "API fetch failed: %v", err)
 	}
 
 	// Fetch README
@@ -323,7 +305,6 @@ func (e *Enricher) refetchMetadata(modelID string) (*fetcher.ModelAPIResponse, *
 	}
 	readme, err := readmeFetcher.Fetch(ctx, modelID)
 	if err != nil {
-		logf(modelID, "README fetch failed: %v", err)
 	}
 
 	return apiResp, readme
@@ -355,7 +336,6 @@ func (e *Enricher) applyRefetchedMetadata(bom *cdx.BOM, modelID string, hfAPI *f
 		}
 	}
 
-	logf(modelID, "applied refetched metadata (%d field specs total, %d counted for completeness)", totalSpecs, specsWithWeight)
 }
 
 // getValueFromFile extracts a value from the config file
@@ -380,11 +360,9 @@ func (e *Enricher) getValueFromFile(spec metadata.FieldSpec, configViper interfa
 	val := v.Get(key)
 
 	if val != nil {
-		logf("", "loaded %s from config file", spec.Key)
 		return val, nil
 	}
 
-	logf("", "no value found for %s in config file", spec.Key)
 	return nil, nil
 }
 
@@ -454,7 +432,6 @@ func (e *Enricher) applyValue(spec metadata.FieldSpec, src *metadata.Source, tgt
 	if err != nil {
 		return fmt.Errorf("failed to set user value for %s: %w", spec.Key, err)
 	}
-	logf(src.ModelID, "applied user value for %s", spec.Key)
 	return nil
 }
 
@@ -603,7 +580,6 @@ func (e *Enricher) refetchDatasetMetadata(datasetID string) (*fetcher.DatasetAPI
 	}
 	apiResp, err := apiFetcher.Fetch(ctx, datasetID)
 	if err != nil {
-		logf(datasetID, "Dataset API fetch failed: %v", err)
 	}
 
 	// Fetch Dataset README
@@ -613,7 +589,6 @@ func (e *Enricher) refetchDatasetMetadata(datasetID string) (*fetcher.DatasetAPI
 	}
 	readme, err := readmeFetcher.Fetch(ctx, datasetID)
 	if err != nil {
-		logf(datasetID, "Dataset README fetch failed: %v", err)
 	}
 
 	return apiResp, readme
@@ -638,11 +613,9 @@ func (e *Enricher) getDatasetValueFromFile(spec metadata.DatasetFieldSpec, confi
 	val := v.Get(key)
 
 	if val != nil {
-		logf("", "loaded %s from config file", spec.Key)
 		return val, nil
 	}
 
-	logf("", "no value found for %s in config file", spec.Key)
 	return nil, nil
 }
 
@@ -698,6 +671,5 @@ func (e *Enricher) applyDatasetValue(spec metadata.DatasetFieldSpec, src *metada
 	if err != nil {
 		return fmt.Errorf("failed to set user value for %s: %w", spec.Key, err)
 	}
-	logf(src.DatasetID, "applied user value for %s", spec.Key)
 	return nil
 }

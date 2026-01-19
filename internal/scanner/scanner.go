@@ -2,16 +2,11 @@ package scanner
 
 import (
 	"bufio"
-	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/idlab-discover/AIBoMGen-cli/internal/logging"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 // represents an AI-related artifact detected in a project.
@@ -37,11 +32,6 @@ type Discovery struct {
 // hfModelPattern matches Hugging Face model IDs inside from_pretrained("...") calls.
 // Supports both single segment IDs (e.g., bert-base-uncased) and org/model forms (e.g., facebook/opt-1.3b).
 var hfModelPattern = regexp.MustCompile(`from_pretrained\("([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?)"\)`)
-
-var logger = &logging.Logger{PrefixText: "Scan:", PrefixColor: ui.FgYellow}
-
-// SetLogger sets an optional destination for scan logs.
-func SetLogger(w io.Writer) { logger.SetWriter(w) }
 
 // Scan walks the target path and returns detected AI components.
 func Scan(root string) ([]Discovery, error) {
@@ -85,10 +75,6 @@ func Scan(root string) ([]Discovery, error) {
 							Path:     path,
 							Evidence: evidence,
 						})
-						if logger.Enabled() {
-							prefix := ui.Color("Scan:", ui.FgYellow)
-							fmt.Fprintf(logger.Writer, "%s found model '%s' at %s:%d\n", prefix, modelID, path, lineNum)
-						}
 					}
 				}
 			}
@@ -99,10 +85,6 @@ func Scan(root string) ([]Discovery, error) {
 		return nil, err
 	}
 	deduped := dedupe(results)
-	if logger.Enabled() {
-		prefix := ui.Color("Scan:", ui.FgYellow)
-		fmt.Fprintf(logger.Writer, "%s detected %d components (models: %d)\n", prefix, len(deduped), len(deduped))
-	}
 	return deduped, nil
 }
 

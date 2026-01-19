@@ -180,10 +180,6 @@ Intended to interactively fill missing metadata fields.
 - Current status: stubbed / not implemented.
 - Future work: implement user prompting and (optionally) model card fetching.
 
-### `internal/logging`
-
-Small opt-in logger used across internal packages (writes only when a writer is configured).
-
 ### `internal/ui`
 
 Very small ANSI-color helper used for banners and colored log prefixes.

@@ -59,26 +59,18 @@ func (r Report) ToUIReport() ui.CompletenessReport {
 // PrintReport writes the report to the configured logger writer.
 // If no logger writer is configured, it produces no output.
 func PrintReport(r Report) {
-	logf("Model score=%.1f%% (%d/%d)", r.Score*100, r.Passed, r.Total)
 
 	if len(r.MissingRequired) > 0 {
-		logf("missing required: %s", joinKeys(r.MissingRequired))
 	}
 	if len(r.MissingOptional) > 0 {
-		logf("missing optional: %s", joinKeys(r.MissingOptional))
 	}
 
 	// Print dataset reports if any
 	if len(r.DatasetReports) > 0 {
-		logf("")
-		logf("Dataset Components:")
-		for dsName, dsReport := range r.DatasetReports {
-			logf("  %s: score=%.1f%% (%d/%d)", dsName, dsReport.Score*100, dsReport.Passed, dsReport.Total)
+		for _, dsReport := range r.DatasetReports {
 			if len(dsReport.MissingRequired) > 0 {
-				logf("    missing required: %s", joinDatasetKeys(dsReport.MissingRequired))
 			}
 			if len(dsReport.MissingOptional) > 0 {
-				logf("    missing optional: %s", joinDatasetKeys(dsReport.MissingOptional))
 			}
 		}
 	}

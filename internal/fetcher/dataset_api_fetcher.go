@@ -41,7 +41,6 @@ func (f *DatasetAPIFetcher) Fetch(ctx context.Context, datasetID string) (*Datas
 	}
 
 	trimmedDatasetID := strings.TrimPrefix(strings.TrimSpace(datasetID), "/")
-	logf(datasetID, "GET /api/datasets/%s", trimmedDatasetID)
 
 	baseURL := strings.TrimRight(strings.TrimSpace(f.BaseURL), "/")
 	if baseURL == "" {
@@ -60,21 +59,17 @@ func (f *DatasetAPIFetcher) Fetch(ctx context.Context, datasetID string) (*Datas
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logf(datasetID, "request error (%v)", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		logf(datasetID, "non-200 status=%d", resp.StatusCode)
 		return nil, fmt.Errorf("huggingface api status %d", resp.StatusCode)
 	}
 
 	var parsed DatasetAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		logf(datasetID, "decode error (%v)", err)
 		return nil, err
 	}
-	logf(datasetID, "ok")
 	return &parsed, nil
 }

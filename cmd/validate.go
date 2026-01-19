@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/validator"
 	"github.com/spf13/cobra"
@@ -47,12 +45,7 @@ var validateCmd = &cobra.Command{
 
 		// Wire internal package logging based on log level.
 		if level != "quiet" {
-			lw := cmd.ErrOrStderr()
-			validator.SetLogger(lw)
-			if level == "debug" {
-				metadata.SetLogger(lw)
-				completeness.SetLogger(lw)
-			}
+			// Logging removed
 		}
 
 		// Get format from viper

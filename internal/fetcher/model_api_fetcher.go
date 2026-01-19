@@ -85,7 +85,6 @@ func (f *ModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*ModelAPIR
 	}
 
 	trimmedModelID := strings.TrimPrefix(strings.TrimSpace(modelID), "/")
-	logf(modelID, "GET /api/models/%s", trimmedModelID)
 
 	baseURL := strings.TrimRight(strings.TrimSpace(f.BaseURL), "/")
 	if baseURL == "" {
@@ -104,21 +103,17 @@ func (f *ModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*ModelAPIR
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logf(modelID, "request error (%v)", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		logf(modelID, "non-200 status=%d", resp.StatusCode)
 		return nil, fmt.Errorf("huggingface api status %d", resp.StatusCode)
 	}
 
 	var parsed ModelAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		logf(modelID, "decode error (%v)", err)
 		return nil, err
 	}
-	logf(modelID, "ok")
 	return &parsed, nil
 }

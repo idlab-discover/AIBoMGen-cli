@@ -90,7 +90,6 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 		// Fetch API metadata
 		resp, err := modelApiFetcher.Fetch(ctx, modelID)
 		if err != nil {
-			logf(modelID, "API fetch failed: %v", err)
 			progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err, Message: "API fetch failed"})
 			resp = nil
 		} else {
@@ -100,7 +99,6 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 		// Fetch README
 		readme, err := modelReadmeFetcher.Fetch(ctx, modelID)
 		if err != nil {
-			logf(modelID, "README fetch failed: %v", err)
 			readme = nil
 		} else {
 			progress(ProgressEvent{Type: EventFetchReadmeComplete, ModelID: modelID})
@@ -141,7 +139,6 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 
 			dsResp, err := datasetApiFetcher.Fetch(ctx, dsID)
 			if err != nil {
-				logf(dsID, "dataset fetch failed, skipping: %v", err)
 				continue
 			}
 
@@ -157,7 +154,6 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 
 			dsComp, err := dsBomBuilder.BuildDataset(dsCtx)
 			if err != nil {
-				logf(modelID, "failed to build dataset %s: %v", dsID, err)
 				continue
 			}
 
@@ -222,7 +218,6 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 		if modelID != "" {
 			r, err := modelApiFetcher.Fetch(ctx, modelID)
 			if err != nil {
-				logf(modelID, "fetch failed: %v", err)
 			} else {
 				resp = r
 				progress(ProgressEvent{Type: EventFetchAPIComplete, ModelID: modelID})
@@ -230,7 +225,6 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 
 			c, err := modelReadmeFetcher.Fetch(ctx, modelID)
 			if err != nil {
-				logf(modelID, "readme fetch failed: %v", err)
 			} else {
 				readme = c
 				progress(ProgressEvent{Type: EventFetchReadmeComplete, ModelID: modelID})
@@ -263,7 +257,6 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 
 			dsResp, err := datasetApiFetcher.Fetch(ctx, dsID)
 			if err != nil {
-				logf(dsID, "dataset fetch failed, skipping: %v", err)
 				continue
 			}
 
@@ -279,7 +272,6 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 
 			dsComp, err := dsBomBuilder.BuildDataset(dsCtx)
 			if err != nil {
-				logf(modelID, "failed to build dataset %s: %v", dsID, err)
 				continue
 			}
 

@@ -12,11 +12,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/builder"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/generator"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
@@ -131,12 +128,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 
 	// Wire internal package logging for debug mode
 	if level == "debug" {
-		lw := cmd.ErrOrStderr()
-		fetcher.SetLogger(lw)
-		metadata.SetLogger(lw)
-		builder.SetLogger(lw)
-		scanner.SetLogger(lw)
-		generator.SetLogger(lw)
+		// Logging removed
 	}
 
 	// Get HF settings

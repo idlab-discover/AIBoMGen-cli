@@ -96,7 +96,6 @@ func (f *ModelReadmeFetcher) Fetch(ctx context.Context, modelID string) (*ModelR
 
 	var lastErr error
 	for _, url := range candidates {
-		logf(modelID, "GET %s", strings.TrimPrefix(url, baseURL))
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return nil, err
@@ -125,7 +124,6 @@ func (f *ModelReadmeFetcher) Fetch(ctx context.Context, modelID string) (*ModelR
 
 		raw := string(bodyBytes)
 		card := parseReadmeCard(raw)
-		logf(modelID, "ok")
 
 		return card, nil
 	}
@@ -133,7 +131,6 @@ func (f *ModelReadmeFetcher) Fetch(ctx context.Context, modelID string) (*ModelR
 	if lastErr == nil {
 		lastErr = fmt.Errorf("unable to fetch README")
 	}
-	logf(modelID, "readme fetch failed (%v)", lastErr)
 
 	return nil, lastErr
 }

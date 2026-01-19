@@ -17,7 +17,6 @@ func NewBOMBuilder(opts Options) *BOMBuilder {
 }
 
 func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
-	logf(ctx.ModelID, "build start")
 
 	comp := buildMetadataComponent(ctx)
 
@@ -43,13 +42,11 @@ func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 		metadata.ApplyFromSources(spec, src, tgt)
 	}
 
-	logf(ctx.ModelID, "build ok")
 	return bom, nil
 }
 
 // BuildDataset builds a dataset component into BOM.components
 func (b BOMBuilder) BuildDataset(ctx DatasetBuildContext) (*cdx.Component, error) {
-	logf(ctx.DatasetID, "build dataset start")
 
 	comp := buildDatasetComponent(ctx)
 
@@ -70,7 +67,6 @@ func (b BOMBuilder) BuildDataset(ctx DatasetBuildContext) (*cdx.Component, error
 		metadata.ApplyDatasetFromSources(spec, src, tgt)
 	}
 
-	logf(ctx.DatasetID, "build dataset ok")
 	return comp, nil
 }
 

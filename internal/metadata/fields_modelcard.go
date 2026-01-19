@@ -58,17 +58,13 @@ func modelCardFields() []FieldSpec {
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.Task = s
-				logf("", "apply %s set=%s", ModelCardModelParametersTask, summarizeValue(s))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				mp := bomModelParameters(b)
 				ok := mp != nil && strings.TrimSpace(mp.Task) != ""
-				mid := ""
 				if c := bomComponent(b); c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ModelCardModelParametersTask, ok)
 				return ok
 			},
 		},
@@ -106,17 +102,13 @@ func modelCardFields() []FieldSpec {
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.ArchitectureFamily = s
-				logf("", "apply %s set=%s", ModelCardModelParametersArchitectureFamily, summarizeValue(s))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				mp := bomModelParameters(b)
 				ok := mp != nil && strings.TrimSpace(mp.ArchitectureFamily) != ""
-				mid := ""
 				if c := bomComponent(b); c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ModelCardModelParametersArchitectureFamily, ok)
 				return ok
 			},
 		},
@@ -157,17 +149,13 @@ func modelCardFields() []FieldSpec {
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.ModelArchitecture = s
-				logf("", "apply %s set=%s", ModelCardModelParametersModelArchitecture, summarizeValue(s))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				mp := bomModelParameters(b)
 				ok := mp != nil && strings.TrimSpace(mp.ModelArchitecture) != ""
-				mid := ""
 				if c := bomComponent(b); c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ModelCardModelParametersModelArchitecture, ok)
 				return ok
 			},
 		},
@@ -230,34 +218,24 @@ func modelCardFields() []FieldSpec {
 				}
 				mp := ensureModelParameters(tgt.ModelCard)
 				mp.Datasets = &choices
-				logf("", "apply %s set=%s", ModelCardModelParametersDatasets, summarizeValue(choices))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				mp := bomModelParameters(b)
 				if mp == nil || mp.Datasets == nil || len(*mp.Datasets) == 0 {
-					mid := ""
 					if c := bomComponent(b); c != nil {
-						mid = c.Name
 					}
-					logf(mid, "present %s ok=false", ModelCardModelParametersDatasets)
 					return false
 				}
 				for _, d := range *mp.Datasets {
 					if strings.TrimSpace(d.Ref) != "" {
-						mid := ""
 						if c := bomComponent(b); c != nil {
-							mid = c.Name
 						}
-						logf(mid, "present %s ok=true", ModelCardModelParametersDatasets)
 						return true
 					}
 				}
-				mid := ""
 				if c := bomComponent(b); c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=false", ModelCardModelParametersDatasets)
 				return false
 			},
 		},
@@ -304,17 +282,13 @@ func modelCardFields() []FieldSpec {
 				}
 				cons := ensureConsiderations(tgt.ModelCard)
 				cons.UseCases = &useCases
-				logf("", "apply %s set=%s", ModelCardConsiderationsUseCases, summarizeValue(useCases))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.ModelCard != nil && c.ModelCard.Considerations != nil && c.ModelCard.Considerations.UseCases != nil && len(*c.ModelCard.Considerations.UseCases) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ModelCardConsiderationsUseCases, ok)
 				return ok
 			},
 		},
@@ -354,17 +328,13 @@ func modelCardFields() []FieldSpec {
 				}
 				cons := ensureConsiderations(tgt.ModelCard)
 				cons.TechnicalLimitations = &vals
-				logf("", "apply %s set=%s", ModelCardConsiderationsTechnicalLimitations, summarizeValue(vals))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.ModelCard != nil && c.ModelCard.Considerations != nil && c.ModelCard.Considerations.TechnicalLimitations != nil && len(*c.ModelCard.Considerations.TechnicalLimitations) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ModelCardConsiderationsTechnicalLimitations, ok)
 				return ok
 			},
 		},
@@ -409,17 +379,13 @@ func modelCardFields() []FieldSpec {
 				}
 				cons := ensureConsiderations(tgt.ModelCard)
 				cons.EthicalConsiderations = &ethics
-				logf("", "apply %s set=true", ModelCardConsiderationsEthicalConsiderations)
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.ModelCard != nil && c.ModelCard.Considerations != nil && c.ModelCard.Considerations.EthicalConsiderations != nil && len(*c.ModelCard.Considerations.EthicalConsiderations) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ModelCardConsiderationsEthicalConsiderations, ok)
 				return ok
 			},
 		},
@@ -498,17 +464,13 @@ func modelCardFields() []FieldSpec {
 				}
 				qa := ensureQuantitativeAnalysis(tgt.ModelCard)
 				qa.PerformanceMetrics = &metrics
-				logf("", "apply %s set=%s", ModelCardQuantitativeAnalysisPerformanceMetrics, summarizeValue(metrics))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.ModelCard != nil && c.ModelCard.QuantitativeAnalysis != nil && c.ModelCard.QuantitativeAnalysis.PerformanceMetrics != nil && len(*c.ModelCard.QuantitativeAnalysis.PerformanceMetrics) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ModelCardQuantitativeAnalysisPerformanceMetrics, ok)
 				return ok
 			},
 		},
@@ -567,17 +529,13 @@ func modelCardFields() []FieldSpec {
 					cons.EnvironmentalConsiderations = &cdx.MLModelCardEnvironmentalConsiderations{}
 				}
 				cons.EnvironmentalConsiderations.Properties = &props
-				logf("", "apply %s set=%s", ModelCardConsiderationsEnvironmentalConsiderationsProperties, summarizeValue(props))
 				return nil
 			},
 			Present: func(b *cdx.BOM) bool {
 				c := bomComponent(b)
 				ok := c != nil && c.ModelCard != nil && c.ModelCard.Considerations != nil && c.ModelCard.Considerations.EnvironmentalConsiderations != nil && c.ModelCard.Considerations.EnvironmentalConsiderations.Properties != nil && len(*c.ModelCard.Considerations.EnvironmentalConsiderations.Properties) > 0
-				mid := ""
 				if c != nil {
-					mid = c.Name
 				}
-				logf(mid, "present %s ok=%t", ModelCardConsiderationsEnvironmentalConsiderationsProperties, ok)
 				return ok
 			},
 		},

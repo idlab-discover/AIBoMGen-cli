@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -224,18 +223,6 @@ func TestFetch_DefaultBaseURLBranch_WithoutNetwork(t *testing.T) {
 	}
 	if resp.Gated.Bool == nil || *resp.Gated.Bool != false {
 		t.Fatalf("expected gated bool false, got %#v", resp.Gated)
-	}
-}
-
-func TestSetLoggerAndLogf_Writes(t *testing.T) {
-	var buf bytes.Buffer
-	SetLogger(&buf)
-	logf("m", "hello %s", "world")
-	if buf.Len() == 0 {
-		t.Fatalf("expected log output")
-	}
-	if !strings.Contains(buf.String(), "hello") {
-		t.Fatalf("expected message to contain %q, got %q", "hello", buf.String())
 	}
 }
 

@@ -129,27 +129,20 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 			modelID = strings.TrimSpace(d.Name)
 		}
 
-		logf(modelID, "start (scanPath=%s)", strings.TrimSpace(d.Path))
 
 		var resp *fetcher.ModelAPIResponse
 		var readme *fetcher.ModelReadmeCard
 		if modelID != "" {
-			logf(modelID, "fetch HF model metadata")
 			r, err := modelApiFetcher.Fetch(context.Background(), modelID)
 			if err != nil {
-				logf(modelID, "fetch failed (%v)", err)
 			} else {
 				resp = r
-				logf(modelID, "metadata fetched")
 			}
 
-			logf(modelID, "fetch HF README model card")
 			c, err := modelReadmeFetcher.Fetch(context.Background(), modelID)
 			if err != nil {
-				logf(modelID, "readme fetch failed (%v)", err)
 			} else {
 				readme = c
-				logf(modelID, "readme fetched")
 			}
 		}
 
@@ -160,7 +153,6 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 			Readme:  readme,
 		}
 
-		logf(modelID, "build BOM")
 		bom, err := bomBuilder.Build(ctx)
 		if err != nil {
 			return nil, err
@@ -170,7 +162,6 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 		datasets := extractDatasetsFromModel(resp, readme)
 
 		for _, dsID := range datasets {
-			logf(modelID, "building dataset component for %s", dsID)
 
 			var dsResp *fetcher.DatasetAPIResponse
 			var dsReadme *fetcher.DatasetReadmeCard
@@ -180,14 +171,12 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 				// In online mode, skip dataset components that don't exist on HuggingFace.
 				// The dataset reference is still preserved in the model's modelCard.modelParameters.datasets.
 				// Dummy fallbacks are only used when explicitly running in --hf-mode dummy.
-				logf(dsID, "dataset fetch failed, skipping component (dataset may not exist on HuggingFace): %v", err)
 				continue
 			}
 			dsResp = r
 
 			c, err := datasetReadmeFetcher.Fetch(context.Background(), dsID)
 			if err != nil {
-				logf(dsID, "dataset readme fetch failed, building component without readme: %v", err)
 				// Continue without readme - the dataset exists but may not have a readme
 			} else {
 				dsReadme = c
@@ -203,7 +192,6 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 
 			dsComp, err := dsBomBuilder.BuildDataset(dsCtx)
 			if err != nil {
-				logf(modelID, "failed to build dataset %s: %v", dsID, err)
 				continue
 			}
 
@@ -212,10 +200,8 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 				bom.Components = &[]cdx.Component{}
 			}
 			*bom.Components = append(*bom.Components, *dsComp)
-			logf(modelID, "added dataset component %s", dsID)
 		}
 
-		logf(modelID, "done")
 
 		results = append(results, DiscoveredBOM{
 			Discovery: d,
@@ -297,24 +283,17 @@ func BuildFromModelIDs(modelIDs []string, hfToken string, timeout time.Duration)
 
 		bomBuilder := newBOMBuilder()
 
-		logf(modelID, "start (from model-id)")
 
-		logf(modelID, "fetch HF model metadata")
 		resp, err := modelApiFetcher.Fetch(context.Background(), modelID)
 		if err != nil {
-			logf(modelID, "fetch failed (%v)", err)
 			resp = nil
 		} else {
-			logf(modelID, "metadata fetched")
 		}
 
-		logf(modelID, "fetch HF README model card")
 		readme, err := modelReadmeFetcher.Fetch(context.Background(), modelID)
 		if err != nil {
-			logf(modelID, "readme fetch failed (%v)", err)
 			readme = nil
 		} else {
-			logf(modelID, "readme fetched")
 		}
 
 		// Create a discovery from the model ID
@@ -333,10 +312,8 @@ func BuildFromModelIDs(modelIDs []string, hfToken string, timeout time.Duration)
 			Readme:  readme,
 		}
 
-		logf(modelID, "build BOM")
 		bom, err := bomBuilder.Build(ctx)
 		if err != nil {
-			logf(modelID, "failed to build BOM: %v", err)
 			continue
 		}
 
@@ -344,21 +321,18 @@ func BuildFromModelIDs(modelIDs []string, hfToken string, timeout time.Duration)
 		datasets := extractDatasetsFromModel(resp, readme)
 
 		for _, dsID := range datasets {
-			logf(modelID, "building dataset component for %s", dsID)
 
 			var dsResp *fetcher.DatasetAPIResponse
 			var dsReadme *fetcher.DatasetReadmeCard
 
 			r, err := datasetApiFetcher.Fetch(context.Background(), dsID)
 			if err != nil {
-				logf(dsID, "dataset fetch failed, skipping component (dataset may not exist on HuggingFace): %v", err)
 				continue
 			}
 			dsResp = r
 
 			c, err := datasetReadmeFetcher.Fetch(context.Background(), dsID)
 			if err != nil {
-				logf(dsID, "dataset readme fetch failed, building component without readme: %v", err)
 			} else {
 				dsReadme = c
 			}
@@ -373,7 +347,6 @@ func BuildFromModelIDs(modelIDs []string, hfToken string, timeout time.Duration)
 
 			dsComp, err := dsBomBuilder.BuildDataset(dsCtx)
 			if err != nil {
-				logf(modelID, "failed to build dataset %s: %v", dsID, err)
 				continue
 			}
 
@@ -382,10 +355,8 @@ func BuildFromModelIDs(modelIDs []string, hfToken string, timeout time.Duration)
 				bom.Components = &[]cdx.Component{}
 			}
 			*bom.Components = append(*bom.Components, *dsComp)
-			logf(modelID, "added dataset component %s", dsID)
 		}
 
-		logf(modelID, "done")
 
 		results = append(results, DiscoveredBOM{
 			Discovery: discovery,

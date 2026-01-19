@@ -60,12 +60,10 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return fmt.Errorf("component is nil")
 				}
 				tgt.Component.Name = name
-				logf("", "apply %s set=%s", DatasetName, summarizeValue(name))
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
 				ok := comp != nil && strings.TrimSpace(comp.Name) != ""
-				logf("", "present %s ok=%t", DatasetName, ok)
 				return ok
 			},
 		},
@@ -138,7 +136,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return fmt.Errorf("invalid externalReferences value")
 				}
 				tgt.Component.ExternalReferences = &refs
-				logf("", "apply %s set=%d refs", DatasetExternalReferences, len(refs))
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -187,7 +184,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return nil
 				}
 				tgt.Component.Tags = &tags
-				logf("", "apply %s set=%d tags", DatasetTags, len(tags))
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -240,7 +236,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					{License: &cdx.License{Name: licenseStr}},
 				}
 				tgt.Component.Licenses = &ls
-				logf("", "apply %s set=%s", DatasetLicenses, licenseStr)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -289,7 +284,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 				}
 				data := ensureComponentData(tgt.Component)
 				data.Description = desc
-				logf("", "apply %s set=%s", DatasetDescription, summarizeValue(desc))
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -332,7 +326,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return nil
 				}
 				tgt.Component.Manufacturer = &cdx.OrganizationalEntity{Name: name}
-				logf("", "apply %s set=%s", DatasetManufacturer, name)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -374,7 +367,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return nil
 				}
 				tgt.Component.Group = group
-				logf("", "apply %s set=%s", DatasetGroup, group)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -425,7 +417,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					Content:     content,
 					ContentType: "text/plain",
 				}
-				logf("", "apply %s set=%d config items", DatasetContents, len(strings.Split(content, "\n")))
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -494,7 +485,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 				}
 				data := ensureComponentData(tgt.Component)
 				data.SensitiveData = &items
-				logf("", "apply %s set=%d items", DatasetSensitiveData, len(items))
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -538,7 +528,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 				}
 				data := ensureComponentData(tgt.Component)
 				data.Classification = classification
-				logf("", "apply %s set=%s", DatasetClassification, classification)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -602,7 +591,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 				}
 				data := ensureComponentData(tgt.Component)
 				data.Governance = gov
-				logf("", "apply %s set governance", DatasetGovernance)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -647,7 +635,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					Value:     hash,
 				}}
 				tgt.Component.Hashes = &hashes
-				logf("", "apply %s set=%s", DatasetHashes, hash)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -683,7 +670,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 				}
 				createdAt, _ := input.Value.(string)
 				setProperty(tgt.Component, "createdAt", strings.TrimSpace(createdAt))
-				logf("", "apply %s set=%s", DatasetCreatedAt, createdAt)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -715,7 +701,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 				}
 				usedStorage, _ := input.Value.(string)
 				setProperty(tgt.Component, "usedStorage", strings.TrimSpace(usedStorage))
-				logf("", "apply %s set=%s", DatasetUsedStorage, usedStorage)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -762,7 +747,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					tags := []string{"lastModified:" + lastMod}
 					tgt.Component.Tags = &tags
 				}
-				logf("", "apply %s set=%s", DatasetLastModified, lastMod)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
@@ -810,7 +794,6 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return fmt.Errorf("component is nil")
 				}
 				setProperty(tgt.Component, "contact", contact)
-				logf("", "apply %s set=%s", DatasetContact, contact)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
