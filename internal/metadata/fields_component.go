@@ -373,6 +373,25 @@ func componentFields() []FieldSpec {
 			Required: false,
 			Sources: []func(Source) (any, bool){
 				func(src Source) (any, bool) {
+					// Extract group from ModelID (part before /)
+					var modelID string
+					if src.HF != nil && strings.TrimSpace(src.HF.ModelID) != "" {
+						modelID = strings.TrimSpace(src.HF.ModelID)
+					} else if src.HF != nil && strings.TrimSpace(src.HF.ID) != "" {
+						modelID = strings.TrimSpace(src.HF.ID)
+					} else {
+						modelID = strings.TrimSpace(src.ModelID)
+					}
+					if modelID == "" {
+						return nil, false
+					}
+					parts := strings.SplitN(modelID, "/", 2)
+					if len(parts) > 0 && strings.TrimSpace(parts[0]) != "" {
+						return strings.TrimSpace(parts[0]), true
+					}
+					return nil, false
+				},
+				func(src Source) (any, bool) {
 					if src.HF != nil {
 						if s := strings.TrimSpace(src.HF.Author); s != "" {
 							return s, true

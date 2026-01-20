@@ -297,13 +297,17 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Required: false,
 			Sources: []func(DatasetSource) (any, bool){
 				func(src DatasetSource) (any, bool) {
-					if src.Readme == nil {
-						return nil, false
+					// First try API author (authors[0])
+					if src.HF != nil && strings.TrimSpace(src.HF.Author) != "" {
+						return strings.TrimSpace(src.HF.Author), true
 					}
-					if len(src.Readme.AnnotationCreators) == 0 {
-						return nil, false
+					// Fallback to first AnnotationCreator from README (authors[1])
+					if src.Readme != nil && len(src.Readme.AnnotationCreators) > 0 {
+						if trimmed := strings.TrimSpace(src.Readme.AnnotationCreators[0]); trimmed != "" {
+							return trimmed, true
+						}
 					}
-					return strings.TrimSpace(src.Readme.AnnotationCreators[0]), true
+					return nil, false
 				},
 			},
 			Parse: func(value string) (any, error) {
@@ -333,18 +337,97 @@ func DatasetRegistry() []DatasetFieldSpec {
 			},
 		},
 		{
+			Key:      DatasetAuthors,
+			Weight:   0.6,
+			Required: false,
+			Sources: []func(DatasetSource) (any, bool){
+				func(src DatasetSource) (any, bool) {
+					var allAuthors []string
+
+					// First, add API author if available
+					if src.HF != nil && strings.TrimSpace(src.HF.Author) != "" {
+						allAuthors = append(allAuthors, strings.TrimSpace(src.HF.Author))
+					}
+
+					// Then, add annotation creators from README
+					if src.Readme != nil && len(src.Readme.AnnotationCreators) > 0 {
+						for _, creator := range src.Readme.AnnotationCreators {
+							if trimmed := strings.TrimSpace(creator); trimmed != "" {
+								allAuthors = append(allAuthors, trimmed)
+							}
+						}
+					}
+
+					if len(allAuthors) == 0 {
+						return nil, false
+					}
+					return allAuthors, true
+				},
+			},
+			Parse: func(value string) (any, error) {
+				parts := strings.Split(value, ",")
+				authors := normalizeStrings(parts)
+				return authors, nil
+			},
+			Apply: func(tgt DatasetTarget, value any) error {
+				input, ok := value.(applyInput)
+				if !ok {
+					return fmt.Errorf("invalid input for %s", DatasetAuthors)
+				}
+				if tgt.Component == nil {
+					return fmt.Errorf("component is nil")
+				}
+				var authors []cdx.OrganizationalContact
+				switch v := input.Value.(type) {
+				case []string:
+					for _, authorName := range v {
+						if trimmed := strings.TrimSpace(authorName); trimmed != "" {
+							authors = append(authors, cdx.OrganizationalContact{
+								Name: trimmed,
+							})
+						}
+					}
+				case string:
+					if trimmed := strings.TrimSpace(v); trimmed != "" {
+						authors = append(authors, cdx.OrganizationalContact{
+							Name: trimmed,
+						})
+					}
+				}
+				if len(authors) == 0 {
+					return fmt.Errorf("authors value is empty")
+				}
+				if !input.Force && tgt.Component.Authors != nil && len(*tgt.Component.Authors) > 0 {
+					return nil
+				}
+				tgt.Component.Authors = &authors
+				return nil
+			},
+			Present: func(comp *cdx.Component) bool {
+				return comp != nil && comp.Authors != nil && len(*comp.Authors) > 0
+			},
+		},
+		{
 			Key:      DatasetGroup,
 			Weight:   0.4,
 			Required: false,
 			Sources: []func(DatasetSource) (any, bool){
 				func(src DatasetSource) (any, bool) {
-					if src.Readme == nil {
+					// Extract group from DatasetID (part before /)
+					var datasetID string
+					if src.HF != nil && strings.TrimSpace(src.HF.ID) != "" {
+						datasetID = strings.TrimSpace(src.HF.ID)
+					} else {
+						datasetID = strings.TrimSpace(src.DatasetID)
+					}
+					if datasetID == "" {
 						return nil, false
 					}
-					if len(src.Readme.AnnotationCreators) < 2 {
-						return nil, false
+					parts := strings.SplitN(datasetID, "/", 2)
+					if len(parts) > 0 && strings.TrimSpace(parts[0]) != "" {
+						return strings.TrimSpace(parts[0]), true
 					}
-					return strings.TrimSpace(src.Readme.AnnotationCreators[1]), true
+					return nil, false
 				},
 			},
 			Parse: func(value string) (any, error) {
@@ -669,11 +752,11 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return fmt.Errorf("component is nil")
 				}
 				createdAt, _ := input.Value.(string)
-				setProperty(tgt.Component, "createdAt", strings.TrimSpace(createdAt))
+				setProperty(tgt.Component, "huggingface:createdAt", strings.TrimSpace(createdAt))
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
-				return hasProperty(comp, "createdAt")
+				return hasProperty(comp, "huggingface:createdAt")
 			},
 		},
 		{
@@ -700,11 +783,11 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return fmt.Errorf("component is nil")
 				}
 				usedStorage, _ := input.Value.(string)
-				setProperty(tgt.Component, "usedStorage", strings.TrimSpace(usedStorage))
+				setProperty(tgt.Component, "huggingface:usedStorage", strings.TrimSpace(usedStorage))
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
-				return hasProperty(comp, "usedStorage")
+				return hasProperty(comp, "huggingface:usedStorage")
 			},
 		},
 		{
@@ -793,11 +876,11 @@ func DatasetRegistry() []DatasetFieldSpec {
 				if tgt.Component == nil {
 					return fmt.Errorf("component is nil")
 				}
-				setProperty(tgt.Component, "contact", contact)
+				setProperty(tgt.Component, "huggingface:datasetContact", contact)
 				return nil
 			},
 			Present: func(comp *cdx.Component) bool {
-				return hasProperty(comp, "contact")
+				return hasProperty(comp, "huggingface:datasetContact")
 			},
 		},
 	}

@@ -34,8 +34,8 @@ func TestRegistryApplyAndPresent(t *testing.T) {
 			Evidence: "pattern",
 		},
 		HF: &fetcher.ModelAPIResponse{
-			ID:          "hf-id",
-			ModelID:     "hf-model",
+			ID:          "hf-org/hf-model",
+			ModelID:     "hf-org/hf-model",
 			Author:      "hf-author",
 			PipelineTag: "classification",
 			LibraryName: "transformers",
@@ -107,8 +107,9 @@ func TestRegistryApplyAndPresent(t *testing.T) {
 	if comp.Manufacturer == nil || comp.Manufacturer.Name != "hf-author" {
 		t.Fatalf("manufacturer mismatch")
 	}
-	if comp.Group != "hf-author" {
-		t.Fatalf("group mismatch")
+	// Group is now extracted from ModelID (first part before /)
+	if comp.Group != "hf-org" {
+		t.Fatalf("group mismatch: expected 'hf-org', got %q", comp.Group)
 	}
 	if comp.Properties == nil || !hasProperty(comp, "huggingface:lastModified") {
 		t.Fatalf("expected huggingface properties")

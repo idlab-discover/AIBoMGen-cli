@@ -106,7 +106,56 @@ func WriteBOM(bom *cdx.BOM, outputPath string, format string, spec string) error
 	if !ok {
 		return fmt.Errorf("unsupported CycloneDX spec version: %q", spec)
 	}
+
+	// WORKAROUND: Manually strip tags for spec < 1.6
+	// Tags were introduced in spec 1.6, but cyclonedx-go doesn't remove them
+	// when encoding to earlier versions (unlike manufacturer, authors, etc.)
+	// See: https://github.com/CycloneDX/cyclonedx-go/issues/248
+	// TODO: Remove this workaround once issue #248 is fixed
+	if sv < cdx.SpecVersion1_6 {
+		stripTagsFromBOM(bom)
+	}
+
 	return encoder.EncodeVersion(bom, sv)
+}
+
+// stripTagsFromBOM removes tags from all components in the BOM.
+// WORKAROUND for cyclonedx-go issue #248: Tags are not automatically removed
+// when encoding to spec versions < 1.6, even though tags were introduced in 1.6.
+// This function manually strips tags to ensure spec compliance.
+// TODO: Remove this workaround once https://github.com/CycloneDX/cyclonedx-go/issues/248 is fixed
+func stripTagsFromBOM(bom *cdx.BOM) {
+	if bom == nil {
+		return
+	}
+
+	// Strip tags from metadata component
+	if bom.Metadata != nil && bom.Metadata.Component != nil {
+		stripTagsFromComponent(bom.Metadata.Component)
+	}
+
+	// Strip tags from all components
+	if bom.Components != nil {
+		for i := range *bom.Components {
+			stripTagsFromComponent(&(*bom.Components)[i])
+		}
+	}
+}
+
+// stripTagsFromComponent recursively removes tags from a component and its children.
+func stripTagsFromComponent(comp *cdx.Component) {
+	if comp == nil {
+		return
+	}
+
+	comp.Tags = nil
+
+	// Recursively process child components
+	if comp.Components != nil {
+		for i := range *comp.Components {
+			stripTagsFromComponent(&(*comp.Components)[i])
+		}
+	}
 }
 
 // ParseSpecVersion parses a spec version string to a CycloneDX SpecVersion.
