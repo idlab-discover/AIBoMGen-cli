@@ -9,19 +9,21 @@ Work-in-progress Go CLI that scans a repository for **basic Hugging Face model u
 
 What works today:
 
-- Basic scanning for Hugging Face model IDs in Python-like sources via `from_pretrained("...")`.
-- AIBOM generation per detected model in JSON or XML.
-- Hugging Face Hub API fetch to populate metadata fields.
-- Hugging Face Repo README fetch to populate more metadata fields.
-- Completeness scoring and validation of existing AIBOM files.
-- Interactive or file based metadata enrichment.
+- Basic scanning for Hugging Face model IDs in Python-like sources via `from_pretrained("...")`
+- AIBOM generation per detected model in JSON or XML
+- Hugging Face Hub API fetch to populate metadata fields
+- Hugging Face Repo README fetch to populate more metadata fields
+- Completeness scoring and validation of existing AIBOM files
+- Interactive or file based metadata enrichment
+- Data components with dataset fetchers and linking them in the AIBOM
 
 What is future work:
 
-- Improving the scanner beyond the current regex-based Hugging Face detection.
-- Implementing data components with dataset fetchers and linking them in the AIBOM.
-- Implementing the possibility to merge AIBOMs with existing sboms from a different source.
-- Implementing the possibility to sign AIBOMs with cosign.
+- Updating the UI to utilise Bubbletea library
+- Enhancing the resulting BOMs to include correct dependencies and BOMrefs
+- Improving the scanner beyond the current regex-based Hugging Face detection
+- Implementing the possibility to merge AIBOMs with existing sboms from a different source
+- Implementing the possibility to sign AIBOMs with cosign
 - Implementing check-vuln command to check AI vulnerability databases
 - Implementing AIBOM generation based of model files not on Hugging Face
 
