@@ -16,10 +16,10 @@ What works today:
 - Completeness scoring and validation of existing AIBOM files
 - Interactive or file based metadata enrichment
 - Data components with dataset fetchers and linking them in the AIBOM
+- Updated the UI to utilise Charm libraries
 
 What is future work:
 
-- Updating the UI to utilise Bubbletea library
 - Enhancing the resulting BOMs to include correct dependencies and BOMrefs
 - Improving the scanner beyond the current regex-based Hugging Face detection
 - Implementing the possibility to merge AIBOMs with existing sboms from a different source
