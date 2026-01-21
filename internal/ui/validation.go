@@ -128,7 +128,7 @@ func (v *ValidationUI) renderErrors(errors []string) string {
 	sb.WriteString("\n")
 	for _, err := range errors {
 		sb.WriteString("  ")
-		sb.WriteString(CrossMark)
+		sb.WriteString(GetCrossMark())
 		sb.WriteString(" ")
 		sb.WriteString(err)
 		sb.WriteString("\n")
@@ -145,7 +145,7 @@ func (v *ValidationUI) renderWarnings(warnings []string) string {
 	sb.WriteString("\n")
 	for _, warn := range warnings {
 		sb.WriteString("  ")
-		sb.WriteString(WarnMark)
+		sb.WriteString(GetWarnMark())
 		sb.WriteString(" ")
 		sb.WriteString(Dim.Render(warn))
 		sb.WriteString("\n")
@@ -188,7 +188,7 @@ func (v *ValidationUI) renderDatasetValidation(datasets map[string]DatasetValida
 			sb.WriteString("\n")
 			for _, err := range dsResult.Errors {
 				sb.WriteString("  ")
-				sb.WriteString(CrossMark)
+				sb.WriteString(GetCrossMark())
 				sb.WriteString(" ")
 				sb.WriteString(err)
 				sb.WriteString("\n")
@@ -206,7 +206,7 @@ func (v *ValidationUI) renderDatasetValidation(datasets map[string]DatasetValida
 			sb.WriteString("\n")
 			for _, warn := range dsResult.Warnings {
 				sb.WriteString("  ")
-				sb.WriteString(WarnMark)
+				sb.WriteString(GetWarnMark())
 				sb.WriteString(" ")
 				sb.WriteString(Dim.Render(warn))
 				sb.WriteString("\n")
@@ -251,9 +251,9 @@ func (v *ValidationUI) renderScorePercentage(score float64) string {
 // PrintSimpleReport prints a minimal text report
 func (v *ValidationUI) PrintSimpleReport(report ValidationReport) {
 	if report.Valid {
-		fmt.Fprintf(v.writer, "✓ Validation passed\n")
+		fmt.Fprintf(v.writer, "%s Validation passed\n", GetCheckMark())
 	} else {
-		fmt.Fprintf(v.writer, "✗ Validation failed\n")
+		fmt.Fprintf(v.writer, "%s Validation failed\n", GetCrossMark())
 	}
 
 	fmt.Fprintf(v.writer, "Completeness: %.1f%%\n", report.CompletenessScore*100)

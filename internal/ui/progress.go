@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // StepStatus represents the status of a step
@@ -138,9 +138,9 @@ func (m ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the progress display
-func (m ProgressModel) View() string {
+func (m ProgressModel) View() tea.View {
 	if m.quitting {
-		return ""
+		return tea.NewView("")
 	}
 
 	var b strings.Builder
@@ -205,7 +205,7 @@ func (m ProgressModel) View() string {
 	if m.done {
 		b.WriteString("\n\n")
 		if m.err != nil {
-			b.WriteString(ErrorBox.Render(CrossMark + " " + m.err.Error()))
+			b.WriteString(ErrorBox.Render(GetCrossMark() + " " + m.err.Error()))
 		} else {
 			completed := 0
 			for _, s := range m.steps {
@@ -219,7 +219,7 @@ func (m ProgressModel) View() string {
 		}
 	}
 
-	return b.String()
+	return tea.NewView(b.String())
 }
 
 // ProgressTracker provides a simple interface for tracking progress

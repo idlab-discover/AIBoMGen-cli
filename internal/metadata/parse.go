@@ -153,3 +153,62 @@ func parseProperties(value string) ([]cdx.Property, error) {
 	}
 	return props, nil
 }
+
+func parseDataGovernance(value string) (*cdx.DataGovernance, error) {
+	s := strings.TrimSpace(value)
+	if s == "" {
+		return nil, fmt.Errorf("governance value is empty")
+	}
+
+	governance := &cdx.DataGovernance{}
+	hasGovernance := false
+
+	// Parse format: "custodian:OrgName,steward:OrgName,owner:OrgName"
+	// Or simpler: single value assumes custodian
+	pairs := strings.Split(s, ",")
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		var role, orgName string
+		if strings.Contains(pair, ":") {
+			parts := strings.SplitN(pair, ":", 2)
+			role = strings.ToLower(strings.TrimSpace(parts[0]))
+			orgName = strings.TrimSpace(parts[1])
+		} else {
+			// No role specified, default to custodian
+			role = "custodian"
+			orgName = strings.TrimSpace(pair)
+		}
+
+		if orgName == "" {
+			continue
+		}
+
+		switch role {
+		case "custodian", "custodians":
+			governance.Custodians = &[]cdx.ComponentDataGovernanceResponsibleParty{{
+				Organization: &cdx.OrganizationalEntity{Name: orgName},
+			}}
+			hasGovernance = true
+		case "steward", "stewards", "curated", "curatedby":
+			governance.Stewards = &[]cdx.ComponentDataGovernanceResponsibleParty{{
+				Organization: &cdx.OrganizationalEntity{Name: orgName},
+			}}
+			hasGovernance = true
+		case "owner", "owners", "funded", "fundedby":
+			governance.Owners = &[]cdx.ComponentDataGovernanceResponsibleParty{{
+				Organization: &cdx.OrganizationalEntity{Name: orgName},
+			}}
+			hasGovernance = true
+		}
+	}
+
+	if !hasGovernance {
+		return nil, fmt.Errorf("no valid governance roles found")
+	}
+
+	return governance, nil
+}

@@ -66,6 +66,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 				ok := comp != nil && strings.TrimSpace(comp.Name) != ""
 				return ok
 			},
+			InputType:   InputTypeText,
+			Placeholder: "e.g., organization/dataset-name",
 		},
 		{
 			Key:      DatasetExternalReferences,
@@ -141,6 +143,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return comp != nil && comp.ExternalReferences != nil && len(*comp.ExternalReferences) > 0
 			},
+			InputType:   InputTypeText,
+			Placeholder: "https://example.com/dataset",
 		},
 		{
 			Key:      DatasetTags,
@@ -189,6 +193,9 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return comp != nil && comp.Tags != nil && len(*comp.Tags) > 0
 			},
+			InputType:   InputTypeMultiText,
+			Placeholder: "nlp, text, en",
+			Suggestions: []string{"nlp", "vision", "audio", "tabular", "multimodal", "text", "image"},
 		},
 		{
 			Key:      DatasetLicenses,
@@ -241,6 +248,9 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return comp != nil && comp.Licenses != nil && len(*comp.Licenses) > 0
 			},
+			InputType:   InputTypeSelect,
+			Placeholder: "Select a license",
+			Suggestions: []string{"Apache-2.0", "MIT", "CC-BY-4.0", "CC-BY-SA-4.0", "CC0-1.0"},
 		},
 		{
 			Key:      DatasetDescription,
@@ -290,6 +300,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 				data := getComponentData(comp)
 				return data != nil && strings.TrimSpace(data.Description) != ""
 			},
+			InputType:   InputTypeTextArea,
+			Placeholder: "Describe the dataset...",
 		},
 		{
 			Key:      DatasetManufacturer,
@@ -335,6 +347,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return comp != nil && comp.Manufacturer != nil && strings.TrimSpace(comp.Manufacturer.Name) != ""
 			},
+			InputType:   InputTypeText,
+			Placeholder: "Organization or author name",
 		},
 		{
 			Key:      DatasetAuthors,
@@ -406,6 +420,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return comp != nil && comp.Authors != nil && len(*comp.Authors) > 0
 			},
+			InputType:   InputTypeMultiText,
+			Placeholder: "author1, author2, author3",
 		},
 		{
 			Key:      DatasetGroup,
@@ -455,6 +471,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return comp != nil && strings.TrimSpace(comp.Group) != ""
 			},
+			InputType:   InputTypeText,
+			Placeholder: "Organization or group name",
 		},
 		{
 			Key:      DatasetContents,
@@ -506,6 +524,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 				data := getComponentData(comp)
 				return data != nil && data.Contents != nil && data.Contents.Attachment != nil
 			},
+			InputType:   InputTypeTextArea,
+			Placeholder: "Describe dataset contents...",
 		},
 		{
 			Key:      DatasetSensitiveData,
@@ -574,6 +594,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 				data := getComponentData(comp)
 				return data != nil && data.SensitiveData != nil && len(*data.SensitiveData) > 0
 			},
+			InputType:   InputTypeTextArea,
+			Placeholder: "Describe any sensitive data...",
 		},
 		{
 			Key:      DatasetClassification,
@@ -617,6 +639,9 @@ func DatasetRegistry() []DatasetFieldSpec {
 				data := getComponentData(comp)
 				return data != nil && strings.TrimSpace(data.Classification) != ""
 			},
+			InputType:   InputTypeText,
+			Placeholder: "text, image, audio, etc.",
+			Suggestions: []string{"text", "image", "audio", "video", "tabular"},
 		},
 		{
 			Key:      DatasetGovernance,
@@ -660,6 +685,9 @@ func DatasetRegistry() []DatasetFieldSpec {
 					return governance, true
 				},
 			},
+			Parse: func(value string) (any, error) {
+				return parseDataGovernance(value)
+			},
 			Apply: func(tgt DatasetTarget, value any) error {
 				input, ok := value.(applyInput)
 				if !ok {
@@ -667,7 +695,7 @@ func DatasetRegistry() []DatasetFieldSpec {
 				}
 				gov, _ := input.Value.(*cdx.DataGovernance)
 				if gov == nil {
-					return nil
+					return fmt.Errorf("governance value is nil")
 				}
 				if tgt.Component == nil {
 					return fmt.Errorf("component is nil")
@@ -680,6 +708,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 				data := getComponentData(comp)
 				return data != nil && data.Governance != nil
 			},
+			InputType:   InputTypeTextArea,
+			Placeholder: "custodian:OrgName,steward:CuratorName,owner:FunderName",
 		},
 		{
 			Key:      DatasetHashes,
@@ -723,6 +753,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return comp != nil && comp.Hashes != nil && len(*comp.Hashes) > 0
 			},
+			InputType:   InputTypeText,
+			Placeholder: "SHA-256 hash value",
 		},
 		{
 			Key:      DatasetCreatedAt,
@@ -758,6 +790,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return hasProperty(comp, "huggingface:createdAt")
 			},
+			InputType:   InputTypeText,
+			Placeholder: "YYYY-MM-DD",
 		},
 		{
 			Key:      DatasetUsedStorage,
@@ -789,6 +823,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return hasProperty(comp, "huggingface:usedStorage")
 			},
+			InputType:   InputTypeText,
+			Placeholder: "Storage size in bytes",
 		},
 		{
 			Key:      DatasetLastModified,
@@ -843,6 +879,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 				}
 				return false
 			},
+			InputType:   InputTypeText,
+			Placeholder: "YYYY-MM-DD",
 		},
 		{
 			Key:      DatasetContact,
@@ -882,6 +920,8 @@ func DatasetRegistry() []DatasetFieldSpec {
 			Present: func(comp *cdx.Component) bool {
 				return hasProperty(comp, "huggingface:datasetContact")
 			},
+			InputType:   InputTypeText,
+			Placeholder: "Contact information",
 		},
 	}
 }

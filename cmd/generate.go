@@ -161,7 +161,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 
 	// Deprecation warning
 	if viper.GetBool("generate.enrich") {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s --enrich flag is deprecated. Use 'aibomgen-cli enrich' command instead.\n", ui.WarnMark)
+		fmt.Fprintf(cmd.ErrOrStderr(), "%s --enrich flag is deprecated. Use 'aibomgen-cli enrich' command instead.\n", ui.GetWarnMark())
 	}
 
 	// Determine output settings
@@ -320,11 +320,11 @@ func runModelIDMode(ctx context.Context, genUI *ui.GenerateUI, modelIDs []string
 		fmt.Println()
 		for _, m := range completedModels {
 			if m.err != "" {
-				fmt.Printf("  %s %s %s\n", ui.CrossMark, ui.Highlight.Render(m.id), ui.Error.Render("→ "+m.err))
+				fmt.Printf("  %s %s %s\n", ui.GetCrossMark(), ui.Highlight.Render(m.id), ui.Error.Render("→ "+m.err))
 			} else if m.datasets > 0 {
-				fmt.Printf("  %s %s %s\n", ui.CheckMark, ui.Highlight.Render(m.id), ui.Dim.Render(fmt.Sprintf("→ %d dataset(s)", m.datasets)))
+				fmt.Printf("  %s %s %s\n", ui.GetCheckMark(), ui.Highlight.Render(m.id), ui.Dim.Render(fmt.Sprintf("→ %d dataset(s)", m.datasets)))
 			} else {
-				fmt.Printf("  %s %s\n", ui.CheckMark, ui.Highlight.Render(m.id))
+				fmt.Printf("  %s %s\n", ui.GetCheckMark(), ui.Highlight.Render(m.id))
 			}
 		}
 	}
@@ -454,11 +454,11 @@ func runScanMode(ctx context.Context, genUI *ui.GenerateUI, inputPath, mode, hfT
 		fmt.Println()
 		for _, m := range completedModels {
 			if m.err != "" {
-				fmt.Printf("  %s %s %s\n", ui.CrossMark, ui.Highlight.Render(m.id), ui.Error.Render("→ "+m.err))
+				fmt.Printf("  %s %s %s\n", ui.GetCrossMark(), ui.Highlight.Render(m.id), ui.Error.Render("→ "+m.err))
 			} else if m.datasets > 0 {
-				fmt.Printf("  %s %s %s\n", ui.CheckMark, ui.Highlight.Render(m.id), ui.Dim.Render(fmt.Sprintf("→ %d dataset(s)", m.datasets)))
+				fmt.Printf("  %s %s %s\n", ui.GetCheckMark(), ui.Highlight.Render(m.id), ui.Dim.Render(fmt.Sprintf("→ %d dataset(s)", m.datasets)))
 			} else {
-				fmt.Printf("  %s %s\n", ui.CheckMark, ui.Highlight.Render(m.id))
+				fmt.Printf("  %s %s\n", ui.GetCheckMark(), ui.Highlight.Render(m.id))
 			}
 		}
 	}

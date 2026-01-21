@@ -6,6 +6,7 @@ import (
 
 	"github.com/idlab-discover/AIBoMGen-cli/internal/enricher"
 	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -117,7 +118,8 @@ from Hugging Face API and README before enrichment.`,
 		}
 
 		if level != "quiet" {
-			fmt.Fprintf(cmd.OutOrStdout(), "\n✓ Enriched BOM saved to %s\n", outPath)
+			msg := fmt.Sprintf("Enriched BOM saved to %s", outPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", ui.SuccessBox.Render(ui.GetCheckMark()+" "+msg))
 		}
 
 		return nil

@@ -1,8 +1,13 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"image/color"
 
-// Color palette for the application
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/fang"
+)
+
+// Color palette for the application (single source of truth)
 var (
 	// Primary colors
 	ColorPrimary   = lipgloss.Color("#7C3AED") // Purple
@@ -11,7 +16,7 @@ var (
 	ColorWarning   = lipgloss.Color("#F59E0B") // Amber
 	ColorError     = lipgloss.Color("#EF4444") // Red
 	ColorMuted     = lipgloss.Color("#6B7280") // Gray
-	ColorHighlight = lipgloss.Color("#8B5CF6") // Light purple
+	ColorHighlight = lipgloss.Color("#f048ff") // Pink
 
 	// Text colors
 	ColorText     = lipgloss.Color("#F9FAFB") // White
@@ -64,37 +69,21 @@ var (
 	Highlight = styleWrapper{lipgloss.NewStyle().Foreground(ColorHighlight).Bold(true)}
 )
 
-// Status indicators
-var (
-	// CheckMark returns a styled check mark
-	CheckMark = func() string { return Success.Render("✓") }()
+// Status indicators (functions to ensure fresh rendering)
 
-	// CrossMark returns a styled cross mark
-	CrossMark = func() string { return Error.Render("✗") }()
-
-	// WarnMark returns a styled warning mark
-	WarnMark = func() string { return Warning.Render("⚠") }()
-
-	// InfoMark returns a styled info mark
-	InfoMark = func() string { return Secondary.Render("ℹ") }()
-
-	// Bullet returns a styled bullet point
-	Bullet = func() string { return Muted.Render("•") }()
-)
-
-// GetCheckMark returns a check mark respecting current color settings
+// GetCheckMark returns a styled check mark
 func GetCheckMark() string { return Success.Render("✓") }
 
-// GetCrossMark returns a cross mark respecting current color settings
+// GetCrossMark returns a styled cross mark
 func GetCrossMark() string { return Error.Render("✗") }
 
-// GetWarnMark returns a warning mark respecting current color settings
+// GetWarnMark returns a styled warning mark
 func GetWarnMark() string { return Warning.Render("⚠") }
 
-// GetInfoMark returns an info mark respecting current color settings
+// GetInfoMark returns a styled info mark
 func GetInfoMark() string { return Secondary.Render("ℹ") }
 
-// GetBullet returns a bullet point respecting current color settings
+// GetBullet returns a styled bullet point
 func GetBullet() string { return Muted.Render("•") }
 
 // Box styles for panels and containers
@@ -196,15 +185,37 @@ func FormatStatus(status, message string) string {
 	var icon string
 	switch status {
 	case "success":
-		icon = CheckMark
+		icon = GetCheckMark()
 	case "error":
-		icon = CrossMark
+		icon = GetCrossMark()
 	case "warning":
-		icon = WarnMark
+		icon = GetWarnMark()
 	case "info":
-		icon = InfoMark
+		icon = GetInfoMark()
 	default:
-		icon = Bullet
+		icon = GetBullet()
 	}
 	return icon + " " + message
+}
+
+// FangColorScheme returns a Fang color scheme based on the application's color palette
+func FangColorScheme(c lipgloss.LightDarkFunc) fang.ColorScheme {
+	return fang.ColorScheme{
+		Base:           ColorText,
+		Title:          ColorPrimary,
+		Description:    ColorTextDim,
+		Codeblock:      c(lipgloss.Color("#1F2937"), lipgloss.Color("#2F2E36")),
+		Program:        ColorSecondary,
+		DimmedArgument: ColorMuted,
+		Comment:        ColorMuted,
+		Flag:           ColorSuccess,
+		FlagDefault:    ColorTextDim,
+		Command:        ColorHighlight,
+		QuotedString:   ColorSecondary,
+		Argument:       ColorText,
+		Help:           ColorTextDim,
+		Dash:           ColorMuted,
+		ErrorHeader:    [2]color.Color{ColorText, ColorError},
+		ErrorDetails:   ColorError,
+	}
 }

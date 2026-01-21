@@ -67,6 +67,9 @@ func modelCardFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeSelect,
+			Placeholder: "Select the primary task",
+			Suggestions: []string{"text-classification", "text-generation", "token-classification", "question-answering", "summarization", "translation", "image-classification", "object-detection", "image-segmentation", "audio-classification", "automatic-speech-recognition"},
 		},
 		{
 			Key:      ModelCardModelParametersArchitectureFamily,
@@ -111,6 +114,9 @@ func modelCardFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeText,
+			Placeholder: "e.g., transformer, cnn, rnn",
+			Suggestions: []string{"transformer", "cnn", "rnn", "lstm", "gru", "diffusion"},
 		},
 		{
 			Key:      ModelCardModelParametersModelArchitecture,
@@ -158,6 +164,8 @@ func modelCardFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeText,
+			Placeholder: "e.g., BertForSequenceClassification",
 		},
 		{
 			Key:      ModelCardModelParametersDatasets,
@@ -238,6 +246,8 @@ func modelCardFields() []FieldSpec {
 				}
 				return false
 			},
+			InputType:   InputTypeMultiText,
+			Placeholder: "dataset1, dataset2, dataset3",
 		},
 		{
 			Key:      ModelCardConsiderationsUseCases,
@@ -291,6 +301,8 @@ func modelCardFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeMultiText,
+			Placeholder: "use case 1, use case 2",
 		},
 		{
 			Key:      ModelCardConsiderationsTechnicalLimitations,
@@ -337,6 +349,8 @@ func modelCardFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeTextArea,
+			Placeholder: "limitation1,limitation2,limitation3",
 		},
 		{
 			Key:      ModelCardConsiderationsEthicalConsiderations,
@@ -388,6 +402,8 @@ func modelCardFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeTextArea,
+			Placeholder: "bias:mitigation strategy,privacy concerns,fairness issues",
 		},
 		{
 			Key:      ModelCardQuantitativeAnalysisPerformanceMetrics,
@@ -473,6 +489,8 @@ func modelCardFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeTextArea,
+			Placeholder: "accuracy:0.95,f1:0.92,precision:0.88",
 		},
 		{
 			Key:      ModelCardConsiderationsEnvironmentalConsiderationsProperties,
@@ -538,6 +556,8 @@ func modelCardFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeTextArea,
+			Placeholder: "hardwareType:GPU,hoursUsed:100,carbonEmitted:50kg",
 		},
 	}
 }

@@ -33,7 +33,7 @@ enrich:
   # Path to existing AIBOM (required)
   input: "./dist/WiebeVandendriessche_model-card-example_aibom.json"
   # Output file path (default: overwrite input)
-  output: "./dist/WiebeVandendriessche_model-card-example_aibom.json"
+  output: ""
   # Input BOM format: json|xml|auto
   format: "auto"
   # Output BOM format: json|xml|auto

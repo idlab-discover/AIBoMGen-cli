@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // GenerateUI provides a rich UI for the generate command
@@ -208,7 +208,7 @@ func (g *GenerateUI) PrintNoModelsFound() {
 	}
 
 	msg := "No models detected; no AIBOM files written."
-	fmt.Fprintln(g.writer, Warning.Render(WarnMark+" "+msg))
+	fmt.Fprintln(g.writer, Warning.Render(GetWarnMark()+" "+msg))
 }
 
 // LogStep prints a simple log message (non-workflow mode)
@@ -220,13 +220,13 @@ func (g *GenerateUI) LogStep(icon, message string) {
 	var iconStyled string
 	switch icon {
 	case "success":
-		iconStyled = CheckMark
+		iconStyled = GetCheckMark()
 	case "error":
-		iconStyled = CrossMark
+		iconStyled = GetCrossMark()
 	case "warning":
-		iconStyled = WarnMark
+		iconStyled = GetWarnMark()
 	case "info":
-		iconStyled = InfoMark
+		iconStyled = GetInfoMark()
 	default:
 		iconStyled = Secondary.Render("→")
 	}

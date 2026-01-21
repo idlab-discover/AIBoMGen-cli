@@ -108,11 +108,22 @@ type DatasetTarget struct {
 	HuggingFaceBaseURL        string
 }
 
+// InputType defines the type of input field for interactive enrichment
+type InputType string
+
+const (
+	InputTypeText      InputType = "text"      // Single-line text input
+	InputTypeTextArea  InputType = "textarea"  // Multi-line text input
+	InputTypeSelect    InputType = "select"    // Dropdown selection
+	InputTypeMultiText InputType = "multitext" // Comma-separated values
+)
+
 // FieldSpec is a first-class definition of a field:
 // - how it contributes to completeness
 // - how it is populated into the BOM
 // - how its presence is detected
 // - how user-provided values are set
+// - how it should be presented in interactive forms
 type FieldSpec struct {
 	Key      Key
 	Weight   float64
@@ -122,6 +133,11 @@ type FieldSpec struct {
 	Parse   func(string) (any, error)
 	Apply   func(Target, any) error
 	Present func(*cdx.BOM) bool
+
+	// UI metadata for interactive enrichment
+	InputType   InputType
+	Placeholder string
+	Suggestions []string
 }
 
 // DatasetFieldSpec is the dataset analog of FieldSpec
@@ -134,6 +150,11 @@ type DatasetFieldSpec struct {
 	Parse   func(string) (any, error)
 	Apply   func(DatasetTarget, any) error
 	Present func(comp *cdx.Component) bool
+
+	// UI metadata for interactive enrichment
+	InputType   InputType
+	Placeholder string
+	Suggestions []string
 }
 
 // Registry is the central registry of all known FieldSpecs.

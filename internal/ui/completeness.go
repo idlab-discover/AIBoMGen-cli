@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	lipgloss "charm.land/lipgloss/v2"
 )
 
 // CompletenessReport mirrors the structure from internal/completeness
@@ -112,7 +112,7 @@ func (c *CompletenessUI) renderMissingFields(report CompletenessReport) string {
 		sb.WriteString("\n")
 		for _, field := range report.MissingRequired {
 			sb.WriteString("  ")
-			sb.WriteString(CrossMark)
+			sb.WriteString(GetCrossMark())
 			sb.WriteString(" ")
 			sb.WriteString(field.String())
 			sb.WriteString("\n")
@@ -128,7 +128,7 @@ func (c *CompletenessUI) renderMissingFields(report CompletenessReport) string {
 		sb.WriteString("\n")
 		for _, field := range report.MissingOptional {
 			sb.WriteString("  ")
-			sb.WriteString(WarnMark)
+			sb.WriteString(GetWarnMark())
 			sb.WriteString(" ")
 			sb.WriteString(Dim.Render(field.String()))
 			sb.WriteString("\n")
@@ -163,7 +163,7 @@ func (c *CompletenessUI) renderDatasetScores(datasets map[string]DatasetReport) 
 			sb.WriteString("\n")
 			for _, field := range dsReport.MissingRequired {
 				sb.WriteString("  ")
-				sb.WriteString(CrossMark)
+				sb.WriteString(GetCrossMark())
 				sb.WriteString(" ")
 				sb.WriteString(field.String())
 				sb.WriteString("\n")
@@ -179,7 +179,7 @@ func (c *CompletenessUI) renderDatasetScores(datasets map[string]DatasetReport) 
 			sb.WriteString("\n")
 			for _, field := range dsReport.MissingOptional {
 				sb.WriteString("  ")
-				sb.WriteString(WarnMark)
+				sb.WriteString(GetWarnMark())
 				sb.WriteString(" ")
 				sb.WriteString(Dim.Render(field.String()))
 				sb.WriteString("\n")
@@ -239,17 +239,17 @@ func (c *CompletenessUI) formatFieldKeys(keys []FieldKey) string {
 
 // PrintSimpleReport prints a minimal text report (fallback for quiet mode or issues)
 func (c *CompletenessUI) PrintSimpleReport(report CompletenessReport) {
-	fmt.Fprintf(c.writer, "Model score: %.1f%% (%d/%d)\n", report.Score*100, report.Passed, report.Total)
+	fmt.Fprintf(c.writer, "%s Model score: %.1f%% (%d/%d)\n", Title.Render("Score"), report.Score*100, report.Passed, report.Total)
 
 	if len(report.MissingRequired) > 0 {
-		fmt.Fprintf(c.writer, "Missing required: %s\n", c.formatFieldKeys(report.MissingRequired))
+		fmt.Fprintf(c.writer, "%s Missing required: %s\n", GetCrossMark(), c.formatFieldKeys(report.MissingRequired))
 	}
 	if len(report.MissingOptional) > 0 {
-		fmt.Fprintf(c.writer, "Missing optional: %s\n", c.formatFieldKeys(report.MissingOptional))
+		fmt.Fprintf(c.writer, "%s Missing optional: %s\n", GetWarnMark(), c.formatFieldKeys(report.MissingOptional))
 	}
 
 	if len(report.DatasetReports) > 0 {
-		fmt.Fprintln(c.writer, "\nDatasets:")
+		fmt.Fprintln(c.writer, "\n"+SectionHeader.Render("Datasets:"))
 		for dsName, dsReport := range report.DatasetReports {
 			fmt.Fprintf(c.writer, "  %s: %.1f%% (%d/%d)\n", dsName, dsReport.Score*100, dsReport.Passed, dsReport.Total)
 		}

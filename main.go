@@ -1,7 +1,24 @@
 package main
 
-import "github.com/idlab-discover/AIBoMGen-cli/cmd"
+import (
+	"context"
+	"os"
+
+	"github.com/charmbracelet/fang"
+	"github.com/idlab-discover/AIBoMGen-cli/cmd"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
+)
+
+// Version is set at build time
+var Version = "dev"
 
 func main() {
-	cmd.Execute()
+	cmd.SetVersion(Version)
+	if err := fang.Execute(
+		context.Background(),
+		cmd.GetRootCmd(),
+		fang.WithColorSchemeFunc(ui.FangColorScheme),
+	); err != nil {
+		os.Exit(1)
+	}
 }

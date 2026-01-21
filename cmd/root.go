@@ -6,10 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 
 // rootCmd represents the base command
@@ -31,10 +30,17 @@ var rootCmd = &cobra.Command{
 }
 
 var cfgFile string
+var version string
 
-// Execute executes the root command.
-func Execute() {
-	rootCmd.Execute()
+// SetVersion sets the version for the CLI
+func SetVersion(v string) {
+	version = v
+	rootCmd.Version = v
+}
+
+// GetRootCmd returns the root command for use with fang
+func GetRootCmd() *cobra.Command {
+	return rootCmd
 }
 
 func init() {
@@ -86,7 +92,8 @@ func initConfig() {
 		}
 
 		if err == nil {
-			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+			configMsg := ui.Dim.Render("Using config file: ") + ui.Secondary.Render(viper.ConfigFileUsed())
+			fmt.Fprintln(os.Stderr, configMsg)
 		}
 
 		return
@@ -108,7 +115,8 @@ func initConfig() {
 		// The config file is optional, we shouldn't exit when the config is not found
 		break
 	default:
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		configMsg := ui.Dim.Render("Using config file: ") + ui.Secondary.Render(viper.ConfigFileUsed())
+		fmt.Fprintln(os.Stderr, configMsg)
 	}
 }
 
@@ -129,5 +137,5 @@ func initUIAndBanner(cmd *cobra.Command) {
 	if cmd == nil {
 		return
 	}
-	cmd.Root().Long = ui.Color(bannerASCII, ui.FgGreen) + "\n" + longDescription
+	cmd.Root().Long = ui.Primary.Render(bannerASCII) + "\n" + longDescription
 }

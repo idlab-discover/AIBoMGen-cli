@@ -362,9 +362,9 @@ func (s *SimpleSpinner) Stop(success bool, finalMessage string) {
 	// Clear the spinner line and print final result
 	fmt.Fprint(s.writer, "\r\033[K")
 	if success {
-		fmt.Fprintf(s.writer, "%s %s\n", CheckMark, finalMessage)
+		fmt.Fprintf(s.writer, "%s %s\n", GetCheckMark(), finalMessage)
 	} else {
-		fmt.Fprintf(s.writer, "%s %s\n", CrossMark, Error.Render(finalMessage))
+		fmt.Fprintf(s.writer, "%s %s\n", GetCrossMark(), Error.Render(finalMessage))
 	}
 }
 

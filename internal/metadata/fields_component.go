@@ -76,6 +76,8 @@ func componentFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeText,
+			Placeholder: "e.g., organization/model-name",
 		},
 		{
 			Key:      ComponentExternalReferences,
@@ -211,6 +213,9 @@ func componentFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeMultiText,
+			Placeholder: "pytorch, transformers, nlp",
+			Suggestions: []string{"pytorch", "transformers", "nlp", "vision", "audio", "text-generation"},
 		},
 		{
 			Key:      ComponentLicenses,
@@ -270,6 +275,9 @@ func componentFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeSelect,
+			Placeholder: "Select a license",
+			Suggestions: []string{"Apache-2.0", "MIT", "BSD-3-Clause", "GPL-3.0", "LGPL-3.0", "CC-BY-4.0", "CC-BY-SA-4.0", "CC0-1.0"},
 		},
 		{
 			Key:      ComponentHashes,
@@ -314,6 +322,8 @@ func componentFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeText,
+			Placeholder: "SHA-256 hash value",
 		},
 		{
 			Key:      ComponentManufacturer,
@@ -366,6 +376,8 @@ func componentFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeText,
+			Placeholder: "Organization or author name",
 		},
 		{
 			Key:      ComponentGroup,
@@ -437,6 +449,8 @@ func componentFields() []FieldSpec {
 				}
 				return ok
 			},
+			InputType:   InputTypeText,
+			Placeholder: "Organization or group name",
 		},
 	}
 }

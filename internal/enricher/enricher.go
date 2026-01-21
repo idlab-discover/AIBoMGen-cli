@@ -112,11 +112,13 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 
 	// Show preview if requested
 	if !e.config.NoPreview && (len(modelChanges) > 0 || len(datasetChanges) > 0) {
-		if !e.showPreviewAndConfirm(initialReport, postRefetchReport, bom, modelChanges, datasetChanges) {
+		confirm, err := ShowPreviewWithConfirm(initialReport, postRefetchReport, bom, modelChanges, datasetChanges)
+		if err != nil {
+			return nil, fmt.Errorf("preview error: %w", err)
+		}
+		if !confirm {
 			return nil, fmt.Errorf("enrichment cancelled by user")
 		}
-	} else if len(modelChanges) > 0 || len(datasetChanges) > 0 {
-		// Show final completeness even without preview
 	}
 
 	return bom, nil
@@ -129,7 +131,6 @@ func (e *Enricher) enrichModel(bom *cdx.BOM, modelID string, hfAPI *fetcher.Mode
 	if len(missingFields) == 0 {
 		return nil, nil
 	}
-
 
 	// Prepare enrichment source
 	src := metadata.Source{
@@ -146,33 +147,74 @@ func (e *Enricher) enrichModel(bom *cdx.BOM, modelID string, hfAPI *fetcher.Mode
 		HuggingFaceBaseURL: e.config.HFBaseURL,
 	}
 
-	// Track changes
+	var changes map[metadata.Key]string
+	var err error
+
+	switch e.config.Strategy {
+	case "file":
+		changes, err = e.enrichModelFromFile(missingFields, src, tgt, configViper)
+	case "interactive":
+		// Use new interactive enricher
+		ie := NewInteractiveEnricher(e)
+		changes, err = ie.EnrichInteractive(bom, missingFields, src, tgt)
+	default:
+		return nil, fmt.Errorf("unknown strategy: %s", e.config.Strategy)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return changes, nil
+}
+
+// enrichModelFromFile handles file-based enrichment
+func (e *Enricher) enrichModelFromFile(
+	missingFields []metadata.FieldSpec,
+	src metadata.Source,
+	tgt metadata.Target,
+	configViper interface{},
+) (map[metadata.Key]string, error) {
 	changes := make(map[metadata.Key]string)
 
-	// Enrich each field
 	for _, spec := range missingFields {
-		var value interface{}
-		var err error
-
-		switch e.config.Strategy {
-		case "file":
-			value, err = e.getValueFromFile(spec, configViper)
-		case "interactive":
-			value, err = e.getValueInteractive(spec, src, bom)
-		default:
-			return nil, fmt.Errorf("unknown strategy: %s", e.config.Strategy)
-		}
-
+		value, err := e.getValueFromFile(spec, configViper)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get value for %s: %w", spec.Key, err)
 		}
 
 		if value != nil {
-			// Apply the value
-			if err := e.applyValue(spec, &src, &tgt, value); err != nil {
+			err = e.applyValue(spec, &src, &tgt, value)
+			if err != nil {
+				return nil, err
+			}
+			changes[spec.Key] = formatValue(value)
+		}
+	}
+
+	return changes, nil
+}
+
+// enrichDatasetFromFile handles file-based dataset enrichment
+func (e *Enricher) enrichDatasetFromFile(
+	missingFields []metadata.DatasetFieldSpec,
+	src metadata.DatasetSource,
+	tgt metadata.DatasetTarget,
+	configViper interface{},
+) (map[metadata.DatasetKey]string, error) {
+	changes := make(map[metadata.DatasetKey]string)
+
+	for _, spec := range missingFields {
+		value, err := e.getDatasetValueFromFile(spec, configViper)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get value for %s: %w", spec.Key, err)
+		}
+
+		if value != nil {
+			err = e.applyDatasetValue(spec, &src, &tgt, value)
+			if err != nil {
 				continue
 			}
-			// Track the change if it was successfully applied
 			changes[spec.Key] = formatValue(value)
 		}
 	}
@@ -192,7 +234,6 @@ func (e *Enricher) enrichDataset(bom *cdx.BOM, comp *cdx.Component, configViper 
 	if len(missingFields) == 0 {
 		return nil, nil
 	}
-
 
 	// Refetch dataset metadata if requested
 	var hfAPI *fetcher.DatasetAPIResponse
@@ -215,35 +256,22 @@ func (e *Enricher) enrichDataset(bom *cdx.BOM, comp *cdx.Component, configViper 
 		HuggingFaceBaseURL:        e.config.HFBaseURL,
 	}
 
-	// Track changes
-	changes := make(map[metadata.DatasetKey]string)
+	var changes map[metadata.DatasetKey]string
+	var err error
 
-	// Enrich each field
-	for _, spec := range missingFields {
-		var value interface{}
-		var err error
+	switch e.config.Strategy {
+	case "file":
+		changes, err = e.enrichDatasetFromFile(missingFields, src, tgt, configViper)
+	case "interactive":
+		// Use new interactive enricher
+		ie := NewInteractiveEnricher(e)
+		changes, err = ie.EnrichDatasetInteractive(comp, missingFields, src, tgt)
+	default:
+		return nil, fmt.Errorf("unknown strategy: %s", e.config.Strategy)
+	}
 
-		switch e.config.Strategy {
-		case "file":
-			value, err = e.getDatasetValueFromFile(spec, configViper)
-		case "interactive":
-			value, err = e.getDatasetValueInteractive(spec, src, comp)
-		default:
-			return nil, fmt.Errorf("unknown strategy: %s", e.config.Strategy)
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to get value for %s: %w", spec.Key, err)
-		}
-
-		if value != nil {
-			// Apply the value
-			if err := e.applyDatasetValue(spec, &src, &tgt, value); err != nil {
-				continue
-			}
-			// Track the change if it was successfully applied
-			changes[spec.Key] = formatValue(value)
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	return changes, nil
@@ -364,63 +392,6 @@ func (e *Enricher) getValueFromFile(spec metadata.FieldSpec, configViper interfa
 	}
 
 	return nil, nil
-}
-
-// getValueInteractive prompts the user for a value
-func (e *Enricher) getValueInteractive(spec metadata.FieldSpec, src metadata.Source, bom *cdx.BOM) (interface{}, error) {
-	// Print field info
-	required := ""
-	if spec.Required {
-		required = " [REQUIRED]"
-	}
-	fmt.Fprintf(e.writer, "\n%s (weight: %.1f)%s\n", spec.Key, spec.Weight, required)
-
-	// Show suggestions if available
-	suggestions := e.getSuggestions(spec, src, bom)
-	if len(suggestions) > 0 {
-		fmt.Fprintf(e.writer, "  Suggestions: %s\n", strings.Join(suggestions, ", "))
-	}
-
-	// Prompt for input
-	fmt.Fprintf(e.writer, "  Enter value (or press Enter to skip): ")
-
-	if !e.scan.Scan() {
-		return nil, e.scan.Err()
-	}
-
-	input := strings.TrimSpace(e.scan.Text())
-	if input == "" {
-		return nil, nil
-	}
-
-	return input, nil
-}
-
-// getSuggestions returns suggested values for a field
-func (e *Enricher) getSuggestions(spec metadata.FieldSpec, src metadata.Source, bom *cdx.BOM) []string {
-	// Field-specific suggestions and format hints
-	switch spec.Key {
-	case "BOM.metadata.component.licenses":
-		return []string{"MIT", "Apache-2.0", "BSD-3-Clause", "GPL-3.0", "CC-BY-4.0"}
-	case "BOM.metadata.component.modelCard.modelParameters.task":
-		return []string{"text-classification", "text-generation", "image-classification", "object-detection"}
-	case "BOM.metadata.component.modelCard.considerations.ethicalConsiderations":
-		return []string{"Format: 'name: mitigation' or 'name1: mitigation1, name2: mitigation2'"}
-	case "BOM.metadata.component.modelCard.considerations.environmentalConsiderations.properties":
-		return []string{"Format: 'key:value, key:value' (e.g., 'hardwareType:GPU, carbonEmitted:100kg')"}
-	case "BOM.metadata.component.modelCard.quantitativeAnalysis.performanceMetrics":
-		return []string{"Format: 'type:value, type:value' (e.g., 'accuracy:0.95, f1:0.92')"}
-	case "BOM.metadata.component.tags":
-		return []string{"Comma-separated (e.g., 'pytorch, nlp, transformer')"}
-	case "BOM.metadata.component.modelCard.modelParameters.datasets":
-		return []string{"Comma-separated dataset refs (e.g., 'imagenet, coco')"}
-	case "BOM.metadata.component.modelCard.considerations.useCases":
-		return []string{"Comma-separated (e.g., 'text classification, sentiment analysis')"}
-	case "BOM.metadata.component.modelCard.considerations.technicalLimitations":
-		return []string{"Comma-separated (e.g., 'requires GPU, limited to English')"}
-	default:
-		return nil
-	}
 }
 
 // applyValue applies a user-provided value to the BOM using the FieldSpec's SetUserValue function
