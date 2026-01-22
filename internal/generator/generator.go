@@ -14,6 +14,8 @@ import (
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )
 
+// Version without progress callbacks
+
 type DiscoveredBOM struct {
 	Discovery scanner.Discovery
 	BOM       *cdx.BOM
@@ -98,6 +100,9 @@ func BuildDummyBOM() ([]DiscoveredBOM, error) {
 		}
 	}
 
+	// Add dependencies from model to datasets
+	builder.AddDependencies(bom)
+
 	return []DiscoveredBOM{
 		{
 			Discovery: dummyDiscovery,
@@ -128,7 +133,6 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 		if modelID == "" {
 			modelID = strings.TrimSpace(d.Name)
 		}
-
 
 		var resp *fetcher.ModelAPIResponse
 		var readme *fetcher.ModelReadmeCard
@@ -202,6 +206,8 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, hfToken string, timeout 
 			*bom.Components = append(*bom.Components, *dsComp)
 		}
 
+		// Add dependencies from model to datasets
+		builder.AddDependencies(bom)
 
 		results = append(results, DiscoveredBOM{
 			Discovery: d,
@@ -283,7 +289,6 @@ func BuildFromModelIDs(modelIDs []string, hfToken string, timeout time.Duration)
 
 		bomBuilder := newBOMBuilder()
 
-
 		resp, err := modelApiFetcher.Fetch(context.Background(), modelID)
 		if err != nil {
 			resp = nil
@@ -357,6 +362,8 @@ func BuildFromModelIDs(modelIDs []string, hfToken string, timeout time.Duration)
 			*bom.Components = append(*bom.Components, *dsComp)
 		}
 
+		// Add dependencies from model to datasets
+		builder.AddDependencies(bom)
 
 		results = append(results, DiscoveredBOM{
 			Discovery: discovery,

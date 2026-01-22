@@ -166,6 +166,9 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 			progress(ProgressEvent{Type: EventDatasetComplete, ModelID: modelID, Message: dsID})
 		}
 
+		// Add dependencies from model to datasets
+		builder.AddDependencies(bom)
+
 		progress(ProgressEvent{Type: EventModelComplete, ModelID: modelID, Datasets: datasetCount})
 
 		results = append(results, DiscoveredBOM{
@@ -283,6 +286,9 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 
 			progress(ProgressEvent{Type: EventDatasetComplete, ModelID: modelID, Message: dsID})
 		}
+
+		// Add dependencies from model to datasets
+		builder.AddDependencies(bom)
 
 		progress(ProgressEvent{Type: EventModelComplete, ModelID: modelID, Datasets: datasetCount})
 
