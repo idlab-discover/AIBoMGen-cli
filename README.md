@@ -10,7 +10,7 @@ Work-in-progress Go CLI that scans a repository for **basic Hugging Face model u
 What works today:
 
 - Basic scanning for Hugging Face model IDs in Python-like sources via `from_pretrained("...")`
-- AIBOM generation per detected model in JSON or XML
+- AIBOM generation per detected model in JSON or XML including correct dependencies and BOMrefs
 - Hugging Face Hub API fetch to populate metadata fields
 - Hugging Face Repo README fetch to populate more metadata fields
 - Completeness scoring and validation of existing AIBOM files
@@ -20,7 +20,6 @@ What works today:
 
 What is future work:
 
-- Enhancing the resulting BOMs to include correct dependencies and BOMrefs
 - Improving the scanner beyond the current regex-based Hugging Face detection
 - Implementing the possibility to merge AIBOMs with existing sboms from a different source
 - Implementing the possibility to sign AIBOMs with cosign
@@ -58,10 +57,7 @@ Common options:
 - `--hf-token <token>` for gated/private models
 - `--hf-timeout <seconds>`
 - `--log-level quiet|standard|debug`
-
-Experimental/stubbed:
-
-- `--enrich`: attempts interactive completion, but the underlying enricher is not implemented yet.
+- `--enrich`: enable interactive metadata enrichment after generation
 
 ### `validate`
 
@@ -95,12 +91,24 @@ Options:
 
 ### `enrich`
 
-Command exists, but is currently not implemented.
+Enriches an existing AIBOM by filling missing metadata fields interactively or from a configuration file.
 
 ```bash
-./aibomgen-cli enrich --help
 ./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json
+./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy interactive
+./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy file --config config/enrichment.yaml
 ```
+
+Options:
+
+- `--strategy interactive|file` (default: `interactive`)
+- `--config <path>`: configuration file for file-based enrichment
+- `--required-only`: only enrich required fields
+- `--min-weight <float>`: minimum weight threshold for fields to enrich
+- `--refetch`: refetch metadata from Hugging Face Hub
+- `--no-preview`: skip preview before applying changes
+- `--hf-token <token>`: Hugging Face API token
+- `--log-level quiet|standard|debug`
 
 ### Global flags
 
@@ -129,17 +137,25 @@ Repository scanning.
 
 ### `internal/fetcher`
 
-HTTP client for fetching model metadata from the Hugging Face Hub API (`/api/models/:id`).
+HTTP clients for fetching model and dataset metadata from the Hugging Face Hub.
 
-- Used when `generate --hf-mode online`.
-- Supports optional bearer token via `--hf-token`.
+- Fetches model metadata via API (`/api/models/:id`) and README (model cards)
+- Fetches dataset metadata via API (`/api/datasets/:id`) and README (dataset cards)
+- Used when `generate --hf-mode online` or when enriching with `--refetch`
+- Supports optional bearer token via `--hf-token` for gated/private resources
+- Includes dummy implementations for offline/testing scenarios
+- Provides markdown extraction utilities for parsing model and dataset cards
 
 ### `internal/metadata`
 
-Central “field registry” describing which CycloneDX ML-BOM fields we care about.
+Central "field registry" describing which CycloneDX AI-BOM fields we care about.
 
-- Defines keys, how to populate them (`Apply`), and how to check presence (`Present`).
-- Used by `internal/builder` to populate the BOM and by `internal/completeness` to score it.
+- Defines field specifications for model components, dataset components, and Hugging Face properties
+- Each field has a key, weight, required status, apply logic, and presence check
+- Supports multiple field types: `ComponentKey`, `ModelCardKey`, `HFPropsKey`, and `DatasetKey`
+- Used by `internal/builder` to populate the BOM and by `internal/completeness` to score it
+- Used by `internal/enricher` to identify missing fields and apply new values
+- Includes helpers for parsing and applying metadata from API responses and model/dataset cards
 
 ### `internal/builder`
 
@@ -177,14 +193,29 @@ Validates an existing AIBOM.
 
 ### `internal/enricher`
 
-Intended to interactively fill missing metadata fields.
+Interactively or automatically fills missing metadata fields in an existing AIBOM.
 
-- Current status: stubbed / not implemented.
-- Future work: implement user prompting and (optionally) model card fetching.
+- Supports two strategies: `interactive` (prompts user for values) and `file` (reads from config)
+- Can refetch metadata from Hugging Face Hub to fill known fields automatically
+- Enriches both model components and dataset components
+- Shows before/after preview with completeness scoring
+- Integrates with the metadata field registry to identify and fill missing fields
+- Respects field weights and required status when prompting
 
 ### `internal/ui`
 
-Very small ANSI-color helper used for banners and colored log prefixes.
+Comprehensive TUI (Terminal User Interface) system built with Charm libraries (Lipgloss, Bubbletea concepts).
+
+- Provides rich, styled output for all commands (generate, validate, completeness, enrich)
+- Implements workflow tracking with task progress indicators
+- Defines a consistent color palette and text styles across the application
+- Includes specialized UI components for each command:
+  - `generate.go`: generation workflow with progress tracking
+  - `validation.go`: validation results with colored status indicators
+  - `completeness.go`: completeness scoring with visual field breakdown
+  - `workflow.go`: task-based progress tracking
+  - `progress.go`: spinner and progress indicators
+  - `styles.go`: centralized styling and color definitions
 
 ## Docs and examples
 
