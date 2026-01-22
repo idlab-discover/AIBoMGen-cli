@@ -23,6 +23,10 @@ func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 	bom := cdx.NewBOM()
 	bom.Metadata = &cdx.Metadata{Component: comp}
 
+	AddMetaSerialNumber(bom)
+	AddMetaTimestamp(bom)
+	AddMetaTools(bom, "", GetAIBoMGenVersion())
+
 	// Apply registry exactly once (no duplication)
 	src := metadata.Source{
 		ModelID: strings.TrimSpace(ctx.ModelID),
@@ -41,6 +45,10 @@ func (b BOMBuilder) Build(ctx BuildContext) (*cdx.BOM, error) {
 	for _, spec := range metadata.Registry() {
 		metadata.ApplyFromSources(spec, src, tgt)
 	}
+
+	// Now properties, hashes and tags are populated — compute deterministic PURL and BOMRef
+	AddComponentPurl(comp)
+	AddComponentBOMRef(comp)
 
 	return bom, nil
 }
@@ -67,6 +75,8 @@ func (b BOMBuilder) BuildDataset(ctx DatasetBuildContext) (*cdx.Component, error
 		metadata.ApplyDatasetFromSources(spec, src, tgt)
 	}
 
+	AddComponentPurl(comp)
+	AddComponentBOMRef(comp)
 	return comp, nil
 }
 
