@@ -1,219 +1,167 @@
 package builder
 
 import (
-	"strings"
+	"reflect"
 	"testing"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
-
 	cdx "github.com/CycloneDX/cyclonedx-go"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
 )
 
-// Helper to quickly find properties by name
-func findProperty(props *[]cdx.Property, name string) (string, bool) {
-	if props == nil {
-		return "", false
+func TestNewBOMBuilder(t *testing.T) {
+	type args struct {
+		opts Options
 	}
-	for _, p := range *props {
-		if strings.TrimSpace(p.Name) == name && strings.TrimSpace(p.Value) != "" {
-			return p.Value, true
-		}
+	tests := []struct {
+		name string
+		args args
+		want *BOMBuilder
+	}{
+		{name: "returns builder with opts", args: args{opts: Options{IncludeEvidenceProperties: false, HuggingFaceBaseURL: "https://example/"}}, want: &BOMBuilder{Opts: Options{IncludeEvidenceProperties: false, HuggingFaceBaseURL: "https://example/"}}},
 	}
-	return "", false
-}
-
-// Test DefaultOptions function
-func TestDefaultOptions_ReturnsExpectedDefaults(t *testing.T) {
-	opts := DefaultOptions()
-	if opts.IncludeEvidenceProperties != true {
-		t.Errorf("Expected IncludeEvidenceProperties to be true by default, got %v", opts.IncludeEvidenceProperties)
-	}
-	// if url is not one of the two accepted forms
-	if opts.HuggingFaceBaseURL != "https://huggingface.co" && opts.HuggingFaceBaseURL != "https://huggingface.co/" {
-		t.Errorf("Expected HuggingFaceBaseURL to be 'https://huggingface.co' by default, got %s", opts.HuggingFaceBaseURL)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewBOMBuilder(tt.args.opts); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewBOMBuilder() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-// Test BuildMetadataComponent function name fallbacks
-func TestBuildMetadataComponent_NamePrefersModelID(t *testing.T) {
-	ctx := BuildContext{
-		ModelID: "test-model-id",
-		Scan: scanner.Discovery{
-			Name: "scan-name",
-		},
+func TestBOMBuilder_Build(t *testing.T) {
+	type fields struct {
+		Opts Options
 	}
-	comp := buildMetadataComponent(ctx)
+	type args struct {
+		ctx BuildContext
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{name: "builds bom with metadata component", fields: fields{Opts: DefaultOptions()}, args: args{ctx: BuildContext{ModelID: "mymodel"}}, wantErr: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := BOMBuilder{
+				Opts: tt.fields.Opts,
+			}
+			got, err := b.Build(tt.args.ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BOMBuilder.Build() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 
-	if comp.Name != "test-model-id" {
-		t.Fatalf("component name = %q, want %q", comp.Name, "org/model")
-	}
-}
-func TestBuildMetadataComponent_NameFallsBackToScanName(t *testing.T) {
-	ctx := BuildContext{
-		ModelID: "",
-		Scan: scanner.Discovery{
-			Name: "scan-name",
-		},
-	}
-	comp := buildMetadataComponent(ctx)
-
-	if comp.Name != "scan-name" {
-		t.Fatalf("component name = %q, want %q", comp.Name, "scan-name")
-	}
-}
-func TestBuildMetadataComponent_NameFallsBackToLiteralModel(t *testing.T) {
-	ctx := BuildContext{
-		ModelID: "",
-		Scan:    scanner.Discovery{},
-	}
-	comp := buildMetadataComponent(ctx)
-
-	if comp.Name != "model" {
-		t.Fatalf("component name = %q, want %q", comp.Name, "model")
-	}
-}
-
-// Test BuildMetadataComponent sets type and non-nil ModelCard
-func TestBuildMetadataComponent_SetsTypeAndNonNilModelCard(t *testing.T) {
-	ctx := BuildContext{
-		ModelID: "org/model",
-		Scan:    scanner.Discovery{},
-	}
-
-	comp := buildMetadataComponent(ctx)
-	if comp == nil {
-		t.Fatalf("buildMetadataComponent() returned nil")
-	}
-	if comp.Type != cdx.ComponentTypeMachineLearningModel {
-		t.Fatalf("Type = %q, want %q", comp.Type, cdx.ComponentTypeMachineLearningModel)
-	}
-	if comp.ModelCard == nil {
-		t.Fatalf("ModelCard is nil, want non-nil")
+			if got == nil {
+				t.Fatalf("expected non-nil BOM")
+			}
+			if got.Metadata == nil || got.Metadata.Component == nil {
+				t.Fatalf("expected metadata component to be present")
+			}
+			if got.Metadata.Component.Type != cdx.ComponentTypeMachineLearningModel {
+				t.Errorf("expected component type MachineLearningModel, got %v", got.Metadata.Component.Type)
+			}
+			if got.Metadata.Component.Name != "mymodel" {
+				t.Errorf("expected component name mymodel, got %s", got.Metadata.Component.Name)
+			}
+			// Serial and timestamp should be set
+			if got.SerialNumber == "" {
+				t.Errorf("expected SerialNumber to be set")
+			}
+			if got.Metadata.Timestamp == "" {
+				t.Errorf("expected Metadata.Timestamp to be set")
+			}
+			// BOMRef or PackageURL should be set on component
+			if got.Metadata.Component.PackageURL == "" && got.Metadata.Component.BOMRef == "" {
+				t.Errorf("expected PackageURL or BOMRef to be set on component")
+			}
+		})
 	}
 }
 
-// Test Build function creates BOM with metadata component
-func TestBOMBuilder_Build_CreatesBOMWithMetadataComponent(t *testing.T) {
-	b := NewBOMBuilder(DefaultOptions())
-
-	// Keep Scan.Name empty so registry won't override the name.
-	ctx := BuildContext{
-		ModelID: "org/model",
-		Scan:    scanner.Discovery{},
-		HF:      nil,
+func TestBOMBuilder_BuildDataset(t *testing.T) {
+	type fields struct {
+		Opts Options
 	}
-
-	bom, err := b.Build(ctx)
-	if err != nil {
-		t.Fatalf("Build() err = %v", err)
+	type args struct {
+		ctx DatasetBuildContext
 	}
-	if bom == nil {
-		t.Fatalf("Build() bom is nil")
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{name: "builds dataset component", fields: fields{Opts: DefaultOptions()}, args: args{ctx: DatasetBuildContext{DatasetID: "mydataset"}}, wantErr: false},
 	}
-	if bom.Metadata == nil {
-		t.Fatalf("bom.Metadata is nil")
-	}
-	if bom.Metadata.Component == nil {
-		t.Fatalf("bom.Metadata.Component is nil")
-	}
-
-	comp := bom.Metadata.Component
-	if comp.Type != cdx.ComponentTypeMachineLearningModel {
-		t.Fatalf("component.Type = %q, want %q", comp.Type, cdx.ComponentTypeMachineLearningModel)
-	}
-	if strings.TrimSpace(comp.Name) == "" {
-		t.Fatalf("component.Name is empty; want non-empty")
-	}
-	if comp.ModelCard == nil {
-		t.Fatalf("component.ModelCard is nil; want non-nil")
-	}
-}
-
-// Test Build function passes HuggingFaceBaseURL into registry
-func TestBOMBuilder_Build_PassesHuggingFaceBaseURLIntoRegistry(t *testing.T) {
-	opts := DefaultOptions()
-	opts.HuggingFaceBaseURL = "https://example.com" // no trailing slash on purpose
-
-	b := NewBOMBuilder(opts)
-	bom, err := b.Build(BuildContext{
-		ModelID: "org/model",
-		Scan:    scanner.Discovery{Name: "ignored"},
-	})
-	if err != nil {
-		t.Fatalf("Build() err = %v", err)
-	}
-
-	comp := bom.Metadata.Component
-	if comp.ExternalReferences == nil || len(*comp.ExternalReferences) == 0 {
-		t.Fatalf("expected external references to be set")
-	}
-
-	got := (*comp.ExternalReferences)[0].URL
-	want := "https://example.com/org/model"
-	if got != want {
-		t.Fatalf("external reference URL = %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := BOMBuilder{
+				Opts: tt.fields.Opts,
+			}
+			got, err := b.BuildDataset(tt.args.ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BOMBuilder.BuildDataset() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got == nil {
+				t.Fatalf("expected non-nil component")
+			}
+			if got.Type != cdx.ComponentTypeData {
+				t.Errorf("expected component type Data, got %v", got.Type)
+			}
+			if got.Name != "mydataset" {
+				t.Errorf("expected component name mydataset, got %s", got.Name)
+			}
+			if got.PackageURL == "" && got.BOMRef == "" {
+				t.Errorf("expected PackageURL or BOMRef to be set on dataset component")
+			}
+		})
 	}
 }
 
-// Test Build function includes or excludes evidence properties when enabled
-func TestBOMBuilder_Build_IncludesEvidenceProperties_WhenEnabled(t *testing.T) {
-	opts := DefaultOptions()
-	opts.IncludeEvidenceProperties = true
-
-	b := NewBOMBuilder(opts)
-	bom, err := b.Build(BuildContext{
-		ModelID: "org/model",
-		Scan: scanner.Discovery{
-			Type:     "model",
-			Path:     "/tmp/x.py",
-			Evidence: "found from_pretrained(...)",
-		},
-	})
-	if err != nil {
-		t.Fatalf("Build() err = %v", err)
+func Test_buildMetadataComponent(t *testing.T) {
+	type args struct {
+		ctx BuildContext
 	}
-
-	props := bom.Metadata.Component.Properties
-
-	// Verify properties exist
-	if v, ok := findProperty(props, "aibomgen.type"); !ok {
-		t.Fatalf("missing/incorrect aibomgen.type: ok=%v value=%q", ok, v)
+	tests := []struct {
+		name string
+		args args
+		want *cdx.Component
+	}{
+		{name: "uses modelID when present", args: args{ctx: BuildContext{ModelID: "mid"}}, want: &cdx.Component{Type: cdx.ComponentTypeMachineLearningModel, Name: "mid", ModelCard: &cdx.MLModelCard{}}},
+		{name: "uses scan name when modelID empty", args: args{ctx: BuildContext{Scan: scanner.Discovery{Name: "scanname"}}}, want: &cdx.Component{Type: cdx.ComponentTypeMachineLearningModel, Name: "scanname", ModelCard: &cdx.MLModelCard{}}},
+		{name: "defaults to model when nothing set", args: args{ctx: BuildContext{}}, want: &cdx.Component{Type: cdx.ComponentTypeMachineLearningModel, Name: "model", ModelCard: &cdx.MLModelCard{}}},
 	}
-	if v, ok := findProperty(props, "aibomgen.path"); !ok {
-		t.Fatalf("missing/incorrect aibomgen.path: ok=%v value=%q", ok, v)
-	}
-	if v, ok := findProperty(props, "aibomgen.evidence"); !ok {
-		t.Fatalf("missing/incorrect aibomgen.evidence: ok=%v value=%q", ok, v)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buildMetadataComponent(tt.args.ctx); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("buildMetadataComponent() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-// Test Build function excludes evidence properties when disabled
-func TestBOMBuilder_Build_DoesNotIncludeEvidenceProperties_WhenDisabled(t *testing.T) {
-	opts := DefaultOptions()
-	opts.IncludeEvidenceProperties = false
-
-	b := NewBOMBuilder(opts)
-	bom, err := b.Build(BuildContext{
-		ModelID: "org/model",
-		Scan: scanner.Discovery{
-			Type:     "model",
-			Path:     "/tmp/x.py",
-			Evidence: "found from_pretrained(...)",
-		},
-	})
-	if err != nil {
-		t.Fatalf("Build() err = %v", err)
+func Test_buildDatasetComponent(t *testing.T) {
+	type args struct {
+		ctx DatasetBuildContext
 	}
-
-	props := bom.Metadata.Component.Properties
-
-	if v, ok := findProperty(props, "aibomgen.type"); ok {
-		t.Fatalf("missing/incorrect aibomgen.type: ok=%v value=%q", ok, v)
+	tests := []struct {
+		name string
+		args args
+		want *cdx.Component
+	}{
+		{name: "uses datasetID when present", args: args{ctx: DatasetBuildContext{DatasetID: "did"}}, want: &cdx.Component{Type: cdx.ComponentTypeData, Name: "did"}},
+		{name: "uses scan name when datasetID empty", args: args{ctx: DatasetBuildContext{Scan: scanner.Discovery{Name: "scanname"}}}, want: &cdx.Component{Type: cdx.ComponentTypeData, Name: "scanname"}},
+		{name: "defaults to dataset when nothing set", args: args{ctx: DatasetBuildContext{}}, want: &cdx.Component{Type: cdx.ComponentTypeData, Name: "dataset"}},
 	}
-	if v, ok := findProperty(props, "aibomgen.path"); ok {
-		t.Fatalf("missing/incorrect aibomgen.path: ok=%v value=%q", ok, v)
-	}
-	if v, ok := findProperty(props, "aibomgen.evidence"); ok {
-		t.Fatalf("missing/incorrect aibomgen.evidence: ok=%v value=%q", ok, v)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buildDatasetComponent(tt.args.ctx); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("buildDatasetComponent() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

@@ -13,13 +13,15 @@ var (
 	Commit  = ""
 )
 
+var readBuildInfo = debug.ReadBuildInfo
+
 func GetAIBoMGenVersion() string {
 	// 1) prefer explicit ldflags
 	if Version != "" && Version != "dev" {
 		return Version
 	}
 	// 2) module build info
-	if info, ok := debug.ReadBuildInfo(); ok {
+	if info, ok := readBuildInfo(); ok {
 		if v := info.Main.Version; v != "" && v != "(devel)" {
 			return v
 		}
