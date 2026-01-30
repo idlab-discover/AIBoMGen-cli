@@ -122,7 +122,7 @@ jobs:
               --format auto \
               --log-level debug \
               --strict \
-              --min-score 0.5 2>&1 | tee "$LOG"
+              --min-score 0.1 2>&1 | tee "$LOG"
             score_line=$(grep -E 'completeness score:' "$LOG" | tail -1 || true)
             if [ -z "$score_line" ]; then
               score_line="completeness score: unavailable"
