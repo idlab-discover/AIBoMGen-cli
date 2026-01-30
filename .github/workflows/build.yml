@@ -2,9 +2,9 @@ name: AIBomGen-cli Go Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ '1.25.x', '1.24.x', '1.23.x', '1.22.x', '1.21.x' ]
+        go-version: ["1.25.x", "1.24.x", "1.23.x", "1.22.x", "1.21.x"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -58,15 +58,15 @@ jobs:
         run: |
           go build -o AIBoMGen-cli ./
           chmod +x AIBoMGen-cli
-      - name: Install Syft, Grype and Cosign
-        if: ${{ matrix.go-version == '1.25.x' }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
-          curl -sfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o /usr/local/bin/cosign
-          chmod +x /usr/local/bin/cosign
+          
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0.17.7
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.8.1
+
+      - name: Install Grype
+        uses: anchore/scan-action/download-grype@v4
 
       - name: Generate SBOM (Syft)
         if: ${{ matrix.go-version == '1.25.x' }}
