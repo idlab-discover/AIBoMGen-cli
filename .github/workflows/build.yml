@@ -53,3 +53,49 @@ jobs:
 
       - name: Build
         run: go build ./...
+      - name: Install Syft, Grype and Cosign
+        if: ${{ matrix.go-version == '1.25.x' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          curl -sfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o /usr/local/bin/cosign
+          chmod +x /usr/local/bin/cosign
+
+      - name: Generate SBOM (Syft)
+        if: ${{ matrix.go-version == '1.25.x' }}
+        run: syft ./AIBoMGen-cli -o cyclonedx-json=sbom-binary.json
+
+      - name: Scan SBOM for vulnerabilities (Grype)
+        if: ${{ matrix.go-version == '1.25.x' }}
+        run: grype sbom:./sbom-binary.json -o cyclonedx-json=sbom-binary-vulnerabilities.json
+
+      - name: Sign SBOM (Keyless)
+        if: ${{ matrix.go-version == '1.25.x' }}
+        run: |
+          cosign sign-blob --yes \
+            --oidc-issuer=https://token.actions.githubusercontent.com \
+            --bundle=sbom.bundle.json \
+            sbom-binary-vulnerabilities.json
+
+      - name: Fail if vulnerabilities found
+        if: ${{ matrix.go-version == '1.25.x' }}
+        run: |
+          if [ ! -f sbom-binary-vulnerabilities.json ]; then
+            echo "vulnerabilities file not found"; exit 1
+          fi
+          count=$(jq '.vulnerabilities | length' sbom-binary-vulnerabilities.json || echo 0)
+          if [ "$count" -gt 0 ]; then
+            echo "Found $count vulnerabilities in SBOM"; exit 1
+          fi
+
+      - name: Upload SBOM artifacts
+        if: ${{ matrix.go-version == '1.25.x' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-artifacts
+          path: |
+            sbom-binary.json
+            sbom-binary-vulnerabilities.json
+            sbom.bundle.json
