@@ -60,12 +60,15 @@ jobs:
           chmod +x AIBoMGen-cli
           
       - name: Install Syft
+        if: ${{ matrix.go-version == '1.25.x' }}
         uses: anchore/sbom-action/download-syft@v0.17.7
 
       - name: Install Cosign
+        if: ${{ matrix.go-version == '1.25.x' }}
         uses: sigstore/cosign-installer@v3.8.1
 
       - name: Install Grype
+        if: ${{ matrix.go-version == '1.25.x' }}
         uses: anchore/scan-action/download-grype@v4
 
       - name: Generate SBOM (Syft)
