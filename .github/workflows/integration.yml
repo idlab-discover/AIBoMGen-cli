@@ -13,11 +13,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Dummy mode: only once per format (fixture doesn't matter)
-          - fixture: repo-basic
+          # Dummy mode: no input required (fixture not used)
+          - fixture: none
             format: json
             hf-mode: dummy
-          - fixture: repo-basic
+          - fixture: none
             format: xml
             hf-mode: dummy
           # Online mode: both fixtures, both formats
@@ -65,12 +65,19 @@ jobs:
           HF_MODE: ${{ matrix.hf-mode }}
         run: |
           set -euo pipefail
-          TARGET_DIR="dist/integration/${FIXTURE}/${OUTPUT_FORMAT}/${HF_MODE}"
+          if [ "${HF_MODE}" = "dummy" ]; then
+            INPUT_FLAG=""
+            FIXTURE_DIR="no-input"
+          else
+            INPUT_FLAG="--input ./testdata/${FIXTURE}"
+            FIXTURE_DIR="${FIXTURE}"
+          fi
+          TARGET_DIR="dist/integration/${FIXTURE_DIR}/${OUTPUT_FORMAT}/${HF_MODE}"
           rm -rf "${TARGET_DIR}"
           mkdir -p "${TARGET_DIR}"
           FORMAT_FLAG="--format ${OUTPUT_FORMAT}"
           go run . generate \
-            --input "./testdata/${FIXTURE}" \
+            ${INPUT_FLAG} \
             --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
             ${FORMAT_FLAG} \
             --hf-mode "${HF_MODE}" \
@@ -83,8 +90,13 @@ jobs:
           HF_MODE: ${{ matrix.hf-mode }}
         run: |
           set -euo pipefail
-          TARGET_DIR="dist/integration/${FIXTURE}/${OUTPUT_FORMAT}/${HF_MODE}"
-          REPORT_DIR="reports/${FIXTURE}/${OUTPUT_FORMAT}/${HF_MODE}"
+          if [ "${HF_MODE}" = "dummy" ]; then
+            FIXTURE_DIR="no-input"
+          else
+            FIXTURE_DIR="${FIXTURE}"
+          fi
+          TARGET_DIR="dist/integration/${FIXTURE_DIR}/${OUTPUT_FORMAT}/${HF_MODE}"
+          REPORT_DIR="reports/${FIXTURE_DIR}/${OUTPUT_FORMAT}/${HF_MODE}"
           if [ ! -d "${TARGET_DIR}" ]; then
             echo "${TARGET_DIR} missing"
             exit 1
@@ -121,7 +133,7 @@ jobs:
 
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
             {
-              echo "### ${FIXTURE} | ${OUTPUT_FORMAT} | ${HF_MODE}"
+              echo "### ${FIXTURE_DIR} | ${OUTPUT_FORMAT} | ${HF_MODE}"
               cat "$SUMMARY_FILE"
               echo
             } >> "${GITHUB_STEP_SUMMARY}"
