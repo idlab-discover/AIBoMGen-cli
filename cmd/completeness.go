@@ -49,6 +49,17 @@ var completenessCmd = &cobra.Command{
 
 		res := completeness.Check(bom)
 
+		// If plain-summary requested, print a machine-readable plain summary (no styling)
+		if completenessPlainSummary {
+			// Model summary line
+			fmt.Printf("Model: %s | Score: %.1f%% | Fields: %d/%d\n", res.ModelID, res.Score*100, res.Passed, res.Total)
+			// Dataset summary lines (if any)
+			for dsName, ds := range res.DatasetReports {
+				fmt.Printf("Dataset: %s | Score: %.1f%% | Fields: %d/%d\n", dsName, ds.Score*100, ds.Passed, ds.Total)
+			}
+			return nil
+		}
+
 		// Use the new UI for rendering if not in quiet mode
 		ui := ui.NewCompletenessUI(cmd.OutOrStdout(), level == "quiet")
 		ui.PrintReport(res.ToUIReport())
@@ -58,9 +69,10 @@ var completenessCmd = &cobra.Command{
 }
 
 var (
-	inPath               string
-	inFormat             string
-	completenessLogLevel string
+	inPath                   string
+	inFormat                 string
+	completenessLogLevel     string
+	completenessPlainSummary bool
 )
 
 func init() {
@@ -69,9 +81,11 @@ func init() {
 	completenessCmd.Flags().StringVarP(&inPath, "input", "i", "", "Path to existing AIBOM file (required)")
 	completenessCmd.Flags().StringVarP(&inFormat, "format", "f", "", "Input BOM format: json|xml|auto")
 	completenessCmd.Flags().StringVar(&completenessLogLevel, "log-level", "", "Log level: quiet|standard|debug")
+	completenessCmd.Flags().BoolVar(&completenessPlainSummary, "plain-summary", false, "Print a single-line plain summary (no styling)")
 
 	// Bind all flags to viper for config file support
 	viper.BindPFlag("completeness.input", completenessCmd.Flags().Lookup("input"))
 	viper.BindPFlag("completeness.format", completenessCmd.Flags().Lookup("format"))
 	viper.BindPFlag("completeness.log-level", completenessCmd.Flags().Lookup("log-level"))
+	viper.BindPFlag("completeness.plain-summary", completenessCmd.Flags().Lookup("plain-summary"))
 }
