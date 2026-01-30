@@ -123,7 +123,16 @@ jobs:
               --log-level debug \
               --strict \
               --min-score 0.1 2>&1 | tee "$LOG"
-            score_line=$(grep -E 'completeness score:' "$LOG" | tail -1 || true)
+
+            # Also run completeness UI to produce a human-friendly summary report
+            COMPLETENESS_LOG="${REPORT_DIR}/${base}.completeness"
+            go run . completeness \
+              --input "$file" \
+              --format auto \
+              --log-level standard 2>&1 | tee "$COMPLETENESS_LOG"
+
+            # Extract a single score line from the completeness output for short summaries
+            score_line=$(grep -E 'Model score:|Score: .*%|Score.*%|Completeness: .*%' "$COMPLETENESS_LOG" | head -1 || true)
             if [ -z "$score_line" ]; then
               score_line="completeness score: unavailable"
             fi
