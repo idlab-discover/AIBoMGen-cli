@@ -35,7 +35,7 @@ jobs:
             hf-mode: online
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go 1.25.x
         uses: actions/setup-go@v6
