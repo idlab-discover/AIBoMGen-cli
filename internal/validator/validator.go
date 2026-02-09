@@ -9,6 +9,7 @@ import (
 )
 
 type ValidationResult struct {
+	ModelID  string
 	Valid    bool
 	Errors   []string
 	Warnings []string
@@ -63,30 +64,31 @@ func Validate(bom *cdx.BOM, opts ValidationOptions) ValidationResult {
 	validateSpecVersion(bom, &result)
 
 	// 4. Run completeness check (leverages existing package)
-	report := completeness.Check(bom)
-	result.CompletenessScore = report.Score
-	result.MissingRequired = report.MissingRequired
-	result.MissingOptional = report.MissingOptional
+	completenessResult := completeness.Check(bom)
+	result.ModelID = completenessResult.ModelID
+	result.CompletenessScore = completenessResult.Score
+	result.MissingRequired = completenessResult.MissingRequired
+	result.MissingOptional = completenessResult.MissingOptional
 
 	// 5. Strict mode enforcement
 	if opts.StrictMode {
-		if len(report.MissingRequired) > 0 {
+		if len(completenessResult.MissingRequired) > 0 {
 			result.Valid = false
-			for _, key := range report.MissingRequired {
+			for _, key := range completenessResult.MissingRequired {
 				msg := fmt.Sprintf("required field missing: %s", key)
 				result.Errors = append(result.Errors, msg)
 			}
 		}
 
-		if report.Score < opts.MinCompletenessScore {
+		if completenessResult.Score < opts.MinCompletenessScore {
 			result.Valid = false
-			msg := fmt.Sprintf("completeness score %.2f below minimum %.2f", report.Score, opts.MinCompletenessScore)
+			msg := fmt.Sprintf("completeness score %.2f below minimum %.2f", completenessResult.Score, opts.MinCompletenessScore)
 			result.Errors = append(result.Errors, msg)
 		}
 	}
 
 	// 6. Add warnings for optional fields
-	for _, key := range report.MissingOptional {
+	for _, key := range completenessResult.MissingOptional {
 		msg := fmt.Sprintf("optional field missing: %s", key)
 		result.Warnings = append(result.Warnings, msg)
 	}
@@ -97,19 +99,19 @@ func Validate(bom *cdx.BOM, opts ValidationOptions) ValidationResult {
 	}
 
 	// 8. Validate dataset components if they exist
-	for dsName, dsReport := range report.DatasetReports {
+	for dsName, dsCompletenessResult := range completenessResult.DatasetResults {
 		dsResult := DatasetValidationResult{
-			DatasetRef:        dsReport.DatasetRef,
-			CompletenessScore: dsReport.Score,
-			MissingRequired:   dsReport.MissingRequired,
-			MissingOptional:   dsReport.MissingOptional,
+			DatasetRef:        dsCompletenessResult.DatasetRef,
+			CompletenessScore: dsCompletenessResult.Score,
+			MissingRequired:   dsCompletenessResult.MissingRequired,
+			MissingOptional:   dsCompletenessResult.MissingOptional,
 			Errors:            []string{},
 			Warnings:          []string{},
 		}
 
 		// Strict mode for dataset components (optional fields only)
-		if opts.StrictMode && len(dsReport.MissingRequired) > 0 {
-			for _, key := range dsReport.MissingRequired {
+		if opts.StrictMode && len(dsCompletenessResult.MissingRequired) > 0 {
+			for _, key := range dsCompletenessResult.MissingRequired {
 				msg := fmt.Sprintf("required dataset field missing: %s", key)
 				dsResult.Errors = append(dsResult.Errors, msg)
 				result.Warnings = append(result.Warnings, fmt.Sprintf("dataset %s: %s", dsName, msg))
@@ -117,7 +119,7 @@ func Validate(bom *cdx.BOM, opts ValidationOptions) ValidationResult {
 		}
 
 		// Add warnings for optional dataset fields
-		for _, key := range dsReport.MissingOptional {
+		for _, key := range dsCompletenessResult.MissingOptional {
 			msg := fmt.Sprintf("optional dataset field missing: %s", key)
 			dsResult.Warnings = append(dsResult.Warnings, msg)
 		}

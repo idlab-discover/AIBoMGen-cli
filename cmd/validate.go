@@ -69,15 +69,9 @@ var validateCmd = &cobra.Command{
 
 		result := validator.Validate(bom, opts)
 
-		// Extract model ID from BOM
-		modelID := "(unknown)"
-		if bom != nil && bom.Metadata != nil && bom.Metadata.Component != nil && bom.Metadata.Component.Name != "" {
-			modelID = bom.Metadata.Component.Name
-		}
-
 		// Use the new UI for rendering if not in quiet mode
 		ui := ui.NewValidationUI(cmd.OutOrStdout(), level == "quiet")
-		ui.PrintReport(result.ToUIReport(modelID))
+		ui.PrintReport(result)
 
 		if !result.Valid {
 			return fmt.Errorf("validation failed")

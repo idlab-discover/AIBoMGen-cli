@@ -5,35 +5,11 @@ import (
 	"io"
 	"strings"
 
+	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+
 	lipgloss "charm.land/lipgloss/v2"
 )
-
-// CompletenessReport mirrors the structure from internal/completeness
-// to avoid circular imports
-type CompletenessReport struct {
-	ModelID         string
-	Score           float64
-	Passed          int
-	Total           int
-	MissingRequired []FieldKey
-	MissingOptional []FieldKey
-	DatasetReports  map[string]DatasetReport
-}
-
-// DatasetReport mirrors the dataset report structure
-type DatasetReport struct {
-	DatasetRef      string
-	Score           float64
-	Passed          int
-	Total           int
-	MissingRequired []FieldKey
-	MissingOptional []FieldKey
-}
-
-// FieldKey represents a field identifier
-type FieldKey interface {
-	String() string
-}
 
 // CompletenessUI provides a rich UI for the completeness command
 type CompletenessUI struct {
@@ -50,7 +26,7 @@ func NewCompletenessUI(w io.Writer, quiet bool) *CompletenessUI {
 }
 
 // PrintReport renders a beautiful completeness report
-func (c *CompletenessUI) PrintReport(report CompletenessReport) {
+func (c *CompletenessUI) PrintReport(result completeness.Result) {
 	if c.quiet {
 		return
 	}
@@ -62,18 +38,18 @@ func (c *CompletenessUI) PrintReport(report CompletenessReport) {
 	output.WriteString("\n\n")
 
 	// Model Score Section
-	output.WriteString(c.renderModelScore(report))
+	output.WriteString(c.renderModelScore(result))
 	output.WriteString("\n\n")
 
 	// Missing Fields Section
-	if len(report.MissingRequired) > 0 || len(report.MissingOptional) > 0 {
-		output.WriteString(c.renderMissingFields(report))
+	if len(result.MissingRequired) > 0 || len(result.MissingOptional) > 0 {
+		output.WriteString(c.renderMissingFields(result))
 		output.WriteString("\n\n")
 	}
 
 	// Dataset Scores Section
-	if len(report.DatasetReports) > 0 {
-		output.WriteString(c.renderDatasetScores(report.DatasetReports))
+	if len(result.DatasetResults) > 0 {
+		output.WriteString(c.renderDatasetScores(result.DatasetResults))
 		output.WriteString("\n")
 	}
 
@@ -83,34 +59,34 @@ func (c *CompletenessUI) PrintReport(report CompletenessReport) {
 }
 
 // renderModelScore creates the model score visualization with progress bar
-func (c *CompletenessUI) renderModelScore(report CompletenessReport) string {
+func (c *CompletenessUI) renderModelScore(result completeness.Result) string {
 	var sb strings.Builder
 
 	sb.WriteString(SectionHeader.Render("Model Component"))
 	sb.WriteString("\n")
 
 	// Show model ID if available
-	if report.ModelID != "" {
-		sb.WriteString(FormatKeyValue("ID", Highlight.Render(report.ModelID)))
+	if result.ModelID != "" {
+		sb.WriteString(FormatKeyValue("ID", Highlight.Render(result.ModelID)))
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(FormatKeyValue("Score", c.renderProgressBar(report.Score, 40)+" "+c.renderScorePercentage(report.Score)))
+	sb.WriteString(FormatKeyValue("Score", c.renderProgressBar(result.Score, 40)+" "+c.renderScorePercentage(result.Score)))
 	sb.WriteString("\n")
-	sb.WriteString(Dim.Render(fmt.Sprintf("(%d/%d fields present)", report.Passed, report.Total)))
+	sb.WriteString(Dim.Render(fmt.Sprintf("(%d/%d fields present)", result.Passed, result.Total)))
 
 	return sb.String()
 }
 
 // renderMissingFields creates the missing fields section with expandable groups
-func (c *CompletenessUI) renderMissingFields(report CompletenessReport) string {
+func (c *CompletenessUI) renderMissingFields(result completeness.Result) string {
 	var sb strings.Builder
 
 	// Required Fields
-	if len(report.MissingRequired) > 0 {
-		sb.WriteString(Error.Render(fmt.Sprintf("▼ Required Fields (%d missing)", len(report.MissingRequired))))
+	if len(result.MissingRequired) > 0 {
+		sb.WriteString(Error.Render(fmt.Sprintf("▼ Required Fields (%d missing)", len(result.MissingRequired))))
 		sb.WriteString("\n")
-		for _, field := range report.MissingRequired {
+		for _, field := range result.MissingRequired {
 			sb.WriteString("  ")
 			sb.WriteString(GetCrossMark())
 			sb.WriteString(" ")
@@ -120,13 +96,13 @@ func (c *CompletenessUI) renderMissingFields(report CompletenessReport) string {
 	}
 
 	// Optional Fields
-	if len(report.MissingOptional) > 0 {
-		if len(report.MissingRequired) > 0 {
+	if len(result.MissingOptional) > 0 {
+		if len(result.MissingRequired) > 0 {
 			sb.WriteString("\n")
 		}
-		sb.WriteString(Warning.Render(fmt.Sprintf("▼ Optional Fields (%d missing)", len(report.MissingOptional))))
+		sb.WriteString(Warning.Render(fmt.Sprintf("▼ Optional Fields (%d missing)", len(result.MissingOptional))))
 		sb.WriteString("\n")
-		for _, field := range report.MissingOptional {
+		for _, field := range result.MissingOptional {
 			sb.WriteString("  ")
 			sb.WriteString(GetWarnMark())
 			sb.WriteString(" ")
@@ -139,29 +115,29 @@ func (c *CompletenessUI) renderMissingFields(report CompletenessReport) string {
 }
 
 // renderDatasetScores creates the dataset scores section
-func (c *CompletenessUI) renderDatasetScores(datasets map[string]DatasetReport) string {
+func (c *CompletenessUI) renderDatasetScores(datasets map[string]completeness.DatasetResult) string {
 	var sb strings.Builder
 
 	sb.WriteString(SectionHeader.Render("Dataset Components"))
 	sb.WriteString("\n")
 
-	for dsName, dsReport := range datasets {
+	for dsName, dsResult := range datasets {
 		// Dataset name with label
 		sb.WriteString(FormatKeyValue("ID", Highlight.Render(dsName)))
 		sb.WriteString("\n")
 
 		// Progress bar with label
-		sb.WriteString(FormatKeyValue("Score", c.renderProgressBar(dsReport.Score, 40)+" "+c.renderScorePercentage(dsReport.Score)))
+		sb.WriteString(FormatKeyValue("Score", c.renderProgressBar(dsResult.Score, 40)+" "+c.renderScorePercentage(dsResult.Score)))
 		sb.WriteString("\n")
-		sb.WriteString(Dim.Render(fmt.Sprintf("(%d/%d fields present)", dsReport.Passed, dsReport.Total)))
+		sb.WriteString(Dim.Render(fmt.Sprintf("(%d/%d fields present)", dsResult.Passed, dsResult.Total)))
 		sb.WriteString("\n")
 
 		// Missing fields for this dataset - show underneath each other like model component
-		if len(dsReport.MissingRequired) > 0 {
+		if len(dsResult.MissingRequired) > 0 {
 			sb.WriteString("\n")
-			sb.WriteString(Error.Render(fmt.Sprintf("▼ Required Fields (%d missing)", len(dsReport.MissingRequired))))
+			sb.WriteString(Error.Render(fmt.Sprintf("▼ Required Fields (%d missing)", len(dsResult.MissingRequired))))
 			sb.WriteString("\n")
-			for _, field := range dsReport.MissingRequired {
+			for _, field := range dsResult.MissingRequired {
 				sb.WriteString("  ")
 				sb.WriteString(GetCrossMark())
 				sb.WriteString(" ")
@@ -169,15 +145,15 @@ func (c *CompletenessUI) renderDatasetScores(datasets map[string]DatasetReport) 
 				sb.WriteString("\n")
 			}
 		}
-		if len(dsReport.MissingOptional) > 0 {
-			if len(dsReport.MissingRequired) > 0 {
+		if len(dsResult.MissingOptional) > 0 {
+			if len(dsResult.MissingRequired) > 0 {
 				sb.WriteString("\n")
 			} else {
 				sb.WriteString("\n")
 			}
-			sb.WriteString(Warning.Render(fmt.Sprintf("▼ Optional Fields (%d missing)", len(dsReport.MissingOptional))))
+			sb.WriteString(Warning.Render(fmt.Sprintf("▼ Optional Fields (%d missing)", len(dsResult.MissingOptional))))
 			sb.WriteString("\n")
-			for _, field := range dsReport.MissingOptional {
+			for _, field := range dsResult.MissingOptional {
 				sb.WriteString("  ")
 				sb.WriteString(GetWarnMark())
 				sb.WriteString(" ")
@@ -225,8 +201,8 @@ func (c *CompletenessUI) renderScorePercentage(score float64) string {
 	return Error.Render(formatted)
 }
 
-// formatFieldKeys formats field keys as a comma-separated string
-func (c *CompletenessUI) formatFieldKeys(keys []FieldKey) string {
+// formatFieldKeys formats field keys as a comma-separated string for model keys
+func (c *CompletenessUI) formatFieldKeys(keys []metadata.Key) string {
 	if len(keys) == 0 {
 		return ""
 	}
@@ -238,20 +214,20 @@ func (c *CompletenessUI) formatFieldKeys(keys []FieldKey) string {
 }
 
 // PrintSimpleReport prints a minimal text report (fallback for quiet mode or issues)
-func (c *CompletenessUI) PrintSimpleReport(report CompletenessReport) {
-	fmt.Fprintf(c.writer, "%s Model score: %.1f%% (%d/%d)\n", Title.Render("Score"), report.Score*100, report.Passed, report.Total)
+func (c *CompletenessUI) PrintSimpleReport(result completeness.Result) {
+	fmt.Fprintf(c.writer, "%s Model score: %.1f%% (%d/%d)\n", Title.Render("Score"), result.Score*100, result.Passed, result.Total)
 
-	if len(report.MissingRequired) > 0 {
-		fmt.Fprintf(c.writer, "%s Missing required: %s\n", GetCrossMark(), c.formatFieldKeys(report.MissingRequired))
+	if len(result.MissingRequired) > 0 {
+		fmt.Fprintf(c.writer, "%s Missing required: %s\n", GetCrossMark(), c.formatFieldKeys(result.MissingRequired))
 	}
-	if len(report.MissingOptional) > 0 {
-		fmt.Fprintf(c.writer, "%s Missing optional: %s\n", GetWarnMark(), c.formatFieldKeys(report.MissingOptional))
+	if len(result.MissingOptional) > 0 {
+		fmt.Fprintf(c.writer, "%s Missing optional: %s\n", GetWarnMark(), c.formatFieldKeys(result.MissingOptional))
 	}
 
-	if len(report.DatasetReports) > 0 {
+	if len(result.DatasetResults) > 0 {
 		fmt.Fprintln(c.writer, "\n"+SectionHeader.Render("Datasets:"))
-		for dsName, dsReport := range report.DatasetReports {
-			fmt.Fprintf(c.writer, "  %s: %.1f%% (%d/%d)\n", dsName, dsReport.Score*100, dsReport.Passed, dsReport.Total)
+		for dsName, dsResult := range result.DatasetResults {
+			fmt.Fprintf(c.writer, "  %s: %.1f%% (%d/%d)\n", dsName, dsResult.Score*100, dsResult.Passed, dsResult.Total)
 		}
 	}
 }

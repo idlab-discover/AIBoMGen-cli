@@ -65,12 +65,12 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 	}
 
 	// Run initial completeness check
-	initialReport := completeness.Check(bom)
+	initialResult := completeness.Check(bom)
 
 	// Refetch metadata if requested and apply it to BOM
 	var hfAPI *fetcher.ModelAPIResponse
 	var hfReadme *fetcher.ModelReadmeCard
-	var postRefetchReport completeness.Report
+	var postRefetchResult completeness.Result
 	if e.config.Refetch && modelID != "" {
 		hfAPI, hfReadme = e.refetchMetadata(modelID)
 
@@ -79,16 +79,16 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 			e.applyRefetchedMetadata(bom, modelID, hfAPI, hfReadme)
 
 			// Check completeness after refetch
-			postRefetchReport = completeness.Check(bom)
+			postRefetchResult = completeness.Check(bom)
 		} else {
-			postRefetchReport = initialReport
+			postRefetchResult = initialResult
 		}
 	} else {
-		postRefetchReport = initialReport
+		postRefetchResult = initialResult
 	}
 
 	// STEP 1: Enrich model fields
-	modelChanges, err := e.enrichModel(bom, modelID, hfAPI, hfReadme, postRefetchReport, configViper)
+	modelChanges, err := e.enrichModel(bom, modelID, hfAPI, hfReadme, postRefetchResult, configViper)
 	if err != nil {
 		return nil, fmt.Errorf("failed to enrich model: %w", err)
 	}
@@ -112,7 +112,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 
 	// Show preview if requested
 	if !e.config.NoPreview && (len(modelChanges) > 0 || len(datasetChanges) > 0) {
-		confirm, err := ShowPreviewWithConfirm(initialReport, postRefetchReport, bom, modelChanges, datasetChanges)
+		confirm, err := ShowPreviewWithConfirm(initialResult, postRefetchResult, bom, modelChanges, datasetChanges)
 		if err != nil {
 			return nil, fmt.Errorf("preview error: %w", err)
 		}
@@ -125,9 +125,9 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 }
 
 // enrichModel enriches the main model component
-func (e *Enricher) enrichModel(bom *cdx.BOM, modelID string, hfAPI *fetcher.ModelAPIResponse, hfReadme *fetcher.ModelReadmeCard, report completeness.Report, configViper interface{}) (map[metadata.Key]string, error) {
+func (e *Enricher) enrichModel(bom *cdx.BOM, modelID string, hfAPI *fetcher.ModelAPIResponse, hfReadme *fetcher.ModelReadmeCard, result completeness.Result, configViper interface{}) (map[metadata.Key]string, error) {
 	// Collect missing fields based on config (using post-refetch state)
-	missingFields := e.collectMissingFields(report)
+	missingFields := e.collectMissingFields(result)
 	if len(missingFields) == 0 {
 		return nil, nil
 	}
@@ -278,8 +278,8 @@ func (e *Enricher) enrichDataset(bom *cdx.BOM, comp *cdx.Component, configViper 
 }
 
 // collectMissingFields returns fields that need enrichment based on config
-func (e *Enricher) collectMissingFields(report completeness.Report) []metadata.FieldSpec {
-	var result []metadata.FieldSpec
+func (e *Enricher) collectMissingFields(result completeness.Result) []metadata.FieldSpec {
+	var fields []metadata.FieldSpec
 
 	for _, spec := range metadata.Registry() {
 		// Skip if weight is 0 or below threshold
@@ -289,14 +289,14 @@ func (e *Enricher) collectMissingFields(report completeness.Report) []metadata.F
 
 		// Check if field is missing
 		isMissing := false
-		for _, k := range report.MissingRequired {
+		for _, k := range result.MissingRequired {
 			if k == spec.Key {
 				isMissing = true
 				break
 			}
 		}
 		if !isMissing && !e.config.RequiredOnly {
-			for _, k := range report.MissingOptional {
+			for _, k := range result.MissingOptional {
 				if k == spec.Key {
 					isMissing = true
 					break
@@ -305,11 +305,11 @@ func (e *Enricher) collectMissingFields(report completeness.Report) []metadata.F
 		}
 
 		if isMissing {
-			result = append(result, spec)
+			fields = append(fields, spec)
 		}
 	}
 
-	return result
+	return fields
 }
 
 // refetchMetadata fetches fresh metadata from Hugging Face
@@ -407,7 +407,7 @@ func (e *Enricher) applyValue(spec metadata.FieldSpec, src *metadata.Source, tgt
 }
 
 // showPreviewAndConfirm shows changes and asks for confirmation
-func (e *Enricher) showPreviewAndConfirm(initial completeness.Report, postRefetch completeness.Report, enriched *cdx.BOM, modelChanges map[metadata.Key]string, datasetChanges map[string]map[metadata.DatasetKey]string) bool {
+func (e *Enricher) showPreviewAndConfirm(initial completeness.Result, postRefetch completeness.Result, enriched *cdx.BOM, modelChanges map[metadata.Key]string, datasetChanges map[string]map[metadata.DatasetKey]string) bool {
 	fmt.Fprintf(e.writer, "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	fmt.Fprintf(e.writer, "Preview Changes\n")
 	fmt.Fprintf(e.writer, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
@@ -442,9 +442,9 @@ func (e *Enricher) showPreviewAndConfirm(initial completeness.Report, postRefetc
 	fmt.Fprintf(e.writer, "  Model After enrichment: %.2f%% (%d/%d fields)\n", finalReport.Score*100, finalReport.Passed, finalReport.Total)
 
 	// Show dataset completeness
-	if len(finalReport.DatasetReports) > 0 {
+	if len(finalReport.DatasetResults) > 0 {
 		fmt.Fprintf(e.writer, "\n  Datasets:\n")
-		for dsName, dsReport := range finalReport.DatasetReports {
+		for dsName, dsReport := range finalReport.DatasetResults {
 			fmt.Fprintf(e.writer, "    %s: %.2f%% (%d/%d fields)\n", dsName, dsReport.Score*100, dsReport.Passed, dsReport.Total)
 		}
 	}
@@ -505,8 +505,8 @@ func formatValue(v interface{}) string {
 // Dataset-specific helper functions
 
 // collectMissingDatasetFields returns dataset fields that need enrichment
-func (e *Enricher) collectMissingDatasetFields(report completeness.DatasetReport) []metadata.DatasetFieldSpec {
-	var result []metadata.DatasetFieldSpec
+func (e *Enricher) collectMissingDatasetFields(result completeness.DatasetResult) []metadata.DatasetFieldSpec {
+	var fields []metadata.DatasetFieldSpec
 
 	for _, spec := range metadata.DatasetRegistry() {
 		// Skip if weight is 0 or below threshold
@@ -516,14 +516,14 @@ func (e *Enricher) collectMissingDatasetFields(report completeness.DatasetReport
 
 		// Check if field is missing
 		isMissing := false
-		for _, k := range report.MissingRequired {
+		for _, k := range result.MissingRequired {
 			if k == spec.Key {
 				isMissing = true
 				break
 			}
 		}
 		if !isMissing && !e.config.RequiredOnly {
-			for _, k := range report.MissingOptional {
+			for _, k := range result.MissingOptional {
 				if k == spec.Key {
 					isMissing = true
 					break
@@ -532,11 +532,11 @@ func (e *Enricher) collectMissingDatasetFields(report completeness.DatasetReport
 		}
 
 		if isMissing {
-			result = append(result, spec)
+			fields = append(fields, spec)
 		}
 	}
 
-	return result
+	return fields
 }
 
 // refetchDatasetMetadata fetches fresh metadata for a dataset from Hugging Face

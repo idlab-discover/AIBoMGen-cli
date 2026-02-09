@@ -54,7 +54,7 @@ var completenessCmd = &cobra.Command{
 			// Model summary line
 			fmt.Printf("Model: %s | Score: %.1f%% | Fields: %d/%d\n", res.ModelID, res.Score*100, res.Passed, res.Total)
 			// Dataset summary lines (if any)
-			for dsName, ds := range res.DatasetReports {
+			for dsName, ds := range res.DatasetResults {
 				fmt.Printf("Dataset: %s | Score: %.1f%% | Fields: %d/%d\n", dsName, ds.Score*100, ds.Passed, ds.Total)
 			}
 			return nil
@@ -62,7 +62,7 @@ var completenessCmd = &cobra.Command{
 
 		// Use the new UI for rendering if not in quiet mode
 		ui := ui.NewCompletenessUI(cmd.OutOrStdout(), level == "quiet")
-		ui.PrintReport(res.ToUIReport())
+		ui.PrintReport(res)
 
 		return nil
 	},

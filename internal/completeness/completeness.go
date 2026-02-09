@@ -6,7 +6,7 @@ import (
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )
 
-type Report struct {
+type Result struct {
 	ModelID string  // Model identifier/name
 	Score   float64 // 0..1
 
@@ -17,10 +17,10 @@ type Report struct {
 	MissingOptional []metadata.Key
 
 	// Dataset-specific tracking
-	DatasetReports map[string]DatasetReport // key is dataset name/ref
+	DatasetResults map[string]DatasetResult // key is dataset name/ref
 }
 
-type DatasetReport struct {
+type DatasetResult struct {
 	DatasetRef string // Reference to the dataset
 
 	Score  float64 // 0..1
@@ -31,7 +31,7 @@ type DatasetReport struct {
 	MissingOptional []metadata.DatasetKey
 }
 
-func Check(bom *cdx.BOM) Report {
+func Check(bom *cdx.BOM) Result {
 	var (
 		earned, max float64
 		passed      int
@@ -93,27 +93,27 @@ func Check(bom *cdx.BOM) Report {
 		modelID = bom.Metadata.Component.Name
 	}
 
-	report := Report{
+	result := Result{
 		ModelID:         modelID,
 		Score:           score,
 		Passed:          passed,
 		Total:           total,
 		MissingRequired: missingReq,
 		MissingOptional: missingOpt,
-		DatasetReports:  make(map[string]DatasetReport),
+		DatasetResults:  make(map[string]DatasetResult),
 	}
 
 	// Check dataset components if they exist
 	if bom.Components != nil && datasetsReferenced {
 		for _, comp := range *bom.Components {
 			if comp.Type == cdx.ComponentTypeData {
-				dsReport := CheckDataset(&comp)
-				report.DatasetReports[comp.Name] = dsReport
+				dsResult := CheckDataset(&comp)
+				result.DatasetResults[comp.Name] = dsResult
 			}
 		}
 	}
 
-	return report
+	return result
 }
 
 // hasDatasetsReferenced checks if the model references any datasets
@@ -139,7 +139,7 @@ func hasDatasetsReferenced(bom *cdx.BOM) bool {
 }
 
 // CheckDataset checks completeness of a single dataset component
-func CheckDataset(comp *cdx.Component) DatasetReport {
+func CheckDataset(comp *cdx.Component) DatasetResult {
 	var (
 		earned, max float64
 		passed      int
@@ -178,7 +178,7 @@ func CheckDataset(comp *cdx.Component) DatasetReport {
 		score = earned / max
 	}
 
-	return DatasetReport{
+	return DatasetResult{
 		DatasetRef:      comp.Name,
 		Score:           score,
 		Passed:          passed,

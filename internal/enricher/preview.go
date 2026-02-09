@@ -13,8 +13,8 @@ import (
 
 // ShowPreviewWithConfirm shows a preview of changes and asks for confirmation using huh
 func ShowPreviewWithConfirm(
-	initial completeness.Report,
-	postRefetch completeness.Report,
+	initial completeness.Result,
+	postRefetch completeness.Result,
 	enriched *cdx.BOM,
 	modelChanges map[metadata.Key]string,
 	datasetChanges map[string]map[metadata.DatasetKey]string,
@@ -57,7 +57,7 @@ func ShowPreviewWithConfirm(
 	}
 
 	// Completeness progression
-	finalReport := completeness.Check(enriched)
+	finalResult := completeness.Check(enriched)
 	sb.WriteString(ui.Primary.Render("Completeness Progress:"))
 	sb.WriteString("\n")
 
@@ -82,19 +82,19 @@ func ShowPreviewWithConfirm(
 	}
 
 	sb.WriteString(fmt.Sprintf("  After enrichment: %s (%d/%d fields)\n",
-		scoreStyle(finalReport.Score),
-		finalReport.Passed, finalReport.Total))
+		scoreStyle(finalResult.Score),
+		finalResult.Passed, finalResult.Total))
 
 	// Show dataset completeness
-	if len(finalReport.DatasetReports) > 0 {
+	if len(finalResult.DatasetResults) > 0 {
 		sb.WriteString("\n")
 		sb.WriteString(ui.Primary.Render("Datasets:"))
 		sb.WriteString("\n")
-		for dsName, dsReport := range finalReport.DatasetReports {
+		for dsName, dsResult := range finalResult.DatasetResults {
 			sb.WriteString(fmt.Sprintf("  %s: %s (%d/%d fields)\n",
 				dsName,
-				scoreStyle(dsReport.Score),
-				dsReport.Passed, dsReport.Total))
+				scoreStyle(dsResult.Score),
+				dsResult.Passed, dsResult.Total))
 		}
 	}
 

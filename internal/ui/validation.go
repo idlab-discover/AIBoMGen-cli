@@ -4,30 +4,9 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/idlab-discover/AIBoMGen-cli/internal/validator"
 )
-
-// ValidationReport mirrors the structure from internal/validator
-// to avoid circular imports
-type ValidationReport struct {
-	ModelID           string
-	Valid             bool
-	Errors            []string
-	Warnings          []string
-	CompletenessScore float64
-	MissingRequired   []FieldKey
-	MissingOptional   []FieldKey
-	DatasetResults    map[string]DatasetValidationResult
-}
-
-// DatasetValidationResult mirrors the dataset validation result
-type DatasetValidationResult struct {
-	DatasetRef        string
-	CompletenessScore float64
-	MissingRequired   []FieldKey
-	MissingOptional   []FieldKey
-	Errors            []string
-	Warnings          []string
-}
 
 // ValidationUI provides a rich UI for the validation command
 type ValidationUI struct {
@@ -44,7 +23,7 @@ func NewValidationUI(w io.Writer, quiet bool) *ValidationUI {
 }
 
 // PrintReport renders a beautiful validation report
-func (v *ValidationUI) PrintReport(report ValidationReport) {
+func (v *ValidationUI) PrintReport(report validator.ValidationResult) {
 	if v.quiet {
 		return
 	}
@@ -91,7 +70,7 @@ func (v *ValidationUI) PrintReport(report ValidationReport) {
 }
 
 // renderModelValidation creates the model validation section
-func (v *ValidationUI) renderModelValidation(report ValidationReport) string {
+func (v *ValidationUI) renderModelValidation(report validator.ValidationResult) string {
 	var sb strings.Builder
 
 	sb.WriteString(SectionHeader.Render("Model Component"))
@@ -155,7 +134,7 @@ func (v *ValidationUI) renderWarnings(warnings []string) string {
 }
 
 // renderDatasetValidation creates the dataset validation section
-func (v *ValidationUI) renderDatasetValidation(datasets map[string]DatasetValidationResult) string {
+func (v *ValidationUI) renderDatasetValidation(datasets map[string]validator.DatasetValidationResult) string {
 	var sb strings.Builder
 
 	sb.WriteString(SectionHeader.Render("Dataset Components"))
@@ -249,7 +228,7 @@ func (v *ValidationUI) renderScorePercentage(score float64) string {
 }
 
 // PrintSimpleReport prints a minimal text report
-func (v *ValidationUI) PrintSimpleReport(report ValidationReport) {
+func (v *ValidationUI) PrintSimpleReport(report validator.ValidationResult) {
 	if report.Valid {
 		fmt.Fprintf(v.writer, "%s Validation passed\n", GetCheckMark())
 	} else {
