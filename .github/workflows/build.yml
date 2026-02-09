@@ -69,7 +69,7 @@ jobs:
 
       - name: Install Grype
         if: ${{ matrix.go-version == '1.25.x' }}
-        uses: anchore/scan-action/download-grype@v5
+        uses: anchore/scan-action/download-grype@v7
 
       - name: Generate SBOM (Syft)
         if: ${{ matrix.go-version == '1.25.x' }}
