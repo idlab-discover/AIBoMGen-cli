@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
           check-latest: true
@@ -59,25 +59,27 @@ jobs:
           go build -o AIBoMGen-cli ./
           chmod +x AIBoMGen-cli
           
-      - name: Install Syft
-        if: ${{ matrix.go-version == '1.25.x' }}
-        uses: anchore/sbom-action/download-syft@v0
-
-      - name: Install Cosign
-        if: ${{ matrix.go-version == '1.25.x' }}
-        uses: sigstore/cosign-installer@v3
-
-      - name: Install Grype
-        if: ${{ matrix.go-version == '1.25.x' }}
-        uses: anchore/scan-action/download-grype@v7
-
       - name: Generate SBOM (Syft)
         if: ${{ matrix.go-version == '1.25.x' }}
-        run: syft ./AIBoMGen-cli -o cyclonedx-json=sbom-binary.json
+        uses: anchore/sbom-action@v0
+        with:
+          file: ./AIBoMGen-cli
+          format: cyclonedx-json
+          output-file: sbom-binary.json
+          upload-artifact: false
 
       - name: Scan SBOM for vulnerabilities (Grype)
         if: ${{ matrix.go-version == '1.25.x' }}
-        run: grype sbom:./sbom-binary.json -o cyclonedx-json=sbom-binary-vulnerabilities.json
+        uses: anchore/scan-action@v7
+        with:
+          sbom: sbom-binary.json
+          output-format: cyclonedx-json
+          output-file: sbom-binary-vulnerabilities.json
+          fail-build: false
+
+      - name: Install Cosign
+        if: ${{ matrix.go-version == '1.25.x' }}
+        uses: sigstore/cosign-installer@v4.0.0
 
       - name: Sign SBOM (Keyless)
         if: ${{ matrix.go-version == '1.25.x' }}
@@ -100,7 +102,7 @@ jobs:
 
       - name: Upload SBOM artifacts
         if: ${{ matrix.go-version == '1.25.x' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-artifacts
           path: |
