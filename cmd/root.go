@@ -60,7 +60,7 @@ func init() {
 	})
 
 	// Add subcommands
-	rootCmd.AddCommand(generateCmd, enrichCmd, validateCmd)
+	rootCmd.AddCommand(generateCmd, enrichCmd, validateCmd, completenessCmd, mergeCmd)
 }
 
 func initConfig() {

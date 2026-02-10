@@ -17,11 +17,13 @@ What works today:
 - Interactive or file based metadata enrichment
 - Data components with dataset fetchers and linking them in the AIBOM
 - Updated the UI to utilise Charm libraries
+- [BETA] testing
+- [BETA] Merge one or more AIBOMs with an existing SBOM from a different source (e.g., Syft, Trivy) into a single comprehensive BOM
+
 
 What is future work:
 
 - Improving the scanner beyond the current regex-based Hugging Face detection
-- Implementing the possibility to merge AIBOMs with existing sboms from a different source
 - Implementing the possibility to sign AIBOMs with cosign
 - Implementing check-vuln command to check AI vulnerability databases
 - Implementing AIBOM generation based of model files not on Hugging Face
@@ -108,6 +110,37 @@ Options:
 - `--refetch`: refetch metadata from Hugging Face Hub
 - `--no-preview`: skip preview before applying changes
 - `--hf-token <token>`: Hugging Face API token
+- `--log-level quiet|standard|debug`
+
+### `merge`
+
+**[BETA]** Merges one or more AIBOMs with an existing SBOM from a different source (e.g., Syft, Trivy) into a single comprehensive BOM.
+
+The SBOM's application metadata is preserved as the main component, while AI/ML model and dataset components from the AIBOM(s) are added to the components list.
+
+```bash
+# Example workflow: Combine software dependencies with AI components
+
+# 1. Generate SBOM for software dependencies using Syft
+syft scan . -o cyclonedx-json > sbom.json
+
+# 2. Generate AIBOM for AI/ML components using AIBoMGen
+./aibomgen-cli generate -i . -o aibom.json
+
+# 3. Merge them into a comprehensive BOM
+./aibomgen-cli merge --aibom aibom.json --sbom sbom.json -o merged.json
+
+# 4. Merge multiple AIBOMs with one SBOM (for projects using multiple models)
+./aibomgen-cli merge --aibom model1_aibom.json --aibom model2_aibom.json --sbom sbom.json -o merged.json
+```
+
+Options:
+
+- `--aibom <path>`: Path to AIBOM file (can be specified multiple times, required)
+- `--sbom <path>`: Path to SBOM file (required)
+- `--output, -o <path>`: Output path for merged BOM (required)
+- `--format, -f json|xml|auto`: Output format (default: `auto`)
+- `--deduplicate`: Remove duplicate components based on BOM-ref (default: `true`)
 - `--log-level quiet|standard|debug`
 
 ### Global flags
@@ -216,6 +249,19 @@ Comprehensive TUI (Terminal User Interface) system built with Charm libraries (L
   - `workflow.go`: task-based progress tracking
   - `progress.go`: spinner and progress indicators
   - `styles.go`: centralized styling and color definitions
+
+### `internal/merger`
+
+**[BETA]** BOM merging functionality for combining AIBOMs with SBOMs from other sources.
+
+- Merges one or more AIBOMs with an SBOM while preserving the SBOM's application metadata
+- The SBOM's metadata component (application) remains as the primary metadata component
+- AI/ML model and dataset components from AIBOMs are added to the components list (not metadata)
+- Supports component deduplication based on BOM-ref to avoid duplicates
+- Intelligently merges dependencies, compositions, tools, and external references
+- Handles dependency graph merging with proper conflict resolution
+- Generates merge statistics (component counts, duplicates removed, AIBOMs merged)
+- Used by the `merge` command to create comprehensive BOMs combining AI/ML and traditional software components
 
 ## Docs and examples
 
