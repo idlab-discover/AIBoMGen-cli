@@ -28,6 +28,41 @@ var newBOMBuilder = func() bomBuilder {
 	return builder.NewBOMBuilder(builder.DefaultOptions())
 }
 
+// Fetcher factory functions for testing
+type fetcherSet struct {
+	modelAPI interface {
+		Fetch(context.Context, string) (*fetcher.ModelAPIResponse, error)
+	}
+	modelReadme interface {
+		Fetch(context.Context, string) (*fetcher.ModelReadmeCard, error)
+	}
+	datasetAPI interface {
+		Fetch(context.Context, string) (*fetcher.DatasetAPIResponse, error)
+	}
+	datasetReadme interface {
+		Fetch(context.Context, string) (*fetcher.DatasetReadmeCard, error)
+	}
+}
+
+var newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
+	return fetcherSet{
+		modelAPI:      &fetcher.ModelAPIFetcher{Client: httpClient, Token: token},
+		modelReadme:   &fetcher.ModelReadmeFetcher{Client: httpClient, Token: token},
+		datasetAPI:    &fetcher.DatasetAPIFetcher{Client: httpClient, Token: token},
+		datasetReadme: &fetcher.DatasetReadmeFetcher{Client: httpClient, Token: token},
+	}
+}
+
+// Dummy fetcher factory for BuildDummyBOM testing
+var newDummyFetcherSet = func() fetcherSet {
+	return fetcherSet{
+		modelAPI:      &fetcher.DummyModelAPIFetcher{},
+		modelReadme:   &fetcher.DummyModelReadmeFetcher{},
+		datasetAPI:    &fetcher.DummyDatasetAPIFetcher{},
+		datasetReadme: &fetcher.DummyDatasetReadmeFetcher{},
+	}
+}
+
 // ProgressCallback is called during generation to report progress
 type ProgressCallback func(event ProgressEvent)
 
@@ -69,9 +104,7 @@ type GenerateOptions struct {
 // BuildDummyBOM builds a single comprehensive dummy BOM with all fields populated.
 // This is used in dummy mode for testing/demo purposes without scanning or fetching real data.
 func BuildDummyBOM() ([]DiscoveredBOM, error) {
-	// Create dummy fetchers that return fixed responses
-	apiFetcher := &fetcher.DummyModelAPIFetcher{}
-	readmeFetcher := &fetcher.DummyModelReadmeFetcher{}
+	fetchers := newDummyFetcherSet()
 
 	// Create a dummy discovery
 	dummyDiscovery := scanner.Discovery{
@@ -83,12 +116,12 @@ func BuildDummyBOM() ([]DiscoveredBOM, error) {
 	}
 
 	// Fetch dummy metadata
-	apiResp, err := apiFetcher.Fetch(context.Background(), "dummy-org/dummy-model")
+	apiResp, err := fetchers.modelAPI.Fetch(context.Background(), "dummy-org/dummy-model")
 	if err != nil {
 		return nil, err
 	}
 
-	readme, err := readmeFetcher.Fetch(context.Background(), "dummy-org/dummy-model")
+	readme, err := fetchers.modelReadme.Fetch(context.Background(), "dummy-org/dummy-model")
 	if err != nil {
 		return nil, err
 	}
@@ -111,16 +144,19 @@ func BuildDummyBOM() ([]DiscoveredBOM, error) {
 	datasets := extractDatasetsFromModel(apiResp, readme)
 
 	if len(datasets) > 0 {
-		dummyDatasetApiFetcher := &fetcher.DummyDatasetAPIFetcher{}
-		dummyDatasetReadmeFetcher := &fetcher.DummyDatasetReadmeFetcher{}
-
 		if bom.Components == nil {
 			bom.Components = &[]cdx.Component{}
 		}
 
 		for _, dsID := range datasets {
-			dsApiResp, _ := dummyDatasetApiFetcher.Fetch(context.Background(), dsID)
-			dsReadme, _ := dummyDatasetReadmeFetcher.Fetch(context.Background(), dsID)
+			dsApiResp, err := fetchers.datasetAPI.Fetch(context.Background(), dsID)
+			if err != nil {
+				continue
+			}
+			dsReadme, err := fetchers.datasetReadme.Fetch(context.Background(), dsID)
+			if err != nil {
+				dsReadme = nil
+			}
 
 			dsCtx := builder.DatasetBuildContext{
 				DatasetID: dsID,
@@ -173,10 +209,7 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 	results := make([]DiscoveredBOM, 0, len(discoveries))
 
 	httpClient := &http.Client{Timeout: opts.Timeout}
-	modelApiFetcher := &fetcher.ModelAPIFetcher{Client: httpClient, Token: opts.HFToken}
-	modelReadmeFetcher := &fetcher.ModelReadmeFetcher{Client: httpClient, Token: opts.HFToken}
-	datasetApiFetcher := &fetcher.DatasetAPIFetcher{Client: httpClient, Token: opts.HFToken}
-	datasetReadmeFetcher := &fetcher.DatasetReadmeFetcher{Client: httpClient, Token: opts.HFToken}
+	fetchers := newFetcherSet(httpClient, opts.HFToken)
 
 	bomBuilder := newBOMBuilder()
 
@@ -198,14 +231,14 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 		var readme *fetcher.ModelReadmeCard
 
 		if modelID != "" {
-			r, err := modelApiFetcher.Fetch(ctx, modelID)
+			r, err := fetchers.modelAPI.Fetch(ctx, modelID)
 			if err != nil {
 			} else {
 				resp = r
 				progress(ProgressEvent{Type: EventFetchAPIComplete, ModelID: modelID})
 			}
 
-			c, err := modelReadmeFetcher.Fetch(ctx, modelID)
+			c, err := fetchers.modelReadme.Fetch(ctx, modelID)
 			if err != nil {
 			} else {
 				readme = c
@@ -237,7 +270,7 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 		for _, dsID := range datasets {
 			progress(ProgressEvent{Type: EventDatasetStart, ModelID: modelID, Message: dsID})
 
-			dsResp, err := datasetApiFetcher.Fetch(ctx, dsID)
+			dsResp, err := fetchers.datasetAPI.Fetch(ctx, dsID)
 			if err != nil {
 				// In online mode, skip dataset components that don't exist on HuggingFace.
 				// The dataset reference is still preserved in the model's modelCard.modelParameters.datasets.
@@ -245,7 +278,7 @@ func BuildPerDiscoveryWithProgress(ctx context.Context, discoveries []scanner.Di
 				continue
 			}
 
-			dsReadme, _ := datasetReadmeFetcher.Fetch(ctx, dsID)
+			dsReadme, _ := fetchers.datasetReadme.Fetch(ctx, dsID)
 
 			dsBomBuilder := newBOMBuilder()
 			dsCtx := builder.DatasetBuildContext{
@@ -356,10 +389,7 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 	results := make([]DiscoveredBOM, 0, len(modelIDs))
 
 	httpClient := &http.Client{Timeout: opts.Timeout}
-	modelApiFetcher := &fetcher.ModelAPIFetcher{Client: httpClient, Token: opts.HFToken}
-	modelReadmeFetcher := &fetcher.ModelReadmeFetcher{Client: httpClient, Token: opts.HFToken}
-	datasetApiFetcher := &fetcher.DatasetAPIFetcher{Client: httpClient, Token: opts.HFToken}
-	datasetReadmeFetcher := &fetcher.DatasetReadmeFetcher{Client: httpClient, Token: opts.HFToken}
+	fetchers := newFetcherSet(httpClient, opts.HFToken)
 
 	for i, modelID := range modelIDs {
 		modelID = strings.TrimSpace(modelID)
@@ -379,7 +409,7 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 		progress(ProgressEvent{Type: EventFetchStart, ModelID: modelID, Index: i, Total: len(modelIDs)})
 
 		// Fetch API metadata
-		resp, err := modelApiFetcher.Fetch(ctx, modelID)
+		resp, err := fetchers.modelAPI.Fetch(ctx, modelID)
 		if err != nil {
 			progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err, Message: "API fetch failed"})
 			resp = nil
@@ -388,7 +418,7 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 		}
 
 		// Fetch README
-		readme, err := modelReadmeFetcher.Fetch(ctx, modelID)
+		readme, err := fetchers.modelReadme.Fetch(ctx, modelID)
 		if err != nil {
 			readme = nil
 		} else {
@@ -428,12 +458,12 @@ func BuildFromModelIDsWithProgress(ctx context.Context, modelIDs []string, opts 
 		for _, dsID := range datasets {
 			progress(ProgressEvent{Type: EventDatasetStart, ModelID: modelID, Message: dsID})
 
-			dsResp, err := datasetApiFetcher.Fetch(ctx, dsID)
+			dsResp, err := fetchers.datasetAPI.Fetch(ctx, dsID)
 			if err != nil {
 				continue
 			}
 
-			dsReadme, _ := datasetReadmeFetcher.Fetch(ctx, dsID)
+			dsReadme, _ := fetchers.datasetReadme.Fetch(ctx, dsID)
 
 			dsBomBuilder := newBOMBuilder()
 			dsCtx := builder.DatasetBuildContext{
