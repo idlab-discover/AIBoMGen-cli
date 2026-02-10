@@ -31,7 +31,13 @@ type DatasetResult struct {
 	MissingOptional []metadata.DatasetKey
 }
 
+// Check checks the completeness of a BOM using the default metadata registry
 func Check(bom *cdx.BOM) Result {
+	return checkWithRegistry(bom, metadata.Registry(), metadata.DatasetRegistry())
+}
+
+// checkWithRegistry allows injecting custom registries for testing
+func checkWithRegistry(bom *cdx.BOM, modelRegistry []metadata.FieldSpec, datasetRegistry []metadata.DatasetFieldSpec) Result {
 	var (
 		earned, max float64
 		passed      int
@@ -43,7 +49,7 @@ func Check(bom *cdx.BOM) Result {
 	// Check if datasets are referenced in model
 	datasetsReferenced := hasDatasetsReferenced(bom)
 
-	for _, spec := range metadata.Registry() {
+	for _, spec := range modelRegistry {
 		if spec.Weight <= 0 {
 			continue
 		}
@@ -107,7 +113,7 @@ func Check(bom *cdx.BOM) Result {
 	if bom.Components != nil && datasetsReferenced {
 		for _, comp := range *bom.Components {
 			if comp.Type == cdx.ComponentTypeData {
-				dsResult := CheckDataset(&comp)
+				dsResult := checkDatasetWithRegistry(&comp, datasetRegistry)
 				result.DatasetResults[comp.Name] = dsResult
 			}
 		}
@@ -138,8 +144,13 @@ func hasDatasetsReferenced(bom *cdx.BOM) bool {
 	return false
 }
 
-// CheckDataset checks completeness of a single dataset component
+// CheckDataset checks completeness of a single dataset component using the default registry
 func CheckDataset(comp *cdx.Component) DatasetResult {
+	return checkDatasetWithRegistry(comp, metadata.DatasetRegistry())
+}
+
+// checkDatasetWithRegistry allows injecting custom registry for testing
+func checkDatasetWithRegistry(comp *cdx.Component, datasetRegistry []metadata.DatasetFieldSpec) DatasetResult {
 	var (
 		earned, max float64
 		passed      int
@@ -148,7 +159,7 @@ func CheckDataset(comp *cdx.Component) DatasetResult {
 		missingOpt  []metadata.DatasetKey
 	)
 
-	for _, spec := range metadata.DatasetRegistry() {
+	for _, spec := range datasetRegistry {
 		if spec.Weight <= 0 {
 			continue
 		}
