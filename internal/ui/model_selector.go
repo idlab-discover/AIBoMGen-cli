@@ -317,7 +317,7 @@ func (m *modelSelectorModel) performSearch(query string) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		results, err := m.searcher.Search(ctx, query, 100)
+		results, err := m.searcher.Search(ctx, query, 1000)
 		return searchResultMsg{results: results, err: err}
 	}
 }

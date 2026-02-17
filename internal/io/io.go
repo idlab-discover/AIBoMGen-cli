@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/generator"
 )
 
 // ReadBOM reads a BOM from a file (JSON or XML).
@@ -180,4 +181,55 @@ func ParseSpecVersion(s string) (cdx.SpecVersion, bool) {
 	default:
 		return cdx.SpecVersion1_6, false
 	}
+}
+
+// WriteOutputFiles writes BOM files to disk and returns the list of written paths.
+// Each BOM is written to a separate file named after the component.
+func WriteOutputFiles(discoveredBOMs []generator.DiscoveredBOM, outputDir, fileExt, format, specVersion string) ([]string, error) {
+	written := make([]string, 0, len(discoveredBOMs))
+	for _, d := range discoveredBOMs {
+		// Extract component name from BOM metadata
+		var name string
+		if d.BOM != nil && d.BOM.Metadata != nil && d.BOM.Metadata.Component != nil {
+			name = d.BOM.Metadata.Component.Name
+		}
+		if strings.TrimSpace(name) == "" {
+			name = strings.TrimSpace(d.Discovery.Name)
+			if name == "" {
+				name = strings.TrimSpace(d.Discovery.ID)
+			}
+			if name == "" {
+				name = "model"
+			}
+		}
+
+		// Sanitize component name for use in filename
+		if name == "" {
+			name = "model"
+		}
+		var b strings.Builder
+		for _, r := range name {
+			switch {
+			case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+				b.WriteRune(r)
+			case r == '-' || r == '_' || r == '.':
+				b.WriteRune(r)
+			default:
+				b.WriteByte('_')
+			}
+		}
+		sanitized := b.String()
+		if sanitized == "" {
+			sanitized = "model"
+		}
+
+		fileName := fmt.Sprintf("%s_aibom%s", sanitized, fileExt)
+		dest := filepath.Join(outputDir, fileName)
+
+		if err := WriteBOM(d.BOM, dest, format, specVersion); err != nil {
+			return written, err
+		}
+		written = append(written, dest)
+	}
+	return written, nil
 }
