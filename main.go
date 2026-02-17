@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/fang"
-	"github.com/idlab-discover/AIBoMGen-cli/cmd"
+	cmd "github.com/idlab-discover/AIBoMGen-cli/cmd/aibomgen-cli"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 

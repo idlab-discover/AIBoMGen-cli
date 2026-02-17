@@ -34,6 +34,9 @@ var (
 	enrich bool
 	// Logging is controlled via generateLogLevel.
 	generateLogLevel string
+
+	// interactive enables the interactive model selector
+	interactive bool
 )
 
 // generateCmd represents the generate command
@@ -71,6 +74,9 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid --hf-mode %q (expected online|dummy)", mode)
 	}
 
+	// Check if --interactive was explicitly provided
+	interactiveMode := viper.GetBool("generate.interactive")
+
 	// Check if --model-id was explicitly provided on the command line
 	modelIDFlagProvided := cmd.Flags().Changed("model-id")
 
@@ -87,6 +93,13 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	inputPath := viper.GetString("generate.input")
 	inputPathProvided := cmd.Flags().Changed("input")
 
+	// Interactive mode validation
+	if interactiveMode {
+		if modelIDFlagProvided || inputPathProvided {
+			return fmt.Errorf("--interactive cannot be used with --model-id or --input")
+		}
+	}
+
 	// Determine which mode we're in
 	var useModelIDMode bool
 	if modelIDFlagProvided && len(cleanModelIDs) > 0 {
@@ -101,7 +114,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		inputPath = ""
 	} else {
 		useModelIDMode = false
-		if inputPath == "" {
+		if inputPath == "" && !interactiveMode {
 			inputPath = "."
 		}
 	}
@@ -146,6 +159,22 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	var err error
 
 	ctx := context.Background()
+
+	if interactiveMode {
+		// Interactive mode: show model selector
+		selectedModels, err := ui.RunModelSelector(ui.ModelSelectorConfig{
+			HFToken: hfToken,
+			Timeout: timeout,
+		})
+		if err != nil {
+			return err
+		}
+		if len(selectedModels) == 0 {
+			return fmt.Errorf("no models selected")
+		}
+		cleanModelIDs = selectedModels
+		useModelIDMode = true
+	}
 
 	if useModelIDMode {
 		// Model ID mode
@@ -478,6 +507,7 @@ func init() {
 	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token")
 	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness (deprecated)")
 	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "", "Log level: quiet|standard|debug")
+	generateCmd.Flags().BoolVar(&interactive, "interactive", false, "Interactive model selector (cannot be used with --model-id or --input)")
 
 	// Bind all flags to viper for config file support
 	viper.BindPFlag("generate.input", generateCmd.Flags().Lookup("input"))
@@ -490,6 +520,7 @@ func init() {
 	viper.BindPFlag("generate.hf-token", generateCmd.Flags().Lookup("hf-token"))
 	viper.BindPFlag("generate.enrich", generateCmd.Flags().Lookup("enrich"))
 	viper.BindPFlag("generate.log-level", generateCmd.Flags().Lookup("log-level"))
+	viper.BindPFlag("generate.interactive", generateCmd.Flags().Lookup("interactive"))
 }
 
 func bomMetadataComponentName(bom *cdx.BOM) string {

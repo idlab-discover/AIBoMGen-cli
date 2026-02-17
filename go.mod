@@ -14,6 +14,8 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4
 )
 
+require github.com/sahilm/fuzzy v0.1.1 // indirect
+
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect

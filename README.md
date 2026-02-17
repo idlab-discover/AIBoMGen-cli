@@ -17,7 +17,7 @@ What works today:
 - Interactive or file based metadata enrichment
 - Data components with dataset fetchers and linking them in the AIBOM
 - Updated the UI to utilise Charm libraries
-- [BETA] testing
+- [BETA] Testing
 - [BETA] Merge one or more AIBOMs with an existing SBOM from a different source (e.g., Syft, Trivy) into a single comprehensive BOM
 
 

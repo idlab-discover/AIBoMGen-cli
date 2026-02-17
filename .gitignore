@@ -8,6 +8,8 @@ AIBoMGen-cli
 aibomgen
 AIBoMGen
 
+# not cmd/aibomgen-cli
+!cmd/aibomgen-cli
 
 # Binaries for programs and plugins
 *.exe
