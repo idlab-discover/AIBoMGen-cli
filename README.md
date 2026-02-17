@@ -19,6 +19,7 @@ What works today:
 - Updated the UI to utilise Charm libraries
 - [BETA] Testing
 - [BETA] Merge one or more AIBOMs with an existing SBOM from a different source (e.g., Syft, Trivy) into a single comprehensive BOM
+- [BETA] Interactive Hugging Face model browsing
 
 
 What is future work:
