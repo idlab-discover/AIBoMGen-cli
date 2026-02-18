@@ -1,11 +1,11 @@
 
 # AIBoMGen CLI
 
-[![codecov](https://codecov.io/gh/idlab-discover/AIBoMGen-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/idlab-discover/AIBoMGen-cli)
+[![Build + Unit Tests](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/build.yml/badge.svg)](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/build.yml) [![Scan Integration](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/integration.yml/badge.svg)](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/integration.yml)
 
 Go CLI tool and packages that scan a repository for **basic Hugging Face model usage** and emit a **CycloneDX AI Bill of Materials (AIBOM)**.
 
-## Status (WIP)
+## Status
 
 What works today:
 
