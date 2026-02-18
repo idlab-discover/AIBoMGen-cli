@@ -93,8 +93,19 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Validate that we have either model IDs or interactive mode
-	if !interactiveMode && len(cleanModelIDs) == 0 {
+	// Disallow passing model IDs or using interactive mode when running in dummy HF mode.
+	// Dummy mode uses a built-in fixture (BuildDummyBOM) — allow empty input only.
+	if mode == "dummy" {
+		if modelIDFlagProvided || len(cleanModelIDs) > 0 {
+			return fmt.Errorf("--model-id cannot be used with --hf-mode=dummy")
+		}
+		if interactiveMode {
+			return fmt.Errorf("--interactive cannot be used with --hf-mode=dummy")
+		}
+	}
+
+	// Validate that we have either model IDs or interactive mode for non-dummy modes.
+	if !interactiveMode && len(cleanModelIDs) == 0 && mode != "dummy" {
 		return fmt.Errorf("either --model-id or --interactive is required. Use 'scan' command to scan directories")
 	}
 

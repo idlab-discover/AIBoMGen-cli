@@ -77,21 +77,13 @@ jobs:
           mkdir -p "${TARGET_DIR}"
           FORMAT_FLAG="--format ${OUTPUT_FORMAT}"
 
-          # Use `generate` only for dummy mode; use `scan` for scanning fixtures
-          if [ "${HF_MODE}" = "dummy" ]; then
-            go run . generate \
-              --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
-              ${FORMAT_FLAG} \
-              --hf-mode "${HF_MODE}" \
-              --log-level debug
-          else
-            go run . scan \
-              ${INPUT_FLAG} \
-              --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
-              ${FORMAT_FLAG} \
-              --hf-mode "${HF_MODE}" \
-              --log-level debug
-          fi
+          # Use `scan` for all matrix entries; `scan` handles dummy (BuildDummyBOM) and online fixtures
+          go run . scan \
+            ${INPUT_FLAG} \
+            --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
+            ${FORMAT_FLAG} \
+            --hf-mode "${HF_MODE}" \
+            --log-level debug
 
       - name: Validate generated AIBOM files
         env:
