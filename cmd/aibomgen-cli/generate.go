@@ -24,11 +24,10 @@ var (
 
 	// hfMode controls whether metadata is fetched from Hugging Face.
 	// Supported values: online|dummy
-	hfMode       string
-	hfTimeoutSec int
-	hfToken      string
+	hfMode    string
+	hfTimeout int
+	hfToken   string
 
-	enrich bool
 	// Logging is controlled via generateLogLevel.
 	generateLogLevel string
 
@@ -159,11 +158,6 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	err = runModelIDMode(ctx, genUI, cleanModelIDs, mode, hfToken, timeout, quiet, &discoveredBOMs)
 	if err != nil {
 		return err
-	}
-
-	// Deprecation warning
-	if viper.GetBool("generate.enrich") {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s --enrich flag is deprecated. Use 'aibomgen-cli enrich' command instead.\n", ui.GetWarnMark())
 	}
 
 	// Determine output settings
@@ -323,9 +317,8 @@ func init() {
 	generateCmd.Flags().StringVarP(&generateOutputFormat, "format", "f", "", "Output BOM format: json|xml|auto")
 	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.4, 1.5, 1.6)")
 	generateCmd.Flags().StringVar(&hfMode, "hf-mode", "", "Hugging Face metadata mode: online|dummy")
-	generateCmd.Flags().IntVar(&hfTimeoutSec, "hf-timeout", 0, "HTTP timeout in seconds for Hugging Face API")
+	generateCmd.Flags().IntVar(&hfTimeout, "hf-timeout", 0, "HTTP timeout in seconds for Hugging Face API")
 	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token")
-	generateCmd.Flags().BoolVar(&enrich, "enrich", false, "Prompt for missing fields and compute completeness (deprecated)")
 	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 	generateCmd.Flags().BoolVar(&interactive, "interactive", false, "Interactive model selector (cannot be used with --model-id)")
 
@@ -337,7 +330,6 @@ func init() {
 	viper.BindPFlag("generate.hf-mode", generateCmd.Flags().Lookup("hf-mode"))
 	viper.BindPFlag("generate.hf-timeout", generateCmd.Flags().Lookup("hf-timeout"))
 	viper.BindPFlag("generate.hf-token", generateCmd.Flags().Lookup("hf-token"))
-	viper.BindPFlag("generate.enrich", generateCmd.Flags().Lookup("enrich"))
 	viper.BindPFlag("generate.log-level", generateCmd.Flags().Lookup("log-level"))
 	viper.BindPFlag("generate.interactive", generateCmd.Flags().Lookup("interactive"))
 }
