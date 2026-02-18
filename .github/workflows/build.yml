@@ -77,6 +77,25 @@ jobs:
           output-file: sbom-binary-vulnerabilities.json
           fail-build: false
 
+      - name: Scan SBOM for vulnerabilities (Grype) — table output
+        if: ${{ matrix.go-version == '1.25.x' }}
+        uses: anchore/scan-action@v7
+        with:
+          sbom: sbom-binary.json
+          output-format: table
+          output-file: grype.table
+          fail-build: false
+
+      - name: Vulnerability summary (grype)
+        if: ${{ matrix.go-version == '1.25.x' }}
+        run: |
+          set -eo pipefail
+          if [ -f grype.table ] && [ -s grype.table ]; then
+            head -n 50 grype.table >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No results from grype" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Install Cosign
         if: ${{ matrix.go-version == '1.25.x' }}
         uses: sigstore/cosign-installer@v4.0.0
