@@ -69,8 +69,16 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 
 	inputPath := viper.GetString("scan.input")
+	// Detect whether the user explicitly provided --input on the CLI (vs. using default)
+	inputPathProvided := cmd.Flags().Changed("input")
 	if inputPath == "" {
 		inputPath = "."
+	}
+
+	// Disallow providing an input path when running in dummy HF mode — dummy mode
+	// uses built-in fixture data and does not consult the filesystem.
+	if mode == "dummy" && inputPathProvided {
+		return fmt.Errorf("--input cannot be used with --hf-mode=dummy")
 	}
 
 	// Get format from viper
