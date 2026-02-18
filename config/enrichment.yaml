@@ -3,9 +3,24 @@
 #
 # IMPORTANT: Use the full BOM path as the key to avoid ambiguity
 # Keys are case-insensitive (they are automatically lowercased during processing)
+#
+# Field reference — every enrichable field is listed below.
+# Uncomment and set the fields you want to apply.
+
+# ============================================================================
+# BOM.metadata.component.* (model component fields)
+# ============================================================================
 
 BOM.metadata.component.name: "my-model-name"
+
+# URL to the model's page / project website
+BOM.metadata.component.externalReferences: "https://huggingface.co/organization/model-name"
+
 BOM.metadata.component.licenses: "Apache-2.0"
+
+# SHA-1 commit hash of the model repository snapshot
+BOM.metadata.component.hashes: "abc123def456..."
+
 BOM.metadata.component.manufacturer: "Google"
 BOM.metadata.component.group: "google"
 BOM.metadata.component.tags:
@@ -13,16 +28,61 @@ BOM.metadata.component.tags:
   - transformer
   - bert
 
+# ============================================================================
+# BOM.metadata.component.properties.huggingface:* (HF-specific properties)
+# ============================================================================
+
 BOM.metadata.component.properties.huggingface:language: "en"
 BOM.metadata.component.properties.huggingface:libraryName: "transformers"
 BOM.metadata.component.properties.huggingface:baseModel: "distilbert-base-uncased"
 BOM.metadata.component.properties.huggingface:modelCardContact: "contact@huggingface.co"
 
+# ISO-8601 timestamp of the last model update (fetched automatically in online mode)
+BOM.metadata.component.properties.huggingface:lastModified: "2024-01-15T10:30:00.000Z"
+
+# ISO-8601 timestamp of initial model creation (fetched automatically in online mode)
+BOM.metadata.component.properties.huggingface:createdAt: "2023-06-01T08:00:00.000Z"
+
+# Storage used by the model repository in bytes (fetched automatically in online mode)
+BOM.metadata.component.properties.huggingface:usedStorage: "1073741824"
+
+# Whether the model repository is private (true|false)
+BOM.metadata.component.properties.huggingface:private: "false"
+
+# Total download count (fetched automatically in online mode)
+BOM.metadata.component.properties.huggingface:downloads: "50000"
+
+# Total like count (fetched automatically in online mode)
+BOM.metadata.component.properties.huggingface:likes: "200"
+
+# ============================================================================
+# BOM.metadata.component.modelCard.modelParameters.* (model card — parameters)
+# ============================================================================
+
 BOM.metadata.component.modelCard.modelParameters.task: "text-classification"
 BOM.metadata.component.modelCard.modelParameters.architectureFamily: "transformer"
 BOM.metadata.component.modelCard.modelParameters.modelArchitecture: "bert-base"
 
+# Comma-separated list of training dataset references (e.g. HF dataset IDs)
+BOM.metadata.component.modelCard.modelParameters.datasets: "squad, glue"
+
+# ============================================================================
+# BOM.metadata.component.modelCard.considerations.* (model card — considerations)
+# ============================================================================
+
 BOM.metadata.component.modelCard.considerations.useCases: "Text generation, dialogue systems, creative writing"
 BOM.metadata.component.modelCard.considerations.technicalLimitations: "Limited context window of 512 tokens, may generate inconsistent or factually incorrect text"
-BOM.metadata.component.modelCard.considerations.ethicalConsiderations: "May generate biased or harmful content based on training data. Should not be used for sensitive applications without additional safeguards."
-BOM.metadata.component.modelCard.considerations.environmentalConsiderations.properties: "Example:Training large language models can have a significant carbon footprint due to high computational requirements."
+
+# Format: "concern name:mitigation strategy" pairs, comma-separated
+BOM.metadata.component.modelCard.considerations.ethicalConsiderations: "bias:Review outputs for bias before deployment,privacy:Do not process personally identifiable information"
+
+# Format: "propertyName:value" pairs, comma-separated
+# Supported property names: hardwareType, hoursUsed, cloudProvider, computeRegion, carbonEmitted
+BOM.metadata.component.modelCard.considerations.environmentalConsiderations.properties: "hardwareType:GPU,hoursUsed:100,cloudProvider:AWS,computeRegion:us-east-1,carbonEmitted:50kg"
+
+# ============================================================================
+# BOM.metadata.component.modelCard.quantitativeAnalysis.* (model card — metrics)
+# ============================================================================
+
+# Format: "metricType:value" pairs, comma-separated
+BOM.metadata.component.modelCard.quantitativeAnalysis.performanceMetrics: "accuracy:0.95,f1:0.92,precision:0.88"

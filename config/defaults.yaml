@@ -7,8 +7,10 @@
 # Command: generate
 # ============================================================================
 generate:
-  # Path to scan for AI components
-  input: "./testdata/repo-basic"
+  # Hugging Face model ID(s) to generate AIBOMs for (list)
+  model-ids: []
+  # Interactive model selector (cannot be used with model-ids)
+  interactive: false
   # Output file path (directory is used)
   output: "./dist/aibom"
   # Output BOM format: json|xml|auto
@@ -21,8 +23,27 @@ generate:
   hf-timeout: 10
   # Hugging Face access token
   hf-token: ""
-  # Prompt for missing fields and compute completeness (deprecated)
-  enrich: false
+  # Log level: quiet|standard|debug
+  log-level: "standard"
+
+# ============================================================================
+# Command: scan
+# ============================================================================
+scan:
+  # Path to scan (defaults to current directory)
+  input: "./targets/target-3"
+  # Output file path (directory is used)
+  output: "./dist/aibom"
+  # Output BOM format: json|xml|auto
+  format: "auto"
+  # CycloneDX spec version for output (e.g., 1.4, 1.5, 1.6) empty is latest
+  spec: ""
+  # Hugging Face metadata mode: online|dummy
+  hf-mode: "online"
+  # HTTP timeout in seconds for Hugging Face API
+  hf-timeout: 10
+  # Hugging Face access token
+  hf-token: ""
   # Log level: quiet|standard|debug
   log-level: "standard"
 
@@ -86,5 +107,24 @@ completeness:
   input: "./dist/WiebeVandendriessche_model-card-example_aibom.json"
   # Input BOM format: json|xml|auto
   format: "auto"
+  # Log level: quiet|standard|debug
+  log-level: "standard"
+  # Print a single-line plain summary (no styling)
+  plain-summary: false
+
+# ============================================================================
+# Command: merge
+# ============================================================================
+merge:
+  # Path(s) to AIBOM file(s) (list, required)
+  aiboms: []
+  # Path to SBOM file (required)
+  sbom: ""
+  # Output path for merged BOM (required)
+  output: ""
+  # Output format: json|xml|auto
+  format: "auto"
+  # Remove duplicate components based on BOM-ref
+  deduplicate: true
   # Log level: quiet|standard|debug
   log-level: "standard"
