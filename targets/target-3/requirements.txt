@@ -1,0 +1,19 @@
+# requirements.txt
+# NOTE: .txt extension is NOT scanned by the scanner (only metadata files with
+# specific patterns are matched). Model IDs appearing here are NOT detected.
+# This is intentional – pip package names != HF model IDs.
+
+torch>=2.3.0
+transformers>=4.47.0
+peft>=0.14.0
+trl>=0.12.0
+accelerate>=1.2.0
+datasets>=3.0.0
+bitsandbytes>=0.43.0
+sentence-transformers>=3.0.0
+huggingface_hub>=0.26.0
+evaluate>=0.4.3
+langchain>=0.3.0
+langchain-community>=0.3.0
+@huggingface/transformers
+@huggingface/inference

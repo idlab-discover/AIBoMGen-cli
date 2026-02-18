@@ -1,16 +1,16 @@
 
-# AIBoMGen CLI (WIP)
+# AIBoMGen CLI
 
 [![codecov](https://codecov.io/gh/idlab-discover/AIBoMGen-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/idlab-discover/AIBoMGen-cli)
 
-Work-in-progress Go CLI that scans a repository for **basic Hugging Face model usage** and emits a **CycloneDX AI BOM (AIBOM)**.
+Go CLI tool and packages that scan a repository for **basic Hugging Face model usage** and emit a **CycloneDX AI Bill of Materials (AIBOM)**.
 
 ## Status (WIP)
 
 What works today:
 
-- Basic scanning for Hugging Face model IDs in Python-like sources via `from_pretrained("...")`
-- AIBOM generation per detected model in JSON or XML including correct dependencies and BOMrefs
+- `scan` command: scan a directory for AI imports and emit one AIBOM per detected model
+- `generate` command: generate an AIBOM directly from one or more Hugging Face model IDs, or interactively browse models
 - Hugging Face Hub API fetch to populate metadata fields
 - Hugging Face Repo README fetch to populate more metadata fields
 - Completeness scoring and validation of existing AIBOM files
@@ -25,7 +25,6 @@ What works today:
 What is future work:
 
 - Improving the scanner beyond the current regex-based Hugging Face detection
-- Implementing the possibility to sign AIBOMs with cosign
 - Implementing check-vuln command to check AI vulnerability databases
 - Implementing AIBOM generation based of model files not on Hugging Face
 
@@ -39,12 +38,13 @@ go build -o aibomgen-cli .
 
 ## Commands
 
-### `generate`
+### `scan`
 
-Scans a directory for model usage and writes one AIBOM file per detected model.
+Scans a directory for AI-related imports (e.g., Hugging Face model IDs) and writes one AIBOM file per detected model.
 
 ```bash
-./aibomgen-cli generate -i testdata/repo-basic
+./aibomgen-cli scan -i targets/target-2
+./aibomgen-cli scan -i targets/target-3 --format xml --hf-mode online
 ```
 
 By default this writes JSON files under `dist/` with filenames derived from the model ID, e.g.:
@@ -52,15 +52,38 @@ By default this writes JSON files under `dist/` with filenames derived from the 
 - `dist/google-bert_bert-base-uncased_aibom.json`
 - `dist/templates_model-card-example_aibom.json`
 
-Common options:
+Options:
 
-- `--format json|xml|auto` (default: `auto`)
-- `--output <path>`: the **directory portion** is used as output directory (default: `dist/aibom.json` → outputs to `dist/`)
+- `--input, -i <path>`: directory to scan (default: current directory; cannot be used with `--hf-mode=dummy`)
+- `--output, -o <path>`: output file path (directory portion is used)
+- `--format, -f json|xml|auto` (default: `auto`)
+- `--spec <version>`: CycloneDX spec version for output (e.g., `1.4`, `1.5`, `1.6`)
 - `--hf-mode online|dummy` (default: `online`)
-- `--hf-token <token>` for gated/private models
+- `--hf-token <token>`: for gated/private models
 - `--hf-timeout <seconds>`
 - `--log-level quiet|standard|debug`
-- `--enrich`: enable interactive metadata enrichment after generation
+
+### `generate`
+
+Generates an AIBOM from one or more Hugging Face model IDs specified directly, or through an interactive model browser. Use `scan` instead when you want to detect models from a source directory.
+
+```bash
+./aibomgen-cli generate -m google-bert/bert-base-uncased
+./aibomgen-cli generate -m gpt2 -m meta-llama/Llama-3.1-8B
+./aibomgen-cli generate --interactive
+```
+
+Options:
+
+- `--model-id, -m <id>`: Hugging Face model ID (can be specified multiple times or comma-separated)
+- `--interactive`: open an interactive model selector (cannot be used with `--model-id`)
+- `--output, -o <path>`: output file path (directory portion is used)
+- `--format, -f json|xml|auto` (default: `auto`)
+- `--spec <version>`: CycloneDX spec version for output (e.g., `1.4`, `1.5`, `1.6`)
+- `--hf-mode online|dummy` (default: `online`)
+- `--hf-token <token>`: for gated/private models
+- `--hf-timeout <seconds>`
+- `--log-level quiet|standard|debug`
 
 ### `validate`
 
@@ -73,10 +96,10 @@ Validates an existing AIBOM file (JSON/XML), runs completeness checks, and can f
 
 Useful options:
 
-- `--format json|xml|auto`
-- `--strict` (fail on missing required fields)
+- `--format, -f json|xml|auto`
+- `--strict`: fail on missing required fields
 - `--min-score 0.0-1.0`
-- `--check-model-card` (default: `true`)
+- `--check-model-card`: validate model card fields (default: `false`)
 - `--log-level quiet|standard|debug`
 
 ### `completeness`
@@ -89,7 +112,8 @@ Computes and prints a completeness score for an existing AIBOM using the metadat
 
 Options:
 
-- `--format json|xml|auto`
+- `--format, -f json|xml|auto`
+- `--plain-summary`: print a single-line machine-readable summary (no styling)
 - `--log-level quiet|standard|debug`
 
 ### `enrich`
@@ -99,18 +123,25 @@ Enriches an existing AIBOM by filling missing metadata fields interactively or f
 ```bash
 ./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json
 ./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy interactive
-./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy file --config config/enrichment.yaml
+./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy file --file config/enrichment.yaml
 ```
 
 Options:
 
+- `--input, -i <path>`: path to existing AIBOM (required)
+- `--output, -o <path>`: output file path (default: overwrite input)
+- `--format, -f json|xml|auto`: input BOM format
+- `--output-format json|xml|auto`: output BOM format (default: same as input)
+- `--spec <version>`: CycloneDX spec version for output
 - `--strategy interactive|file` (default: `interactive`)
-- `--config <path>`: configuration file for file-based enrichment
+- `--file <path>`: enrichment config file for file-based enrichment (default: `./config/enrichment.yaml`)
 - `--required-only`: only enrich required fields
 - `--min-weight <float>`: minimum weight threshold for fields to enrich
-- `--refetch`: refetch metadata from Hugging Face Hub
-- `--no-preview`: skip preview before applying changes
-- `--hf-token <token>`: Hugging Face API token
+- `--refetch`: refetch model metadata from Hugging Face Hub before enrichment
+- `--no-preview`: skip preview before saving
+- `--hf-token <token>`: Hugging Face API token (for refetch)
+- `--hf-base-url <url>`: Hugging Face base URL (for refetch)
+- `--hf-timeout <seconds>`: Hugging Face API timeout (for refetch)
 - `--log-level quiet|standard|debug`
 
 ### `merge`
@@ -126,7 +157,7 @@ The SBOM's application metadata is preserved as the main component, while AI/ML 
 syft scan . -o cyclonedx-json > sbom.json
 
 # 2. Generate AIBOM for AI/ML components using AIBoMGen
-./aibomgen-cli generate -i . -o aibom.json
+./aibomgen-cli scan -i . -o aibom.json
 
 # 3. Merge them into a comprehensive BOM
 ./aibomgen-cli merge --aibom aibom.json --sbom sbom.json -o merged.json
@@ -146,8 +177,23 @@ Options:
 
 ### Global flags
 
-- `--no-color`: disable ANSI coloring
-- `--config <path>`: optional config file. If not provided, the app attempts to read a Viper config from the home directory (see `cmd/root.go`).
+- `--config <path>`: config file to use (default: `$HOME/.aibomgen-cli.yaml` or `./config/defaults.yaml`)
+
+The config file is a YAML file that sets default values for any command flag, so you don't have to repeat them on the command line. Keys are namespaced by command:
+
+```yaml
+scan:
+  hf-token: "hf_..."
+  hf-mode: "online"
+  log-level: "debug"
+
+validate:
+  strict: true
+  min-score: 0.5
+```
+
+Any flag not passed on the CLI falls back to the config file value. CLI flags always take precedence. See [`config/defaults.yaml`](config/defaults.yaml) for a full reference of all available keys.
+
 
 ## Package overview
 
@@ -163,9 +209,9 @@ Cobra CLI wiring: root command, subcommands, flag parsing, and orchestration int
 
 ### `internal/scanner`
 
-Repository scanning.
+Repository scanning used by the `scan` command.
 
-- Current behavior: walks files and detects Hugging Face model IDs by regex matching `from_pretrained("<id>")` in `.py`, `.ipynb`, and `.txt`.
+- Current behavior: walks files and detects Hugging Face model IDs by regex matching `from_pretrained("<id>")` in `.py`, `.ipynb`, and various config/script file types.
 - Important limitation: weight-file detection is intentionally disabled right now.
 - Future work: broaden detection beyond the current basic Hugging Face pattern.
 
@@ -175,7 +221,7 @@ HTTP clients for fetching model and dataset metadata from the Hugging Face Hub.
 
 - Fetches model metadata via API (`/api/models/:id`) and README (model cards)
 - Fetches dataset metadata via API (`/api/datasets/:id`) and README (dataset cards)
-- Used when `generate --hf-mode online` or when enriching with `--refetch`
+- Used when `scan --hf-mode online`, `generate --hf-mode online`, or when enriching with `--refetch`
 - Supports optional bearer token via `--hf-token` for gated/private resources
 - Includes dummy implementations for offline/testing scenarios
 - Provides markdown extraction utilities for parsing model and dataset cards
@@ -203,7 +249,7 @@ Turns a scan result (and optional Hugging Face API response) into a CycloneDX BO
 Orchestrates “per discovery” generation.
 
 - For each detected model: fetch metadata (online mode) and build a BOM via the builder.
-- Returns a list of generated BOMs back to the `generate` command.
+- Returns a list of generated BOMs back to the `scan` and `generate` commands.
 
 ### `internal/io`
 
@@ -240,7 +286,7 @@ Interactively or automatically fills missing metadata fields in an existing AIBO
 
 Comprehensive TUI (Terminal User Interface) system built with Charm libraries (Lipgloss, Bubbletea concepts).
 
-- Provides rich, styled output for all commands (generate, validate, completeness, enrich)
+- Provides rich, styled output for all commands (scan, generate, validate, completeness, enrich, merge)
 - Implements workflow tracking with task progress indicators
 - Defines a consistent color palette and text styles across the application
 - Includes specialized UI components for each command:
@@ -266,7 +312,7 @@ Comprehensive TUI (Terminal User Interface) system built with Charm libraries (L
 
 ## Docs and examples
 
-- `testdata/repo-basic` is a small repository used in tests and examples.
+- `targets/target-2` is a small repository used in tests and examples.
 - `docs/` contains design notes and mapping documentation.
 
 

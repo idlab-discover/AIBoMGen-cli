@@ -21,16 +21,16 @@ jobs:
             format: xml
             hf-mode: dummy
           # Online mode: both fixtures, both formats
-          - fixture: repo-10
+          - fixture: target-1
             format: json
             hf-mode: online
-          - fixture: repo-10
+          - fixture: target-1
             format: xml
             hf-mode: online
-          - fixture: repo-basic
+          - fixture: target-2
             format: json
             hf-mode: online
-          - fixture: repo-basic
+          - fixture: target-2
             format: xml
             hf-mode: online
     steps:
@@ -69,7 +69,7 @@ jobs:
             INPUT_FLAG=""
             FIXTURE_DIR="no-input"
           else
-            INPUT_FLAG="--input ./testdata/${FIXTURE}"
+            INPUT_FLAG="--input ./targets/${FIXTURE}"
             FIXTURE_DIR="${FIXTURE}"
           fi
           TARGET_DIR="dist/integration/${FIXTURE_DIR}/${OUTPUT_FORMAT}/${HF_MODE}"

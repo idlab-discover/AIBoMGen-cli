@@ -1,0 +1,35 @@
+# Axolotl fine-tuning config
+# https://github.com/axolotl-ai-cloud/axolotl
+#
+# Scanner should detect: base_model, model_id, hub_model_id
+
+base_model: meta-llama/Llama-3.1-8B           # detected: yaml_model_field (base_model)
+model_id: meta-llama/Llama-3.1-8B             # detected: yaml_model_field (model_id)
+
+# Where to push the fine-tuned adapter
+hub_model_id: my-org/llama-3.1-8b-axolotl-ft  # detected: yaml_model_field (hub_model_id)
+
+# Single-segment values below – NOT detected (scanner requires org/model for YAML)
+tokenizer_type: LlamaTokenizer
+model_type: LlamaForCausalLM
+
+datasets:
+  - path: tatsu-lab/alpaca
+    type: alpaca
+
+sequence_len: 4096
+sample_packing: true
+pad_to_sequence_len: true
+
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules:
+  - q_proj
+  - v_proj
+
+gradient_checkpointing: true
+learning_rate: 0.0002
+num_epochs: 3
+micro_batch_size: 2
+output_dir: ./outputs/axolotl-llama

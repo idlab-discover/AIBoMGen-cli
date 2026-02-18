@@ -1,4 +1,4 @@
-# Test Fixture: repo-basic
+# Test Fixture: target-2
 
 This is a minimal repository to exercise the AIBoMGen scanner.
 
@@ -11,5 +11,5 @@ Use it with:
 
 ```
 # From repository root
-# go run . generate --path testdata/repo-basic --output dist/aibom-test.json
+# go run . generate --path targets/target-2 --output dist/aibom-test.json
 ```
