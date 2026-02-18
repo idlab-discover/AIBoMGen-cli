@@ -76,12 +76,22 @@ jobs:
           rm -rf "${TARGET_DIR}"
           mkdir -p "${TARGET_DIR}"
           FORMAT_FLAG="--format ${OUTPUT_FORMAT}"
-          go run . generate \
-            ${INPUT_FLAG} \
-            --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
-            ${FORMAT_FLAG} \
-            --hf-mode "${HF_MODE}" \
-            --log-level debug
+
+          # Use `generate` only for dummy mode; use `scan` for scanning fixtures
+          if [ "${HF_MODE}" = "dummy" ]; then
+            go run . generate \
+              --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
+              ${FORMAT_FLAG} \
+              --hf-mode "${HF_MODE}" \
+              --log-level debug
+          else
+            go run . scan \
+              ${INPUT_FLAG} \
+              --output "${TARGET_DIR}/aibom.${OUTPUT_FORMAT}" \
+              ${FORMAT_FLAG} \
+              --hf-mode "${HF_MODE}" \
+              --log-level debug
+          fi
 
       - name: Validate generated AIBOM files
         env:
