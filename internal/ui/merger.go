@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/merger"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/merger"
 )
 
 // MergerUI provides a rich UI for the merge command

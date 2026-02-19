@@ -2,7 +2,7 @@ package metadata
 
 import (
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/scanner"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )

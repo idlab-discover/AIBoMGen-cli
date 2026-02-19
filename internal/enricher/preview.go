@@ -6,7 +6,7 @@ import (
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 	"github.com/charmbracelet/huh"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )

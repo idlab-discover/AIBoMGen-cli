@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/scanner"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/scanner"
 )
 
 func TestNewBOMBuilder(t *testing.T) {

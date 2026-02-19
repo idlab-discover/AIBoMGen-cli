@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 )

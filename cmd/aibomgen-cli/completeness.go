@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
-	bomio "github.com/idlab-discover/AIBoMGen-cli/internal/io"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
 

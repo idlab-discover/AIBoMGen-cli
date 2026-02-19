@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/completeness"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 
 	lipgloss "charm.land/lipgloss/v2"
