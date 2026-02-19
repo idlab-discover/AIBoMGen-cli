@@ -5,9 +5,6 @@ AIBoMGen-cra
 aibomgen-cli
 AIBoMGen-cli
 
-aibomgen
-AIBoMGen
-
 # not cmd/aibomgen-cli
 !cmd/aibomgen-cli
 
