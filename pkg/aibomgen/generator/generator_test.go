@@ -35,45 +35,45 @@ func (m *mockBOMBuilder) BuildDataset(ctx builder.DatasetBuildContext) (*cdx.Com
 
 // Mock Fetchers for testing
 type mockModelAPIFetcher struct {
-	fetchFunc func(context.Context, string) (*fetcher.ModelAPIResponse, error)
+	fetchFunc func(string) (*fetcher.ModelAPIResponse, error)
 }
 
-func (m *mockModelAPIFetcher) Fetch(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
+func (m *mockModelAPIFetcher) Fetch(id string) (*fetcher.ModelAPIResponse, error) {
 	if m.fetchFunc != nil {
-		return m.fetchFunc(ctx, id)
+		return m.fetchFunc(id)
 	}
 	return &fetcher.ModelAPIResponse{}, nil
 }
 
 type mockModelReadmeFetcher struct {
-	fetchFunc func(context.Context, string) (*fetcher.ModelReadmeCard, error)
+	fetchFunc func(string) (*fetcher.ModelReadmeCard, error)
 }
 
-func (m *mockModelReadmeFetcher) Fetch(ctx context.Context, id string) (*fetcher.ModelReadmeCard, error) {
+func (m *mockModelReadmeFetcher) Fetch(id string) (*fetcher.ModelReadmeCard, error) {
 	if m.fetchFunc != nil {
-		return m.fetchFunc(ctx, id)
+		return m.fetchFunc(id)
 	}
 	return &fetcher.ModelReadmeCard{}, nil
 }
 
 type mockDatasetAPIFetcher struct {
-	fetchFunc func(context.Context, string) (*fetcher.DatasetAPIResponse, error)
+	fetchFunc func(string) (*fetcher.DatasetAPIResponse, error)
 }
 
-func (m *mockDatasetAPIFetcher) Fetch(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
+func (m *mockDatasetAPIFetcher) Fetch(id string) (*fetcher.DatasetAPIResponse, error) {
 	if m.fetchFunc != nil {
-		return m.fetchFunc(ctx, id)
+		return m.fetchFunc(id)
 	}
 	return &fetcher.DatasetAPIResponse{}, nil
 }
 
 type mockDatasetReadmeFetcher struct {
-	fetchFunc func(context.Context, string) (*fetcher.DatasetReadmeCard, error)
+	fetchFunc func(string) (*fetcher.DatasetReadmeCard, error)
 }
 
-func (m *mockDatasetReadmeFetcher) Fetch(ctx context.Context, id string) (*fetcher.DatasetReadmeCard, error) {
+func (m *mockDatasetReadmeFetcher) Fetch(id string) (*fetcher.DatasetReadmeCard, error) {
 	if m.fetchFunc != nil {
-		return m.fetchFunc(ctx, id)
+		return m.fetchFunc(id)
 	}
 	return &fetcher.DatasetReadmeCard{}, nil
 }
@@ -117,7 +117,7 @@ func TestBuildDummyBOM(t *testing.T) {
 				newDummyFetcherSet = func() fetcherSet {
 					return fetcherSet{
 						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.ModelAPIResponse, error) {
 								return nil, context.Canceled
 							},
 						},
@@ -136,7 +136,7 @@ func TestBuildDummyBOM(t *testing.T) {
 					return fetcherSet{
 						modelAPI: &fetcher.DummyModelAPIFetcher{},
 						modelReadme: &mockModelReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelReadmeCard, error) {
+							fetchFunc: func(id string) (*fetcher.ModelReadmeCard, error) {
 								return nil, context.Canceled
 							},
 						},
@@ -168,7 +168,7 @@ func TestBuildDummyBOM(t *testing.T) {
 						modelAPI:    &fetcher.DummyModelAPIFetcher{},
 						modelReadme: &fetcher.DummyModelReadmeFetcher{},
 						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.DatasetAPIResponse, error) {
 								return nil, context.Canceled // Dataset fetch fails
 							},
 						},
@@ -194,7 +194,7 @@ func TestBuildDummyBOM(t *testing.T) {
 						modelReadme: &fetcher.DummyModelReadmeFetcher{},
 						datasetAPI:  &fetcher.DummyDatasetAPIFetcher{},
 						datasetReadme: &mockDatasetReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetReadmeCard, error) {
+							fetchFunc: func(id string) (*fetcher.DatasetReadmeCard, error) {
 								return nil, context.Canceled
 							},
 						},
@@ -236,14 +236,17 @@ func TestBuildDummyBOM(t *testing.T) {
 }
 
 func TestBuildPerDiscovery(t *testing.T) {
-	// Save original and restore after test
+	// Save originals and restore after each test
 	originalBuilder := newBOMBuilder
-	defer func() { newBOMBuilder = originalBuilder }()
+	originalFetcherSet := newFetcherSet
+	defer func() {
+		newBOMBuilder = originalBuilder
+		newFetcherSet = originalFetcherSet
+	}()
 
 	type args struct {
 		discoveries []scanner.Discovery
-		hfToken     string
-		timeout     time.Duration
+		opts        GenerateOptions
 	}
 	tests := []struct {
 		name    string
@@ -258,13 +261,12 @@ func TestBuildPerDiscovery(t *testing.T) {
 				discoveries: []scanner.Discovery{
 					{ID: "test-model", Name: "test-model", Type: "huggingface"},
 				},
-				hfToken: "",
-				timeout: 1 * time.Second,
+				opts: GenerateOptions{Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{SerialNumber: "test-serial"}, nil
 						},
 					}
@@ -281,13 +283,10 @@ func TestBuildPerDiscovery(t *testing.T) {
 			name: "builds BOM for empty discovery list",
 			args: args{
 				discoveries: []scanner.Discovery{},
-				hfToken:     "",
-				timeout:     1 * time.Second,
+				opts:        GenerateOptions{Timeout: 1 * time.Second},
 			},
 			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{}
-				}
+				newBOMBuilder = func() bomBuilder { return &mockBOMBuilder{} }
 			},
 			wantErr: false,
 			check: func(t *testing.T, got []DiscoveredBOM) {
@@ -302,13 +301,12 @@ func TestBuildPerDiscovery(t *testing.T) {
 				discoveries: []scanner.Discovery{
 					{ID: "test-model", Name: "test-model", Type: "huggingface"},
 				},
-				hfToken: "",
-				timeout: 0, // Zero timeout should use default
+				opts: GenerateOptions{Timeout: 0}, // Zero timeout should use default
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
 					}
@@ -327,13 +325,12 @@ func TestBuildPerDiscovery(t *testing.T) {
 				discoveries: []scanner.Discovery{
 					{ID: "", Name: "fallback-name", Type: "huggingface"},
 				},
-				hfToken: "",
-				timeout: 1 * time.Second,
+				opts: GenerateOptions{Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
 					}
@@ -346,64 +343,21 @@ func TestBuildPerDiscovery(t *testing.T) {
 				}
 			},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.setup != nil {
-				tt.setup()
-			}
-			got, err := BuildPerDiscovery(tt.args.discoveries, tt.args.hfToken, tt.args.timeout)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BuildPerDiscovery() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if tt.check != nil && !tt.wantErr {
-				tt.check(t, got)
-			}
-		})
-	}
-}
-
-func TestBuildPerDiscoveryWithProgress(t *testing.T) {
-	// Save original and restore after test
-	originalBuilder := newBOMBuilder
-	originalFetcherSet := newFetcherSet
-	defer func() {
-		newBOMBuilder = originalBuilder
-		newFetcherSet = originalFetcherSet
-	}()
-
-	type args struct {
-		ctx         context.Context
-		discoveries []scanner.Discovery
-		opts        GenerateOptions
-	}
-	tests := []struct {
-		name    string
-		args    args
-		setup   func()
-		wantErr bool
-		check   func(*testing.T, []DiscoveredBOM)
-	}{
 		{
 			name: "calls progress callback during build",
 			args: args{
-				ctx: context.Background(),
 				discoveries: []scanner.Discovery{
 					{ID: "test-model", Name: "test-model", Type: "huggingface"},
 				},
 				opts: GenerateOptions{
-					HFToken: "",
-					Timeout: 1 * time.Second,
-					OnProgress: func(event ProgressEvent) {
-						// Progress callback is called
-					},
+					Timeout:    1 * time.Second,
+					OnProgress: func(event ProgressEvent) {},
 				},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{SerialNumber: "test-serial"}, nil
 						},
 					}
@@ -417,38 +371,12 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 			},
 		},
 		{
-			name: "handles context cancellation",
+			name: "returns error when BOM build fails",
 			args: args{
-				ctx: func() context.Context {
-					ctx, cancel := context.WithCancel(context.Background())
-					cancel() // Cancel immediately
-					return ctx
-				}(),
 				discoveries: []scanner.Discovery{
 					{ID: "test-model", Name: "test-model", Type: "huggingface"},
 				},
 				opts: GenerateOptions{
-					HFToken: "",
-					Timeout: 1 * time.Second,
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{}
-				}
-			},
-			wantErr: true,
-			check:   nil,
-		},
-		{
-			name: "handles BOM build error during progress",
-			args: args{
-				ctx: context.Background(),
-				discoveries: []scanner.Discovery{
-					{ID: "test-model", Name: "test-model", Type: "huggingface"},
-				},
-				opts: GenerateOptions{
-					HFToken:    "",
 					Timeout:    1 * time.Second,
 					OnProgress: func(event ProgressEvent) {},
 				},
@@ -456,35 +384,56 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return nil, context.Canceled
 						},
 					}
 				}
 			},
 			wantErr: true,
-			check:   nil,
 		},
 		{
-			name: "tracks progress events",
+			name: "builds datasets from model metadata",
 			args: args{
-				ctx: context.Background(),
 				discoveries: []scanner.Discovery{
-					{ID: "model1", Name: "model1", Type: "huggingface"},
+					{ID: "model-with-datasets", Name: "model-with-datasets", Type: "huggingface"},
 				},
-				opts: GenerateOptions{
-					HFToken: "",
-					Timeout: 1 * time.Second,
-					OnProgress: func(event ProgressEvent) {
-						// Verify event types are called
-					},
-				},
+				opts: GenerateOptions{Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
+						},
+						buildDatasetFunc: func(bctx builder.DatasetBuildContext) (*cdx.Component, error) {
+							return &cdx.Component{Type: cdx.ComponentTypeData, Name: bctx.DatasetID}, nil
+						},
+					}
+				}
+				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
+					return fetcherSet{
+						modelAPI: &mockModelAPIFetcher{
+							fetchFunc: func(id string) (*fetcher.ModelAPIResponse, error) {
+								return &fetcher.ModelAPIResponse{
+									CardData: map[string]interface{}{"datasets": []interface{}{"dataset-1"}},
+								}, nil
+							},
+						},
+						modelReadme: &mockModelReadmeFetcher{
+							fetchFunc: func(id string) (*fetcher.ModelReadmeCard, error) {
+								return &fetcher.ModelReadmeCard{}, nil
+							},
+						},
+						datasetAPI: &mockDatasetAPIFetcher{
+							fetchFunc: func(id string) (*fetcher.DatasetAPIResponse, error) {
+								return &fetcher.DatasetAPIResponse{ID: id}, nil
+							},
+						},
+						datasetReadme: &mockDatasetReadmeFetcher{
+							fetchFunc: func(id string) (*fetcher.DatasetReadmeCard, error) {
+								return &fetcher.DatasetReadmeCard{}, nil
+							},
 						},
 					}
 				}
@@ -493,69 +442,16 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 			check: func(t *testing.T, got []DiscoveredBOM) {
 				if len(got) != 1 {
 					t.Errorf("Expected 1 BOM, got %d", len(got))
+					return
+				}
+				if got[0].BOM.Components == nil || len(*got[0].BOM.Components) != 1 {
+					t.Errorf("Expected 1 dataset component, got %v", got[0].BOM.Components)
 				}
 			},
 		},
 		{
-			name: "uses default timeout when opts.Timeout is zero",
+			name: "skips datasets that fail to fetch",
 			args: args{
-				ctx: context.Background(),
-				discoveries: []scanner.Discovery{
-					{ID: "model1", Name: "model1", Type: "huggingface"},
-				},
-				opts: GenerateOptions{
-					HFToken: "",
-					Timeout: 0, // Should use default 10 seconds
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							return &cdx.BOM{}, nil
-						},
-					}
-				}
-			},
-			wantErr: false,
-			check: func(t *testing.T, got []DiscoveredBOM) {
-				if len(got) != 1 {
-					t.Errorf("Expected 1 BOM, got %d", len(got))
-				}
-			},
-		},
-		{
-			name: "uses Name when ID is empty string",
-			args: args{
-				ctx: context.Background(),
-				discoveries: []scanner.Discovery{
-					{ID: "", Name: "fallback-model", Type: "huggingface"},
-				},
-				opts: GenerateOptions{
-					HFToken: "",
-					Timeout: 1 * time.Second,
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							return &cdx.BOM{}, nil
-						},
-					}
-				}
-			},
-			wantErr: false,
-			check: func(t *testing.T, got []DiscoveredBOM) {
-				if len(got) != 1 {
-					t.Errorf("Expected 1 BOM, got %d", len(got))
-				}
-			},
-		},
-		{
-			name: "successfully fetches API and README with progress events",
-			args: args{
-				ctx: context.Background(),
 				discoveries: []scanner.Discovery{
 					{ID: "model-with-api", Name: "model-with-api", Type: "huggingface"},
 				},
@@ -566,22 +462,20 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 				},
 			},
 			setup: func() {
-				builderCallCount := 0
 				newBOMBuilder = func() bomBuilder {
-					builderCallCount++
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
-						buildDatasetFunc: func(ctx builder.DatasetBuildContext) (*cdx.Component, error) {
-							return &cdx.Component{Name: ctx.DatasetID}, nil
+						buildDatasetFunc: func(bctx builder.DatasetBuildContext) (*cdx.Component, error) {
+							return &cdx.Component{Name: bctx.DatasetID}, nil
 						},
 					}
 				}
 				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
 					return fetcherSet{
 						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.ModelAPIResponse, error) {
 								return &fetcher.ModelAPIResponse{
 									ID: id,
 									CardData: map[string]interface{}{
@@ -591,14 +485,14 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 							},
 						},
 						modelReadme: &mockModelReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelReadmeCard, error) {
+							fetchFunc: func(id string) (*fetcher.ModelReadmeCard, error) {
 								return &fetcher.ModelReadmeCard{
 									Datasets: []string{"readme-dataset"},
 								}, nil
 							},
 						},
 						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.DatasetAPIResponse, error) {
 								if id == "failing-dataset" {
 									return nil, context.Canceled
 								}
@@ -606,7 +500,7 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 							},
 						},
 						datasetReadme: &mockDatasetReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetReadmeCard, error) {
+							fetchFunc: func(id string) (*fetcher.DatasetReadmeCard, error) {
 								return &fetcher.DatasetReadmeCard{}, nil
 							},
 						},
@@ -619,128 +513,43 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 					t.Errorf("Expected 1 BOM, got %d", len(got))
 					return
 				}
-				// Should have datasets added as components (2 datasets: test-dataset, readme-dataset)
-				// failing-dataset should be skipped
-				if got[0].BOM.Components == nil {
-					t.Error("Expected BOM to have dataset components")
-					return
-				}
-				if len(*got[0].BOM.Components) != 2 {
-					t.Errorf("Expected 2 dataset components (1 failed), got %d", len(*got[0].BOM.Components))
-				}
-			},
-		},
-		{
-			name: "builds datasets from model metadata",
-			args: args{
-				ctx: context.Background(),
-				discoveries: []scanner.Discovery{
-					{ID: "model-with-datasets", Name: "model-with-datasets", Type: "huggingface"},
-				},
-				opts: GenerateOptions{
-					HFToken:    "",
-					Timeout:    1 * time.Second,
-					OnProgress: nil,
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							return &cdx.BOM{}, nil
-						},
-						buildDatasetFunc: func(ctx builder.DatasetBuildContext) (*cdx.Component, error) {
-							comp := &cdx.Component{
-								Type: cdx.ComponentTypeData,
-								Name: ctx.DatasetID,
-							}
-							return comp, nil
-						},
-					}
-				}
-				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
-					return fetcherSet{
-						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
-								return &fetcher.ModelAPIResponse{
-									CardData: map[string]interface{}{
-										"datasets": []interface{}{"dataset-1"},
-									},
-								}, nil
-							},
-						},
-						modelReadme: &mockModelReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelReadmeCard, error) {
-								return &fetcher.ModelReadmeCard{}, nil
-							},
-						},
-						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
-								return &fetcher.DatasetAPIResponse{
-									ID: id,
-								}, nil
-							},
-						},
-						datasetReadme: &mockDatasetReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetReadmeCard, error) {
-								return &fetcher.DatasetReadmeCard{}, nil
-							},
-						},
-					}
-				}
-			},
-			wantErr: false,
-			check: func(t *testing.T, got []DiscoveredBOM) {
-				if len(got) != 1 {
-					t.Errorf("Expected 1 BOM, got %d", len(got))
-					return
-				}
-				if got[0].BOM.Components == nil {
-					t.Error("Expected BOM to have components, but Components is nil")
-					return
-				}
-				if len(*got[0].BOM.Components) != 1 {
-					t.Errorf("Expected 1 dataset component, got %d: %+v", len(*got[0].BOM.Components), *got[0].BOM.Components)
+				// 2 datasets succeed (test-dataset, readme-dataset); failing-dataset is skipped
+				if got[0].BOM.Components == nil || len(*got[0].BOM.Components) != 2 {
+					t.Errorf("Expected 2 dataset components (1 failed), got %v", got[0].BOM.Components)
 				}
 			},
 		},
 		{
 			name: "handles dataset build errors gracefully",
 			args: args{
-				ctx: context.Background(),
 				discoveries: []scanner.Discovery{
 					{ID: "model-with-failing-dataset", Name: "model-with-failing-dataset", Type: "huggingface"},
 				},
-				opts: GenerateOptions{
-					HFToken: "test-token",
-					Timeout: 1 * time.Second,
-				},
+				opts: GenerateOptions{HFToken: "test-token", Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
-						buildDatasetFunc: func(ctx builder.DatasetBuildContext) (*cdx.Component, error) {
-							return nil, context.Canceled // Dataset build fails
+						buildDatasetFunc: func(bctx builder.DatasetBuildContext) (*cdx.Component, error) {
+							return nil, context.Canceled
 						},
 					}
 				}
 				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
 					return fetcherSet{
 						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.ModelAPIResponse, error) {
 								return &fetcher.ModelAPIResponse{
-									CardData: map[string]interface{}{
-										"datasets": []interface{}{"failing-dataset"},
-									},
+									CardData: map[string]interface{}{"datasets": []interface{}{"failing-dataset"}},
 								}, nil
 							},
 						},
 						modelReadme: &mockModelReadmeFetcher{},
 						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.DatasetAPIResponse, error) {
 								return &fetcher.DatasetAPIResponse{ID: id}, nil
 							},
 						},
@@ -754,89 +563,23 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 					t.Errorf("Expected 1 BOM, got %d", len(got))
 					return
 				}
-				// Dataset build failed, so components should be nil or empty
 				if got[0].BOM.Components != nil && len(*got[0].BOM.Components) > 0 {
 					t.Errorf("Expected no dataset components due to build error, got %d", len(*got[0].BOM.Components))
 				}
 			},
 		},
 		{
-			name: "handles dataset readme fetch errors",
-			args: args{
-				ctx: context.Background(),
-				discoveries: []scanner.Discovery{
-					{ID: "model-with-dataset-readme-error", Name: "model-with-dataset-readme-error", Type: "huggingface"},
-				},
-				opts: GenerateOptions{
-					HFToken: "test-token",
-					Timeout: 1 * time.Second,
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							return &cdx.BOM{}, nil
-						},
-						buildDatasetFunc: func(ctx builder.DatasetBuildContext) (*cdx.Component, error) {
-							return &cdx.Component{Name: ctx.DatasetID, Type: cdx.ComponentTypeData}, nil
-						},
-					}
-				}
-				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
-					return fetcherSet{
-						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
-								return &fetcher.ModelAPIResponse{
-									CardData: map[string]interface{}{
-										"datasets": []interface{}{"dataset1"},
-									},
-								}, nil
-							},
-						},
-						modelReadme: &mockModelReadmeFetcher{},
-						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
-								return &fetcher.DatasetAPIResponse{ID: id}, nil
-							},
-						},
-						datasetReadme: &mockDatasetReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetReadmeCard, error) {
-								return nil, context.Canceled // Readme fetch fails
-							},
-						},
-					}
-				}
-			},
-			wantErr: false,
-			check: func(t *testing.T, got []DiscoveredBOM) {
-				if len(got) != 1 {
-					t.Errorf("Expected 1 BOM, got %d", len(got))
-					return
-				}
-				// Dataset API succeeded but readme failed - should still have the component
-				if got[0].BOM.Components == nil || len(*got[0].BOM.Components) != 1 {
-					t.Errorf("Expected 1 dataset component (readme failure is ignored), got %d", len(*got[0].BOM.Components))
-				}
-			},
-		},
-		{
 			name: "handles model API and README fetch errors gracefully",
 			args: args{
-				ctx: context.Background(),
 				discoveries: []scanner.Discovery{
 					{ID: "model-with-fetch-errors", Name: "model-with-fetch-errors", Type: "huggingface"},
 				},
-				opts: GenerateOptions{
-					HFToken: "test-token",
-					Timeout: 1 * time.Second,
-				},
+				opts: GenerateOptions{HFToken: "test-token", Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							// Build succeeds even with nil API and README
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
 					}
@@ -844,13 +587,13 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
 					return fetcherSet{
 						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
-								return nil, context.Canceled // Model API fetch fails
+							fetchFunc: func(id string) (*fetcher.ModelAPIResponse, error) {
+								return nil, context.Canceled
 							},
 						},
 						modelReadme: &mockModelReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelReadmeCard, error) {
-								return nil, context.Canceled // Model README fetch fails
+							fetchFunc: func(id string) (*fetcher.ModelReadmeCard, error) {
+								return nil, context.Canceled
 							},
 						},
 						datasetAPI:    &mockDatasetAPIFetcher{},
@@ -862,9 +605,7 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 			check: func(t *testing.T, got []DiscoveredBOM) {
 				if len(got) != 1 {
 					t.Errorf("Expected 1 BOM, got %d", len(got))
-					return
 				}
-				// Fetches failed but BOM was still built
 			},
 		},
 	}
@@ -873,9 +614,9 @@ func TestBuildPerDiscoveryWithProgress(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup()
 			}
-			got, err := BuildPerDiscoveryWithProgress(tt.args.ctx, tt.args.discoveries, tt.args.opts)
+			got, err := BuildPerDiscovery(tt.args.discoveries, tt.args.opts)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("BuildPerDiscoveryWithProgress() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("BuildPerDiscovery() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.check != nil && !tt.wantErr {
@@ -987,14 +728,17 @@ func Test_extractDatasetsFromModel(t *testing.T) {
 }
 
 func TestBuildFromModelIDs(t *testing.T) {
-	// Save original and restore after test
+	// Save originals and restore after each test
 	originalBuilder := newBOMBuilder
-	defer func() { newBOMBuilder = originalBuilder }()
+	originalFetcherSet := newFetcherSet
+	defer func() {
+		newBOMBuilder = originalBuilder
+		newFetcherSet = originalFetcherSet
+	}()
 
 	type args struct {
 		modelIDs []string
-		hfToken  string
-		timeout  time.Duration
+		opts     GenerateOptions
 	}
 	tests := []struct {
 		name    string
@@ -1007,13 +751,12 @@ func TestBuildFromModelIDs(t *testing.T) {
 			name: "builds BOM for single model ID",
 			args: args{
 				modelIDs: []string{"org/model"},
-				hfToken:  "",
-				timeout:  1 * time.Second,
+				opts:     GenerateOptions{Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{SerialNumber: "test"}, nil
 						},
 					}
@@ -1034,13 +777,12 @@ func TestBuildFromModelIDs(t *testing.T) {
 			name: "skips empty model IDs",
 			args: args{
 				modelIDs: []string{"", "  ", "org/model"},
-				hfToken:  "",
-				timeout:  1 * time.Second,
+				opts:     GenerateOptions{Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
 					}
@@ -1057,13 +799,10 @@ func TestBuildFromModelIDs(t *testing.T) {
 			name: "handles empty list",
 			args: args{
 				modelIDs: []string{},
-				hfToken:  "",
-				timeout:  1 * time.Second,
+				opts:     GenerateOptions{Timeout: 1 * time.Second},
 			},
 			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{}
-				}
+				newBOMBuilder = func() bomBuilder { return &mockBOMBuilder{} }
 			},
 			wantErr: false,
 			check: func(t *testing.T, got []DiscoveredBOM) {
@@ -1072,209 +811,19 @@ func TestBuildFromModelIDs(t *testing.T) {
 				}
 			},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.setup != nil {
-				tt.setup()
-			}
-			got, err := BuildFromModelIDs(tt.args.modelIDs, tt.args.hfToken, tt.args.timeout)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BuildFromModelIDs() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if tt.check != nil && !tt.wantErr {
-				tt.check(t, got)
-			}
-		})
-	}
-}
-
-func TestBuildFromModelIDsWithProgress(t *testing.T) {
-	// Save original and restore after test
-	originalBuilder := newBOMBuilder
-	originalFetcherSet := newFetcherSet
-	defer func() {
-		newBOMBuilder = originalBuilder
-		newFetcherSet = originalFetcherSet
-	}()
-
-	type args struct {
-		ctx      context.Context
-		modelIDs []string
-		opts     GenerateOptions
-	}
-	tests := []struct {
-		name    string
-		args    args
-		setup   func()
-		wantErr bool
-		check   func(*testing.T, []DiscoveredBOM)
-	}{
 		{
 			name: "calls progress callback",
 			args: args{
-				ctx:      context.Background(),
 				modelIDs: []string{"org/model"},
 				opts: GenerateOptions{
-					HFToken: "",
-					Timeout: 1 * time.Second,
-					OnProgress: func(event ProgressEvent) {
-						// Progress callback called
-					},
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							return &cdx.BOM{}, nil
-						},
-					}
-				}
-			},
-			wantErr: false,
-			check: func(t *testing.T, got []DiscoveredBOM) {
-				if len(got) != 1 {
-					t.Errorf("Expected 1 BOM, got %d", len(got))
-				}
-			},
-		},
-		{
-			name: "handles context cancellation",
-			args: args{
-				ctx: func() context.Context {
-					ctx, cancel := context.WithCancel(context.Background())
-					cancel()
-					return ctx
-				}(),
-				modelIDs: []string{"org/model"},
-				opts: GenerateOptions{
-					Timeout: 1 * time.Second,
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{}
-				}
-			},
-			wantErr: true,
-			check:   nil,
-		},
-		{
-			name: "works with nil progress callback",
-			args: args{
-				ctx:      context.Background(),
-				modelIDs: []string{"org/model"},
-				opts: GenerateOptions{
-					HFToken:    "",
 					Timeout:    1 * time.Second,
-					OnProgress: nil,
+					OnProgress: func(event ProgressEvent) {},
 				},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							return &cdx.BOM{}, nil
-						},
-					}
-				}
-			},
-			wantErr: false,
-			check: func(t *testing.T, got []DiscoveredBOM) {
-				if len(got) != 1 {
-					t.Errorf("Expected 1 BOM, got %d", len(got))
-				}
-			},
-		},
-		{
-			name: "builds model with single dataset from model IDs",
-			args: args{
-				ctx:      context.Background(),
-				modelIDs: []string{"org/model-simple"},
-				opts: GenerateOptions{
-					HFToken:    "",
-					Timeout:    1 * time.Second,
-					OnProgress: nil,
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							return &cdx.BOM{}, nil
-						},
-						buildDatasetFunc: func(ctx builder.DatasetBuildContext) (*cdx.Component, error) {
-							return &cdx.Component{
-								Name: ctx.DatasetID,
-								Type: cdx.ComponentTypeData,
-							}, nil
-						},
-					}
-				}
-				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
-					return fetcherSet{
-						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
-								return &fetcher.ModelAPIResponse{
-									CardData: map[string]interface{}{
-										"datasets": []interface{}{"simple-dataset", "failing-dataset2"},
-									},
-								}, nil
-							},
-						},
-						modelReadme: &mockModelReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelReadmeCard, error) {
-								return &fetcher.ModelReadmeCard{}, nil
-							},
-						},
-						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
-								if id == "failing-dataset2" {
-									return nil, context.Canceled
-								}
-								return &fetcher.DatasetAPIResponse{ID: id}, nil
-							},
-						},
-						datasetReadme: &mockDatasetReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetReadmeCard, error) {
-								return &fetcher.DatasetReadmeCard{}, nil
-							},
-						},
-					}
-				}
-			},
-			wantErr: false,
-			check: func(t *testing.T, got []DiscoveredBOM) {
-				if len(got) != 1 {
-					t.Errorf("Expected 1 BOM, got %d", len(got))
-					return
-				}
-				if got[0].BOM.Components == nil {
-					t.Error("Expected components to be non-nil")
-					return
-				}
-				if len(*got[0].BOM.Components) != 1 {
-					t.Errorf("Expected 1 dataset component (one failed), got %d", len(*got[0].BOM.Components))
-				}
-			},
-		},
-		{
-			name: "uses default timeout when zero",
-			args: args{
-				ctx:      context.Background(),
-				modelIDs: []string{"org/model"},
-				opts: GenerateOptions{
-					HFToken:    "",
-					Timeout:    0, // Should use default
-					OnProgress: nil,
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
 					}
@@ -1290,18 +839,14 @@ func TestBuildFromModelIDsWithProgress(t *testing.T) {
 		{
 			name: "continues on BOM build error",
 			args: args{
-				ctx:      context.Background(),
 				modelIDs: []string{"org/model1", "org/model2"},
-				opts: GenerateOptions{
-					HFToken: "",
-					Timeout: 1 * time.Second,
-				},
+				opts:     GenerateOptions{Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				callCount := 0
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							callCount++
 							if callCount == 1 {
 								return nil, context.Canceled // Error on first
@@ -1313,7 +858,6 @@ func TestBuildFromModelIDsWithProgress(t *testing.T) {
 			},
 			wantErr: false,
 			check: func(t *testing.T, got []DiscoveredBOM) {
-				// Should have 1 BOM (second one succeeded)
 				if len(got) != 1 {
 					t.Errorf("Expected 1 BOM (first failed, second succeeded), got %d", len(got))
 				}
@@ -1322,7 +866,6 @@ func TestBuildFromModelIDsWithProgress(t *testing.T) {
 		{
 			name: "successfully fetches and builds with datasets",
 			args: args{
-				ctx:      context.Background(),
 				modelIDs: []string{"org/model-with-datasets"},
 				opts: GenerateOptions{
 					HFToken:    "test-token",
@@ -1333,18 +876,18 @@ func TestBuildFromModelIDsWithProgress(t *testing.T) {
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
-						buildDatasetFunc: func(ctx builder.DatasetBuildContext) (*cdx.Component, error) {
-							return &cdx.Component{Name: ctx.DatasetID, Type: cdx.ComponentTypeData}, nil
+						buildDatasetFunc: func(bctx builder.DatasetBuildContext) (*cdx.Component, error) {
+							return &cdx.Component{Name: bctx.DatasetID, Type: cdx.ComponentTypeData}, nil
 						},
 					}
 				}
 				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
 					return fetcherSet{
 						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.ModelAPIResponse, error) {
 								return &fetcher.ModelAPIResponse{
 									ID: id,
 									CardData: map[string]interface{}{
@@ -1354,19 +897,17 @@ func TestBuildFromModelIDsWithProgress(t *testing.T) {
 							},
 						},
 						modelReadme: &mockModelReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelReadmeCard, error) {
-								return &fetcher.ModelReadmeCard{
-									Datasets: []string{"dataset3"},
-								}, nil
+							fetchFunc: func(id string) (*fetcher.ModelReadmeCard, error) {
+								return &fetcher.ModelReadmeCard{Datasets: []string{"dataset3"}}, nil
 							},
 						},
 						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.DatasetAPIResponse, error) {
 								return &fetcher.DatasetAPIResponse{ID: id}, nil
 							},
 						},
 						datasetReadme: &mockDatasetReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetReadmeCard, error) {
+							fetchFunc: func(id string) (*fetcher.DatasetReadmeCard, error) {
 								return &fetcher.DatasetReadmeCard{}, nil
 							},
 						},
@@ -1379,111 +920,47 @@ func TestBuildFromModelIDsWithProgress(t *testing.T) {
 					t.Errorf("Expected 1 BOM, got %d", len(got))
 					return
 				}
-				// Should have 3 datasets (dataset1, dataset2, dataset3)
-				if got[0].BOM.Components == nil {
-					t.Error("Expected BOM to have component")
-					return
-				}
-				if len(*got[0].BOM.Components) != 3 {
-					t.Errorf("Expected 3 dataset components, got %d", len(*got[0].BOM.Components))
-				}
-			},
-		},
-		{
-			name: "handles dataset build errors",
-			args: args{
-				ctx:      context.Background(),
-				modelIDs: []string{"org/model-with-failing-datasets"},
-				opts: GenerateOptions{
-					HFToken: "test-token",
-					Timeout: 1 * time.Second,
-				},
-			},
-			setup: func() {
-				newBOMBuilder = func() bomBuilder {
-					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
-							return &cdx.BOM{}, nil
-						},
-						buildDatasetFunc: func(ctx builder.DatasetBuildContext) (*cdx.Component, error) {
-							return nil, context.Canceled // Fail to build dataset
-						},
-					}
-				}
-				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
-					return fetcherSet{
-						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
-								return &fetcher.ModelAPIResponse{
-									CardData: map[string]interface{}{
-										"datasets": []interface{}{"dataset1"},
-									},
-								}, nil
-							},
-						},
-						modelReadme: &mockModelReadmeFetcher{},
-						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
-								return &fetcher.DatasetAPIResponse{ID: id}, nil
-							},
-						},
-						datasetReadme: &mockDatasetReadmeFetcher{},
-					}
-				}
-			},
-			wantErr: false,
-			check: func(t *testing.T, got []DiscoveredBOM) {
-				if len(got) != 1 {
-					t.Errorf("Expected 1 BOM, got %d", len(got))
-					return
-				}
-				// Dataset failed to build, should have no components
-				if got[0].BOM.Components != nil && len(*got[0].BOM.Components) > 0 {
-					t.Errorf("Expected no components due to build errors, got %d", len(*got[0].BOM.Components))
+				// dataset1, dataset2, dataset3
+				if got[0].BOM.Components == nil || len(*got[0].BOM.Components) != 3 {
+					t.Errorf("Expected 3 dataset components, got %v", got[0].BOM.Components)
 				}
 			},
 		},
 		{
 			name: "handles dataset readme fetch errors",
 			args: args{
-				ctx:      context.Background(),
 				modelIDs: []string{"org/model-with-dataset-readme-error"},
-				opts: GenerateOptions{
-					HFToken: "test-token",
-					Timeout: 1 * time.Second,
-				},
+				opts:     GenerateOptions{HFToken: "test-token", Timeout: 1 * time.Second},
 			},
 			setup: func() {
 				newBOMBuilder = func() bomBuilder {
 					return &mockBOMBuilder{
-						buildFunc: func(ctx builder.BuildContext) (*cdx.BOM, error) {
+						buildFunc: func(bctx builder.BuildContext) (*cdx.BOM, error) {
 							return &cdx.BOM{}, nil
 						},
-						buildDatasetFunc: func(ctx builder.DatasetBuildContext) (*cdx.Component, error) {
-							return &cdx.Component{Name: ctx.DatasetID, Type: cdx.ComponentTypeData}, nil
+						buildDatasetFunc: func(bctx builder.DatasetBuildContext) (*cdx.Component, error) {
+							return &cdx.Component{Name: bctx.DatasetID, Type: cdx.ComponentTypeData}, nil
 						},
 					}
 				}
 				newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
 					return fetcherSet{
 						modelAPI: &mockModelAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.ModelAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.ModelAPIResponse, error) {
 								return &fetcher.ModelAPIResponse{
-									CardData: map[string]interface{}{
-										"datasets": []interface{}{"dataset1"},
-									},
+									CardData: map[string]interface{}{"datasets": []interface{}{"dataset1"}},
 								}, nil
 							},
 						},
 						modelReadme: &mockModelReadmeFetcher{},
 						datasetAPI: &mockDatasetAPIFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetAPIResponse, error) {
+							fetchFunc: func(id string) (*fetcher.DatasetAPIResponse, error) {
 								return &fetcher.DatasetAPIResponse{ID: id}, nil
 							},
 						},
 						datasetReadme: &mockDatasetReadmeFetcher{
-							fetchFunc: func(ctx context.Context, id string) (*fetcher.DatasetReadmeCard, error) {
-								return nil, context.Canceled // Readme fetch fails
+							fetchFunc: func(id string) (*fetcher.DatasetReadmeCard, error) {
+								return nil, context.Canceled // Readme fetch fails; component still built
 							},
 						},
 					}
@@ -1495,9 +972,8 @@ func TestBuildFromModelIDsWithProgress(t *testing.T) {
 					t.Errorf("Expected 1 BOM, got %d", len(got))
 					return
 				}
-				// Dataset API succeeded but readme failed - should still have the component
 				if got[0].BOM.Components == nil || len(*got[0].BOM.Components) != 1 {
-					t.Errorf("Expected 1 dataset component (readme failure is ignored), got %d", len(*got[0].BOM.Components))
+					t.Errorf("Expected 1 dataset component (readme failure is ignored), got %v", got[0].BOM.Components)
 				}
 			},
 		},
@@ -1507,9 +983,9 @@ func TestBuildFromModelIDsWithProgress(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup()
 			}
-			got, err := BuildFromModelIDsWithProgress(tt.args.ctx, tt.args.modelIDs, tt.args.opts)
+			got, err := BuildFromModelIDs(tt.args.modelIDs, tt.args.opts)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("BuildFromModelIDsWithProgress() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("BuildFromModelIDs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.check != nil && !tt.wantErr {

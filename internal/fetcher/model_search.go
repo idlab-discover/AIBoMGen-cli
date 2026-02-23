@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -30,7 +29,7 @@ type ModelSearcher struct {
 }
 
 // Search queries Hugging Face for models matching the search term
-func (s *ModelSearcher) Search(ctx context.Context, query string, limit int) ([]ModelSearchResult, error) {
+func (s *ModelSearcher) Search(query string, limit int) ([]ModelSearchResult, error) {
 	client := s.Client
 	if client == nil {
 		client = http.DefaultClient
@@ -59,7 +58,7 @@ func (s *ModelSearcher) Search(ctx context.Context, query string, limit int) ([]
 		searchURL = searchURL + "?" + params.Encode()
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
+	req, err := http.NewRequest(http.MethodGet, searchURL, nil)
 	if err != nil {
 		return nil, err
 	}

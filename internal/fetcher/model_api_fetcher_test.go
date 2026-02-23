@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -124,7 +123,7 @@ func TestFetch_Success_DefaultClientNil_NoToken(t *testing.T) {
 		Client:  nil, // cover default-client branch
 		BaseURL: srv.URL,
 	}
-	resp, err := f.Fetch(context.Background(), " /my/model ")
+	resp, err := f.Fetch(" /my/model ")
 	if err != nil {
 		t.Fatalf("Fetch error: %v", err)
 	}
@@ -150,7 +149,7 @@ func TestFetch_SetsAuthorizationHeader_And_TrimsBaseURL(t *testing.T) {
 		BaseURL: srv.URL + "/", // cover TrimRight branch
 		Token:   "  t0k ",
 	}
-	resp, err := f.Fetch(context.Background(), "x")
+	resp, err := f.Fetch("x")
 	if err != nil {
 		t.Fatalf("Fetch error: %v", err)
 	}
@@ -166,7 +165,7 @@ func TestFetch_Non200(t *testing.T) {
 	defer srv.Close()
 
 	f := &ModelAPIFetcher{BaseURL: srv.URL}
-	_, err := f.Fetch(context.Background(), "x")
+	_, err := f.Fetch("x")
 	if err == nil || !strings.Contains(err.Error(), "status 403") {
 		t.Fatalf("expected status error, got %v", err)
 	}
@@ -180,7 +179,7 @@ func TestFetch_DecodeError(t *testing.T) {
 	defer srv.Close()
 
 	f := &ModelAPIFetcher{BaseURL: srv.URL}
-	_, err := f.Fetch(context.Background(), "x")
+	_, err := f.Fetch("x")
 	if err == nil {
 		t.Fatalf("expected decode error, got nil")
 	}
@@ -196,7 +195,7 @@ func TestFetch_RequestError(t *testing.T) {
 			}),
 		},
 	}
-	_, err := f.Fetch(context.Background(), "x")
+	_, err := f.Fetch("x")
 	if err == nil || !errors.Is(err, want) {
 		t.Fatalf("expected %v, got %v", want, err)
 	}
@@ -217,7 +216,7 @@ func TestFetch_DefaultBaseURLBranch_WithoutNetwork(t *testing.T) {
 		BaseURL: "   ",
 		Client:  &http.Client{Transport: rewriteToServer(t, srv.URL)},
 	}
-	resp, err := f.Fetch(context.Background(), "/p/q")
+	resp, err := f.Fetch("/p/q")
 	if err != nil {
 		t.Fatalf("Fetch error: %v", err)
 	}
@@ -231,7 +230,7 @@ func TestFetch_NewRequestError_InvalidBaseURL(t *testing.T) {
 		// Invalid host (missing closing bracket) => NewRequestWithContext should error.
 		BaseURL: "http://[::1",
 	}
-	got, err := f.Fetch(context.Background(), "x")
+	got, err := f.Fetch("x")
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}

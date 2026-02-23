@@ -1,14 +1,10 @@
 package fetcher
 
-import (
-	"context"
-)
-
 // DummyDatasetAPIFetcher returns a fixed DatasetAPIResponse for testing/demo purposes
 type DummyDatasetAPIFetcher struct{}
 
 // Fetch returns a dummy dataset response
-func (f *DummyDatasetAPIFetcher) Fetch(ctx context.Context, datasetID string) (*DatasetAPIResponse, error) {
+func (f *DummyDatasetAPIFetcher) Fetch(datasetID string) (*DatasetAPIResponse, error) {
 	return &DatasetAPIResponse{
 		ID:          datasetID,
 		Author:      "huggingface",

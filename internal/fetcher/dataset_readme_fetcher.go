@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -57,7 +56,7 @@ type DatasetReadmeFetcher struct {
 	BaseURL string // optional; defaults to "https://huggingface.co"
 }
 
-func (f *DatasetReadmeFetcher) Fetch(ctx context.Context, datasetID string) (*DatasetReadmeCard, error) {
+func (f *DatasetReadmeFetcher) Fetch(datasetID string) (*DatasetReadmeCard, error) {
 	client := f.Client
 	if client == nil {
 		client = http.DefaultClient
@@ -81,7 +80,7 @@ func (f *DatasetReadmeFetcher) Fetch(ctx context.Context, datasetID string) (*Da
 
 	var lastErr error
 	for _, url := range candidates {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return nil, err
 		}

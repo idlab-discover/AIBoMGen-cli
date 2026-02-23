@@ -1,14 +1,10 @@
 package fetcher
 
-import (
-	"context"
-)
-
 // DummyDatasetReadmeFetcher returns a fixed DatasetReadmeCard for testing/demo purposes
 type DummyDatasetReadmeFetcher struct{}
 
 // Fetch returns a dummy dataset README card
-func (f *DummyDatasetReadmeFetcher) Fetch(ctx context.Context, datasetID string) (*DatasetReadmeCard, error) {
+func (f *DummyDatasetReadmeFetcher) Fetch(datasetID string) (*DatasetReadmeCard, error) {
 	return &DatasetReadmeCard{
 		Raw: "# " + datasetID + " Dataset\n\nDummy dataset card for testing.",
 		FrontMatter: map[string]any{

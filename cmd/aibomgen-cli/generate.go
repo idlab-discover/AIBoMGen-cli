@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,9 +10,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/generator"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/generator"
 )
 
 var (
@@ -148,8 +147,6 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	var discoveredBOMs []generator.DiscoveredBOM
 	var err error
 
-	ctx := context.Background()
-
 	if interactiveMode {
 		// Interactive mode: show model selector
 		selectedModels, err := ui.RunModelSelector(ui.ModelSelectorConfig{
@@ -166,7 +163,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate BOMs from model IDs
-	err = runModelIDMode(ctx, genUI, cleanModelIDs, mode, hfToken, timeout, quiet, &discoveredBOMs)
+	err = runModelIDMode(genUI, cleanModelIDs, mode, hfToken, timeout, quiet, &discoveredBOMs)
 	if err != nil {
 		return err
 	}
@@ -221,7 +218,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runModelIDMode(ctx context.Context, genUI *ui.GenerateUI, modelIDs []string, mode, hfToken string, timeout time.Duration, quiet bool, results *[]generator.DiscoveredBOM) error {
+func runModelIDMode(genUI *ui.GenerateUI, modelIDs []string, mode, hfToken string, timeout time.Duration, quiet bool, results *[]generator.DiscoveredBOM) error {
 	if mode == "dummy" {
 		if !quiet {
 			genUI.LogStep("info", "Using dummy mode (no API calls)")
@@ -291,7 +288,7 @@ func runModelIDMode(ctx context.Context, genUI *ui.GenerateUI, modelIDs []string
 		OnProgress: onProgress,
 	}
 
-	boms, err := generator.BuildFromModelIDsWithProgress(ctx, modelIDs, opts)
+	boms, err := generator.BuildFromModelIDs(modelIDs, opts)
 	if err != nil {
 		if !quiet && workflow != nil {
 			workflow.Stop()
@@ -328,7 +325,7 @@ func init() {
 	generateCmd.Flags().StringVarP(&generateOutputFormat, "format", "f", "", "Output BOM format: json|xml|auto")
 	generateCmd.Flags().StringVar(&generateSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.4, 1.5, 1.6)")
 	generateCmd.Flags().StringVar(&hfMode, "hf-mode", "", "Hugging Face metadata mode: online|dummy")
-	generateCmd.Flags().IntVar(&hfTimeout, "hf-timeout", 0, "HTTP timeout in seconds for Hugging Face API")
+	generateCmd.Flags().IntVar(&hfTimeout, "hf-timeout", 0, "Timeout in seconds per Hugging Face API request (default 10)")
 	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token")
 	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 	generateCmd.Flags().BoolVar(&interactive, "interactive", false, "Interactive model selector (cannot be used with --model-id)")

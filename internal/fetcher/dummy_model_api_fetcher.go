@@ -1,15 +1,11 @@
 package fetcher
 
-import (
-	"context"
-)
-
 // DummyModelAPIFetcher returns a fixed ModelAPIResponse for testing/demo purposes
 // without making any HTTP requests.
 type DummyModelAPIFetcher struct{}
 
 // Fetch returns a comprehensive dummy ModelAPIResponse with all fields populated.
-func (f *DummyModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*ModelAPIResponse, error) {
+func (f *DummyModelAPIFetcher) Fetch(modelID string) (*ModelAPIResponse, error) {
 	// Create a fixed comprehensive response with all fields populated
 	gatedBool := false
 	gated := BoolOrString{Bool: &gatedBool}

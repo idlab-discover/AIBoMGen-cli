@@ -19,7 +19,7 @@ generate:
   spec: ""
   # Hugging Face metadata mode: online|dummy
   hf-mode: "online"
-  # HTTP timeout in seconds for Hugging Face API
+  # Timeout in seconds per Hugging Face API request
   hf-timeout: 10
   # Hugging Face access token
   hf-token: ""
@@ -40,7 +40,7 @@ scan:
   spec: ""
   # Hugging Face metadata mode: online|dummy
   hf-mode: "online"
-  # HTTP timeout in seconds for Hugging Face API
+  # Timeout in seconds per Hugging Face API request
   hf-timeout: 10
   # Hugging Face access token
   hf-token: ""

@@ -1,9 +1,7 @@
 package ui
 
 import (
-	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -83,10 +81,8 @@ func NewModelSelector(config ModelSelectorConfig) *modelSelectorModel {
 	ti.SetWidth(50)
 
 	searcher := &fetcher.ModelSearcher{
-		Client: &http.Client{
-			Timeout: config.Timeout,
-		},
-		Token: config.HFToken,
+		Client: fetcher.NewHFClient(config.Timeout),
+		Token:  config.HFToken,
 	}
 
 	delegate := list.NewDefaultDelegate()
@@ -314,10 +310,7 @@ func (m *modelSelectorModel) debounceSearch() tea.Cmd {
 func (m *modelSelectorModel) performSearch(query string) tea.Cmd {
 	m.searching = true
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		results, err := m.searcher.Search(ctx, query, 1000)
+		results, err := m.searcher.Search(query, 1000)
 		return searchResultMsg{results: results, err: err}
 	}
 }

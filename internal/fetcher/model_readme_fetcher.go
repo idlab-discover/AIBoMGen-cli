@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -72,7 +71,7 @@ type ModelReadmeFetcher struct {
 	BaseURL string // optional; defaults to "https://huggingface.co"
 }
 
-func (f *ModelReadmeFetcher) Fetch(ctx context.Context, modelID string) (*ModelReadmeCard, error) {
+func (f *ModelReadmeFetcher) Fetch(modelID string) (*ModelReadmeCard, error) {
 	client := f.Client
 	if client == nil {
 		client = http.DefaultClient
@@ -96,7 +95,7 @@ func (f *ModelReadmeFetcher) Fetch(ctx context.Context, modelID string) (*ModelR
 
 	var lastErr error
 	for _, url := range candidates {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return nil, err
 		}

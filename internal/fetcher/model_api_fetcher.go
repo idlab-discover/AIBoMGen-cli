@@ -2,7 +2,6 @@ package fetcher
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -78,7 +77,7 @@ type ModelAPIResponse struct {
 	} `json:"config"`
 }
 
-func (f *ModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*ModelAPIResponse, error) {
+func (f *ModelAPIFetcher) Fetch(modelID string) (*ModelAPIResponse, error) {
 	client := f.Client
 	if client == nil {
 		client = http.DefaultClient
@@ -92,7 +91,7 @@ func (f *ModelAPIFetcher) Fetch(ctx context.Context, modelID string) (*ModelAPIR
 	}
 
 	url := fmt.Sprintf("%s/api/models/%s", baseURL, trimmedModelID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

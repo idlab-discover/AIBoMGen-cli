@@ -1,15 +1,11 @@
 package fetcher
 
-import (
-	"context"
-)
-
 // DummyModelReadmeFetcher returns a fixed ModelReadmeCard for testing/demo purposes
 // without making any HTTP requests.
 type DummyModelReadmeFetcher struct{}
 
 // Fetch returns a comprehensive dummy ModelReadmeCard with all fields populated.
-func (f *DummyModelReadmeFetcher) Fetch(ctx context.Context, modelID string) (*ModelReadmeCard, error) {
+func (f *DummyModelReadmeFetcher) Fetch(modelID string) (*ModelReadmeCard, error) {
 	// Create a comprehensive dummy README card with all fields populated
 	return &ModelReadmeCard{
 		Raw: dummyReadmeContent,

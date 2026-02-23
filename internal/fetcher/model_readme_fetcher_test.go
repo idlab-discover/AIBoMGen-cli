@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -87,7 +86,7 @@ contact@example.com
 	defer srv.Close()
 
 	f := &ModelReadmeFetcher{BaseURL: srv.URL, Token: "tok"}
-	card, err := f.Fetch(context.Background(), "org/model")
+	card, err := f.Fetch("org/model")
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -148,7 +147,7 @@ func TestModelReadmeFetcher_Fetch_FallbackToMaster(t *testing.T) {
 	defer srv.Close()
 
 	f := &ModelReadmeFetcher{BaseURL: srv.URL}
-	card, err := f.Fetch(context.Background(), "org/model")
+	card, err := f.Fetch("org/model")
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}

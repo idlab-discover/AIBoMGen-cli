@@ -2,16 +2,15 @@ package enricher
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 )
 
 // Config holds enrichment configuration
@@ -314,24 +313,21 @@ func (e *Enricher) collectMissingFields(result completeness.Result) []metadata.F
 
 // refetchMetadata fetches fresh metadata from Hugging Face
 func (e *Enricher) refetchMetadata(modelID string) (*fetcher.ModelAPIResponse, *fetcher.ModelReadmeCard) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(e.config.HFTimeout)*time.Second)
-	defer cancel()
+	client := fetcher.NewHFClient(time.Duration(e.config.HFTimeout) * time.Second)
 
-	// Fetch API
-	apiFetcher := &fetcher.ModelAPIFetcher{
+	apiResp, err := (&fetcher.ModelAPIFetcher{
+		Client:  client,
 		Token:   e.config.HFToken,
 		BaseURL: e.config.HFBaseURL,
-	}
-	apiResp, err := apiFetcher.Fetch(ctx, modelID)
+	}).Fetch(modelID)
 	if err != nil {
 	}
 
-	// Fetch README
-	readmeFetcher := &fetcher.ModelReadmeFetcher{
+	readme, err := (&fetcher.ModelReadmeFetcher{
+		Client:  client,
 		Token:   e.config.HFToken,
 		BaseURL: e.config.HFBaseURL,
-	}
-	readme, err := readmeFetcher.Fetch(ctx, modelID)
+	}).Fetch(modelID)
 	if err != nil {
 	}
 
@@ -541,24 +537,21 @@ func (e *Enricher) collectMissingDatasetFields(result completeness.DatasetResult
 
 // refetchDatasetMetadata fetches fresh metadata for a dataset from Hugging Face
 func (e *Enricher) refetchDatasetMetadata(datasetID string) (*fetcher.DatasetAPIResponse, *fetcher.DatasetReadmeCard) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(e.config.HFTimeout)*time.Second)
-	defer cancel()
+	client := fetcher.NewHFClient(time.Duration(e.config.HFTimeout) * time.Second)
 
-	// Fetch Dataset API
-	apiFetcher := &fetcher.DatasetAPIFetcher{
+	apiResp, err := (&fetcher.DatasetAPIFetcher{
+		Client:  client,
 		Token:   e.config.HFToken,
 		BaseURL: e.config.HFBaseURL,
-	}
-	apiResp, err := apiFetcher.Fetch(ctx, datasetID)
+	}).Fetch(datasetID)
 	if err != nil {
 	}
 
-	// Fetch Dataset README
-	readmeFetcher := &fetcher.DatasetReadmeFetcher{
+	readme, err := (&fetcher.DatasetReadmeFetcher{
+		Client:  client,
 		Token:   e.config.HFToken,
 		BaseURL: e.config.HFBaseURL,
-	}
-	readme, err := readmeFetcher.Fetch(ctx, datasetID)
+	}).Fetch(datasetID)
 	if err != nil {
 	}
 

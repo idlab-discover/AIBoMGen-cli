@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/generator"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/scanner"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/generator"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/scanner"
 )
 
 var (
@@ -109,11 +108,9 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 	timeout := time.Duration(hfTimeout) * time.Second
 
-	ctx := context.Background()
-
 	// Run the scan
 	var discoveredBOMs []generator.DiscoveredBOM
-	err := runScanDirectory(ctx, inputPath, mode, hfToken, timeout, quiet, &discoveredBOMs)
+	err := runScanDirectory(inputPath, mode, hfToken, timeout, quiet, &discoveredBOMs)
 	if err != nil {
 		return err
 	}
@@ -170,7 +167,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runScanDirectory(ctx context.Context, inputPath, mode, hfToken string, timeout time.Duration, quiet bool, results *[]generator.DiscoveredBOM) error {
+func runScanDirectory(inputPath, mode, hfToken string, timeout time.Duration, quiet bool, results *[]generator.DiscoveredBOM) error {
 	absTarget, err := filepath.Abs(inputPath)
 	if err != nil {
 		return err
@@ -273,7 +270,7 @@ func runScanDirectory(ctx context.Context, inputPath, mode, hfToken string, time
 		OnProgress: onProgress,
 	}
 
-	boms, err := generator.BuildPerDiscoveryWithProgress(ctx, discoveries, opts)
+	boms, err := generator.BuildPerDiscovery(discoveries, opts)
 	if err != nil {
 		if !quiet && workflow != nil {
 			workflow.FailTask(processTaskIdx, err.Error())
@@ -311,7 +308,7 @@ func init() {
 	scanCmd.Flags().StringVarP(&scanOutputFormat, "format", "f", "", "Output BOM format: json|xml|auto")
 	scanCmd.Flags().StringVar(&scanSpecVersion, "spec", "", "CycloneDX spec version for output (e.g., 1.4, 1.5, 1.6)")
 	scanCmd.Flags().StringVar(&scanHfMode, "hf-mode", "", "Hugging Face metadata mode: online|dummy")
-	scanCmd.Flags().IntVar(&scanHfTimeoutSec, "hf-timeout", 0, "HTTP timeout in seconds for Hugging Face API")
+	scanCmd.Flags().IntVar(&scanHfTimeoutSec, "hf-timeout", 0, "Timeout in seconds per Hugging Face API request (default 10)")
 	scanCmd.Flags().StringVar(&scanHfToken, "hf-token", "", "Hugging Face access token")
 	scanCmd.Flags().StringVar(&scanLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 

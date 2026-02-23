@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,7 +33,7 @@ type DatasetAPIFetcher struct {
 }
 
 // Fetch fetches dataset metadata for the given datasetID.
-func (f *DatasetAPIFetcher) Fetch(ctx context.Context, datasetID string) (*DatasetAPIResponse, error) {
+func (f *DatasetAPIFetcher) Fetch(datasetID string) (*DatasetAPIResponse, error) {
 	client := f.Client
 	if client == nil {
 		client = http.DefaultClient
@@ -48,7 +47,7 @@ func (f *DatasetAPIFetcher) Fetch(ctx context.Context, datasetID string) (*Datas
 	}
 
 	url := fmt.Sprintf("%s/api/datasets/%s", baseURL, trimmedDatasetID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
