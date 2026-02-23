@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/enricher"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,7 +29,7 @@ from Hugging Face API and README before enrichment.`,
 		case "interactive", "file":
 			// ok
 		default:
-			return fmt.Errorf("invalid strategy %q (expected interactive|file)", strategy)
+			return apperr.Userf("invalid strategy %q (expected interactive|file)", strategy)
 		}
 
 		// Get log level from viper
@@ -40,7 +41,7 @@ from Hugging Face API and README before enrichment.`,
 		case "quiet", "standard", "debug":
 			// ok
 		default:
-			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", level)
+			return apperr.Userf("invalid --log-level %q (expected quiet|standard|debug)", level)
 		}
 
 		// Wire internal package logging
@@ -50,6 +51,9 @@ from Hugging Face API and README before enrichment.`,
 
 		// Read existing BOM
 		inputPath := viper.GetString("enrich.input")
+		if inputPath == "" {
+			return apperr.User("--input is required")
+		}
 		inputFormat := viper.GetString("enrich.format")
 		if inputFormat == "" {
 			inputFormat = "auto"

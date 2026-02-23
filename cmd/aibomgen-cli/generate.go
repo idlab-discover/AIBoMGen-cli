@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
 	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/generator"
@@ -52,7 +54,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	case "quiet", "standard", "debug":
 		// ok
 	default:
-		return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", level)
+		return apperr.Userf("invalid --log-level %q (expected quiet|standard|debug)", level)
 	}
 
 	quiet := level == "quiet"
@@ -66,7 +68,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	case "online", "dummy":
 		// ok
 	default:
-		return fmt.Errorf("invalid --hf-mode %q (expected online|dummy)", mode)
+		return apperr.Userf("invalid --hf-mode %q (expected online|dummy)", mode)
 	}
 
 	// Check if --interactive was explicitly provided
@@ -88,7 +90,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	// Interactive mode validation
 	if interactiveMode {
 		if modelIDFlagProvided {
-			return fmt.Errorf("--interactive cannot be used with --model-id")
+			return apperr.User("--interactive cannot be used with --model-id")
 		}
 	}
 
@@ -96,16 +98,16 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	// Dummy mode uses a built-in fixture (BuildDummyBOM) — allow empty input only.
 	if mode == "dummy" {
 		if modelIDFlagProvided || len(cleanModelIDs) > 0 {
-			return fmt.Errorf("--model-id cannot be used with --hf-mode=dummy")
+			return apperr.User("--model-id cannot be used with --hf-mode=dummy")
 		}
 		if interactiveMode {
-			return fmt.Errorf("--interactive cannot be used with --hf-mode=dummy")
+			return apperr.User("--interactive cannot be used with --hf-mode=dummy")
 		}
 	}
 
 	// Validate that we have either model IDs or interactive mode for non-dummy modes.
 	if !interactiveMode && len(cleanModelIDs) == 0 && mode != "dummy" {
-		return fmt.Errorf("either --model-id or --interactive is required. Use 'scan' command to scan directories")
+		return apperr.User("either --model-id or --interactive is required. Use 'scan' command to scan directories")
 	}
 
 	// Get format from viper
@@ -121,10 +123,10 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	if outputPath != "" && outputFormat != "" && outputFormat != "auto" {
 		ext := filepath.Ext(outputPath)
 		if outputFormat == "xml" && ext == ".json" {
-			return fmt.Errorf("output path extension %q does not match format %q", ext, outputFormat)
+			return apperr.Userf("output path extension %q does not match format %q", ext, outputFormat)
 		}
 		if outputFormat == "json" && ext == ".xml" {
-			return fmt.Errorf("output path extension %q does not match format %q", ext, outputFormat)
+			return apperr.Userf("output path extension %q does not match format %q", ext, outputFormat)
 		}
 	}
 
@@ -157,7 +159,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		if len(selectedModels) == 0 {
-			return fmt.Errorf("no models selected")
+			return apperr.User("no models selected")
 		}
 		cleanModelIDs = selectedModels
 	}
@@ -219,6 +221,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 }
 
 func runModelIDMode(genUI *ui.GenerateUI, modelIDs []string, mode, hfToken string, timeout time.Duration, quiet bool, results *[]generator.DiscoveredBOM) error {
+	hasToken := strings.TrimSpace(hfToken) != ""
 	if mode == "dummy" {
 		if !quiet {
 			genUI.LogStep("info", "Using dummy mode (no API calls)")
@@ -231,13 +234,12 @@ func runModelIDMode(genUI *ui.GenerateUI, modelIDs []string, mode, hfToken strin
 		return nil
 	}
 
-	// Track completed models to print at the end
-	type modelResult struct {
-		id       string
-		datasets int
-		err      string
-	}
-	var completedModels []modelResult
+	// Track per-model outcome for the final summary.
+	// fetch warnings (non-fatal) are accumulated and shown on the single success line.
+	// A model that fires EventError{Message:"BOM build failed"} but never EventModelComplete
+	// produced no AIBOM and is shown as a failure.
+	pendingModels := make(map[string]*modelTracker)
+	var modelOrder []string // insertion-order IDs for deterministic display
 
 	// Create workflow with combined processing step
 	var workflow *ui.Workflow
@@ -264,21 +266,50 @@ func runModelIDMode(genUI *ui.GenerateUI, modelIDs []string, mode, hfToken strin
 			return
 		}
 
+		// Ensure a tracker exists for this model (EventFetchStart arrives first).
+		if _, ok := pendingModels[evt.ModelID]; !ok {
+			pendingModels[evt.ModelID] = &modelTracker{}
+			modelOrder = append(modelOrder, evt.ModelID)
+		}
+
 		switch evt.Type {
 		case generator.EventFetchStart:
 			workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d: %s (fetching)", modelsCompleted, totalModels, evt.ModelID)))
+		case generator.EventFetchAPIComplete:
+			pendingModels[evt.ModelID].apiOK = true
 		case generator.EventBuildStart:
 			workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d: %s (building)", modelsCompleted, totalModels, evt.ModelID)))
 		case generator.EventDatasetStart:
 			workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d: %s → %s", modelsCompleted, totalModels, evt.ModelID, evt.Message)))
+		case generator.EventDatasetComplete:
+			pendingModels[evt.ModelID].datasetResults = append(pendingModels[evt.ModelID].datasetResults, datasetResult{id: evt.Message})
+		case generator.EventDatasetError:
+			pendingModels[evt.ModelID].datasetResults = append(pendingModels[evt.ModelID].datasetResults, datasetResult{id: evt.Message, err: evt.Error})
 		case generator.EventModelComplete:
+			t := pendingModels[evt.ModelID]
+			t.complete = true
 			modelsCompleted++
-			completedModels = append(completedModels, modelResult{id: evt.ModelID, datasets: evt.Datasets})
 			if modelsCompleted < totalModels {
 				workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d complete", modelsCompleted, totalModels)))
 			}
 		case generator.EventError:
-			completedModels = append(completedModels, modelResult{id: evt.ModelID, err: evt.Message})
+			// BOM build failure is terminal for this model (no EventModelComplete follows).
+			// Fetch failures are non-fatal; classify them for the summary line.
+			if evt.Message != "BOM build failed" {
+				t := pendingModels[evt.ModelID]
+				if fetcher.IsNotFound(evt.Error) {
+					t.notFound = true
+				} else if fetcher.IsUnauthorized(evt.Error) && !t.apiOK {
+					// 401/403 before the model API succeeded = model is private or non-existent.
+					// HF Hub returns 401 for non-existent repos too, so treat this like 404.
+					t.notFound = true
+				} else {
+					t.fetchErr = true
+					if t.fetchErrVal == nil {
+						t.fetchErrVal = evt.Error
+					}
+				}
+			}
 		}
 	}
 
@@ -304,14 +335,8 @@ func runModelIDMode(genUI *ui.GenerateUI, modelIDs []string, mode, hfToken strin
 
 		// Print individual model results after workflow completes
 		fmt.Println()
-		for _, m := range completedModels {
-			if m.err != "" {
-				fmt.Printf("  %s %s %s\n", ui.GetCrossMark(), ui.Highlight.Render(m.id), ui.Error.Render("→ "+m.err))
-			} else if m.datasets > 0 {
-				fmt.Printf("  %s %s %s\n", ui.GetCheckMark(), ui.Highlight.Render(m.id), ui.Dim.Render(fmt.Sprintf("→ %d dataset(s)", m.datasets)))
-			} else {
-				fmt.Printf("  %s %s\n", ui.GetCheckMark(), ui.Highlight.Render(m.id))
-			}
+		for _, id := range modelOrder {
+			printModelResult(id, pendingModels[id], hasToken)
 		}
 	}
 
@@ -340,4 +365,85 @@ func init() {
 	viper.BindPFlag("generate.hf-token", generateCmd.Flags().Lookup("hf-token"))
 	viper.BindPFlag("generate.log-level", generateCmd.Flags().Lookup("log-level"))
 	viper.BindPFlag("generate.interactive", generateCmd.Flags().Lookup("interactive"))
+}
+
+// datasetResult holds the outcome of fetching a single dataset referenced by a model.
+type datasetResult struct {
+	id  string
+	err error // nil = fetched and built successfully
+}
+
+// modelTracker accumulates per-model progress events so the final summary
+// line can reflect the true outcome (success, 404, auth failure, etc.).
+// Shared by the generate and scan commands (same package).
+type modelTracker struct {
+	apiOK          bool            // API fetch succeeded → model exists on HF Hub
+	notFound       bool            // at least one fetch came back 404 (or 401 before apiOK)
+	fetchErr       bool            // at least one non-404, post-apiOK fetch failure
+	fetchErrVal    error           // the first such error, kept for classification
+	complete       bool            // true when EventModelComplete was received
+	datasetResults []datasetResult // one entry per dataset referenced by the model
+}
+
+// modelOutcome derives the terminal mark and detail string for the model line.
+// detail is empty for a clean success (datasets are shown on sub-lines instead).
+func modelOutcome(t *modelTracker, hasToken bool) (mark, detail string) {
+	switch {
+	case t == nil || !t.complete:
+		return ui.GetCrossMark(), ui.Error.Render("→ BOM build failed")
+
+	case !t.apiOK && t.notFound:
+		if hasToken {
+			return ui.GetWarnMark(), ui.Warning.Render("→ not found on HF Hub")
+		}
+		return ui.GetWarnMark(), ui.Warning.Render("→ not found on HF Hub (or private – set --hf-token)")
+
+	case t.fetchErr:
+		if fetcher.IsUnauthorized(t.fetchErrVal) {
+			if hasToken {
+				return ui.GetWarnMark(), ui.Warning.Render("→ private repo (token lacks access)")
+			}
+			return ui.GetWarnMark(), ui.Warning.Render("→ private or non-existent repo (set --hf-token)")
+		}
+		return ui.GetWarnMark(), ui.Warning.Render("→ metadata fetch failed")
+
+	case t.apiOK && t.notFound:
+		// fetchErr is false here; model exists but has no README.
+		return ui.GetWarnMark(), ui.Warning.Render("→ no README")
+
+	default:
+		return ui.GetCheckMark(), ""
+	}
+}
+
+// datasetOutcome derives the mark and detail string for one dataset sub-line.
+func datasetOutcome(r datasetResult, hasToken bool) (mark, detail string) {
+	if r.err == nil {
+		return ui.GetCheckMark(), ""
+	}
+	if fetcher.IsNotFound(r.err) || (fetcher.IsUnauthorized(r.err)) {
+		if hasToken {
+			return ui.GetWarnMark(), ui.Warning.Render("→ not found on HF Hub")
+		}
+		return ui.GetWarnMark(), ui.Warning.Render("→ not found (or private – set --hf-token)")
+	}
+	return ui.GetWarnMark(), ui.Warning.Render("→ fetch failed")
+}
+
+// printModelResult prints the model summary line followed by one sub-line per dataset.
+func printModelResult(id string, t *modelTracker, hasToken bool) {
+	mark, detail := modelOutcome(t, hasToken)
+	if detail != "" {
+		fmt.Printf("  %s %s %s\n", mark, ui.Highlight.Render(id), detail)
+	} else {
+		fmt.Printf("  %s %s\n", mark, ui.Highlight.Render(id))
+	}
+	for _, ds := range t.datasetResults {
+		dsmark, dsdetail := datasetOutcome(ds, hasToken)
+		if dsdetail != "" {
+			fmt.Printf("      %s %s %s\n", dsmark, ui.Dim.Render(ds.id), dsdetail)
+		} else {
+			fmt.Printf("      %s %s\n", dsmark, ui.Dim.Render(ds.id))
+		}
+	}
 }

@@ -28,7 +28,6 @@ type DatasetAPIResponse struct {
 // DatasetAPIFetcher fetches dataset metadata from the Hugging Face Hub API.
 type DatasetAPIFetcher struct {
 	Client  *http.Client
-	Token   string
 	BaseURL string // optional; defaults to "https://huggingface.co"
 }
 
@@ -52,9 +51,6 @@ func (f *DatasetAPIFetcher) Fetch(datasetID string) (*DatasetAPIResponse, error)
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
-	if strings.TrimSpace(f.Token) != "" {
-		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(f.Token))
-	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -63,7 +59,7 @@ func (f *DatasetAPIFetcher) Fetch(datasetID string) (*DatasetAPIResponse, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("huggingface api status %d", resp.StatusCode)
+		return nil, &HFError{StatusCode: resp.StatusCode}
 	}
 
 	var parsed DatasetAPIResponse

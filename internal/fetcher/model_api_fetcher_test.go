@@ -146,8 +146,8 @@ func TestFetch_SetsAuthorizationHeader_And_TrimsBaseURL(t *testing.T) {
 	defer srv.Close()
 
 	f := &ModelAPIFetcher{
+		Client:  NewHFClient(0, "  t0k "),
 		BaseURL: srv.URL + "/", // cover TrimRight branch
-		Token:   "  t0k ",
 	}
 	resp, err := f.Fetch("x")
 	if err != nil {

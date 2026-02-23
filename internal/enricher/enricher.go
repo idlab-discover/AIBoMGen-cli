@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
@@ -61,6 +62,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 	// Get model ID from BOM
 	modelID := extractModelID(bom)
 	if modelID == "" {
+		fmt.Fprintf(e.writer, "warning: no model ID found in BOM; enrichment will proceed without a model ID\n")
 	}
 
 	// Run initial completeness check
@@ -100,6 +102,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 			if comp.Type == cdx.ComponentTypeData {
 				dsChanges, err := e.enrichDataset(bom, comp, configViper)
 				if err != nil {
+					fmt.Fprintf(e.writer, "warning: failed to enrich dataset %q: %v\n", comp.Name, err)
 					continue
 				}
 				if len(dsChanges) > 0 {
@@ -116,7 +119,7 @@ func (e *Enricher) Enrich(bom *cdx.BOM, configViper interface{}) (*cdx.BOM, erro
 			return nil, fmt.Errorf("preview error: %w", err)
 		}
 		if !confirm {
-			return nil, fmt.Errorf("enrichment cancelled by user")
+			return nil, apperr.ErrCancelled
 		}
 	}
 
@@ -212,7 +215,7 @@ func (e *Enricher) enrichDatasetFromFile(
 		if value != nil {
 			err = e.applyDatasetValue(spec, &src, &tgt, value)
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("failed to apply value for %s: %w", spec.Key, err)
 			}
 			changes[spec.Key] = formatValue(value)
 		}
@@ -313,22 +316,24 @@ func (e *Enricher) collectMissingFields(result completeness.Result) []metadata.F
 
 // refetchMetadata fetches fresh metadata from Hugging Face
 func (e *Enricher) refetchMetadata(modelID string) (*fetcher.ModelAPIResponse, *fetcher.ModelReadmeCard) {
-	client := fetcher.NewHFClient(time.Duration(e.config.HFTimeout) * time.Second)
+	client := fetcher.NewHFClient(time.Duration(e.config.HFTimeout)*time.Second, e.config.HFToken)
 
 	apiResp, err := (&fetcher.ModelAPIFetcher{
 		Client:  client,
-		Token:   e.config.HFToken,
 		BaseURL: e.config.HFBaseURL,
 	}).Fetch(modelID)
 	if err != nil {
+		fmt.Fprintf(e.writer, "warning: failed to fetch model API metadata for %q: %v\n", modelID, err)
+		apiResp = nil
 	}
 
 	readme, err := (&fetcher.ModelReadmeFetcher{
 		Client:  client,
-		Token:   e.config.HFToken,
 		BaseURL: e.config.HFBaseURL,
 	}).Fetch(modelID)
 	if err != nil {
+		fmt.Fprintf(e.writer, "warning: failed to fetch model README for %q: %v\n", modelID, err)
+		readme = nil
 	}
 
 	return apiResp, readme
@@ -537,22 +542,24 @@ func (e *Enricher) collectMissingDatasetFields(result completeness.DatasetResult
 
 // refetchDatasetMetadata fetches fresh metadata for a dataset from Hugging Face
 func (e *Enricher) refetchDatasetMetadata(datasetID string) (*fetcher.DatasetAPIResponse, *fetcher.DatasetReadmeCard) {
-	client := fetcher.NewHFClient(time.Duration(e.config.HFTimeout) * time.Second)
+	client := fetcher.NewHFClient(time.Duration(e.config.HFTimeout)*time.Second, e.config.HFToken)
 
 	apiResp, err := (&fetcher.DatasetAPIFetcher{
 		Client:  client,
-		Token:   e.config.HFToken,
 		BaseURL: e.config.HFBaseURL,
 	}).Fetch(datasetID)
 	if err != nil {
+		fmt.Fprintf(e.writer, "warning: failed to fetch dataset API metadata for %q: %v\n", datasetID, err)
+		apiResp = nil
 	}
 
 	readme, err := (&fetcher.DatasetReadmeFetcher{
 		Client:  client,
-		Token:   e.config.HFToken,
 		BaseURL: e.config.HFBaseURL,
 	}).Fetch(datasetID)
 	if err != nil {
+		fmt.Fprintf(e.writer, "warning: failed to fetch dataset README for %q: %v\n", datasetID, err)
+		readme = nil
 	}
 
 	return apiResp, readme

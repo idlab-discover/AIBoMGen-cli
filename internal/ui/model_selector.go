@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 )
 
@@ -81,8 +82,7 @@ func NewModelSelector(config ModelSelectorConfig) *modelSelectorModel {
 	ti.SetWidth(50)
 
 	searcher := &fetcher.ModelSearcher{
-		Client: fetcher.NewHFClient(config.Timeout),
-		Token:  config.HFToken,
+		Client: fetcher.NewHFClient(config.Timeout, config.HFToken),
 	}
 
 	delegate := list.NewDefaultDelegate()
@@ -359,7 +359,7 @@ func RunModelSelector(config ModelSelectorConfig) ([]string, error) {
 
 	model := m.(*modelSelectorModel)
 	if !model.WasConfirmed() {
-		return nil, fmt.Errorf("selection cancelled")
+		return nil, apperr.ErrCancelled
 	}
 
 	return model.GetSelectedModels(), nil

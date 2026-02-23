@@ -100,9 +100,6 @@ func (f *ModelReadmeFetcher) Fetch(modelID string) (*ModelReadmeCard, error) {
 			return nil, err
 		}
 		req.Header.Set("Accept", "text/markdown, text/plain, */*")
-		if strings.TrimSpace(f.Token) != "" {
-			req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(f.Token))
-		}
 
 		resp, err := client.Do(req)
 		if err != nil {
@@ -117,7 +114,7 @@ func (f *ModelReadmeFetcher) Fetch(modelID string) (*ModelReadmeCard, error) {
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("huggingface readme status %d", resp.StatusCode)
+			lastErr = &HFError{StatusCode: resp.StatusCode}
 			continue
 		}
 

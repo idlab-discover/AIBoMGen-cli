@@ -85,7 +85,7 @@ contact@example.com
 	}))
 	defer srv.Close()
 
-	f := &ModelReadmeFetcher{BaseURL: srv.URL, Token: "tok"}
+	f := &ModelReadmeFetcher{Client: NewHFClient(0, "tok"), BaseURL: srv.URL}
 	card, err := f.Fetch("org/model")
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)

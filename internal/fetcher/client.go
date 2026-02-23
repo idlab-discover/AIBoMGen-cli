@@ -2,11 +2,33 @@ package fetcher
 
 import (
 	"net/http"
+	"strings"
 	"time"
 )
 
+// hfTransport injects a Bearer token into every request when a token is set.
+type hfTransport struct {
+	base  http.RoundTripper
+	token string
+}
+
+func (t *hfTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.token != "" {
+		req = req.Clone(req.Context())
+		req.Header.Set("Authorization", "Bearer "+t.token)
+	}
+	return t.base.RoundTrip(req)
+}
+
 // NewHFClient creates an *http.Client configured for Hugging Face API calls.
-// The timeout is the per-request deadline; pass 0 for no timeout.
-func NewHFClient(timeout time.Duration) *http.Client {
-	return &http.Client{Timeout: timeout}
+// timeout is the per-request deadline (0 = no timeout).
+// token is automatically injected as a Bearer token on every request when non-empty.
+func NewHFClient(timeout time.Duration, token string) *http.Client {
+	token = strings.TrimSpace(token)
+	base := http.DefaultTransport
+	var transport http.RoundTripper = base
+	if token != "" {
+		transport = &hfTransport{base: base, token: token}
+	}
+	return &http.Client{Timeout: timeout, Transport: transport}
 }

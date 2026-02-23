@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
 	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/merger"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -48,17 +49,17 @@ Example:
 		// Get inputs from viper (respects config file and CLI flag)
 		aibomPaths := viper.GetStringSlice("merge.aiboms")
 		if len(aibomPaths) == 0 {
-			return fmt.Errorf("at least one --aibom is required")
+			return apperr.User("at least one --aibom is required")
 		}
 
 		sbomPath := viper.GetString("merge.sbom")
 		if sbomPath == "" {
-			return fmt.Errorf("--sbom is required")
+			return apperr.User("--sbom is required")
 		}
 
 		outputPath := viper.GetString("merge.output")
 		if outputPath == "" {
-			return fmt.Errorf("--output is required")
+			return apperr.User("--output is required")
 		}
 
 		// Get log level from viper
@@ -70,7 +71,7 @@ Example:
 		case "quiet", "standard", "debug":
 			// ok
 		default:
-			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", level)
+			return apperr.Userf("invalid --log-level %q (expected quiet|standard|debug)", level)
 		}
 
 		// Get format from viper or detect from output path

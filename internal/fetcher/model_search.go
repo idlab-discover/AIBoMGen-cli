@@ -24,7 +24,6 @@ type ModelSearchResult struct {
 // ModelSearcher searches for models on Hugging Face
 type ModelSearcher struct {
 	Client  *http.Client
-	Token   string
 	BaseURL string // optional; defaults to "https://huggingface.co"
 }
 
@@ -64,9 +63,6 @@ func (s *ModelSearcher) Search(query string, limit int) ([]ModelSearchResult, er
 	}
 
 	req.Header.Set("Accept", "application/json")
-	if strings.TrimSpace(s.Token) != "" {
-		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(s.Token))
-	}
 
 	resp, err := client.Do(req)
 	if err != nil {

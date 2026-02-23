@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
 	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/generator"
@@ -50,7 +52,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	case "quiet", "standard", "debug":
 		// ok
 	default:
-		return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", level)
+		return apperr.Userf("invalid --log-level %q (expected quiet|standard|debug)", level)
 	}
 
 	quiet := level == "quiet"
@@ -64,7 +66,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	case "online", "dummy":
 		// ok
 	default:
-		return fmt.Errorf("invalid --hf-mode %q (expected online|dummy)", mode)
+		return apperr.Userf("invalid --hf-mode %q (expected online|dummy)", mode)
 	}
 
 	inputPath := viper.GetString("scan.input")
@@ -77,7 +79,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	// Disallow providing an input path when running in dummy HF mode — dummy mode
 	// uses built-in fixture data and does not consult the filesystem.
 	if mode == "dummy" && inputPathProvided {
-		return fmt.Errorf("--input cannot be used with --hf-mode=dummy")
+		return apperr.User("--input cannot be used with --hf-mode=dummy")
 	}
 
 	// Get format from viper
@@ -93,10 +95,10 @@ func runScan(cmd *cobra.Command, args []string) error {
 	if outputPath != "" && outputFormat != "" && outputFormat != "auto" {
 		ext := filepath.Ext(outputPath)
 		if outputFormat == "xml" && ext == ".json" {
-			return fmt.Errorf("output path extension %q does not match format %q", ext, outputFormat)
+			return apperr.Userf("output path extension %q does not match format %q", ext, outputFormat)
 		}
 		if outputFormat == "json" && ext == ".xml" {
-			return fmt.Errorf("output path extension %q does not match format %q", ext, outputFormat)
+			return apperr.Userf("output path extension %q does not match format %q", ext, outputFormat)
 		}
 	}
 
@@ -168,6 +170,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 }
 
 func runScanDirectory(inputPath, mode, hfToken string, timeout time.Duration, quiet bool, results *[]generator.DiscoveredBOM) error {
+	hasToken := strings.TrimSpace(hfToken) != ""
 	absTarget, err := filepath.Abs(inputPath)
 	if err != nil {
 		return err
@@ -186,13 +189,9 @@ func runScanDirectory(inputPath, mode, hfToken string, timeout time.Duration, qu
 		return nil
 	}
 
-	// Track completed models to print at the end
-	type modelResult struct {
-		id       string
-		datasets int
-		err      string
-	}
-	var completedModels []modelResult
+	// Track per-model outcome for the final summary (same pattern as generate command).
+	pendingModels := make(map[string]*modelTracker)
+	var modelOrder []string
 
 	// Create workflow (only if not quiet)
 	var workflow *ui.Workflow
@@ -246,21 +245,47 @@ func runScanDirectory(inputPath, mode, hfToken string, timeout time.Duration, qu
 		if quiet || workflow == nil {
 			return
 		}
+		// Ensure a tracker exists for this model (EventFetchStart arrives first).
+		if _, ok := pendingModels[evt.ModelID]; !ok {
+			pendingModels[evt.ModelID] = &modelTracker{}
+			modelOrder = append(modelOrder, evt.ModelID)
+		}
 		switch evt.Type {
 		case generator.EventFetchStart:
 			workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d: %s (fetching)", modelsCompleted, totalModels, evt.ModelID)))
+		case generator.EventFetchAPIComplete:
+			pendingModels[evt.ModelID].apiOK = true
 		case generator.EventBuildStart:
 			workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d: %s (building)", modelsCompleted, totalModels, evt.ModelID)))
 		case generator.EventDatasetStart:
 			workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d: %s → %s", modelsCompleted, totalModels, evt.ModelID, evt.Message)))
+		case generator.EventDatasetComplete:
+			pendingModels[evt.ModelID].datasetResults = append(pendingModels[evt.ModelID].datasetResults, datasetResult{id: evt.Message})
+		case generator.EventDatasetError:
+			pendingModels[evt.ModelID].datasetResults = append(pendingModels[evt.ModelID].datasetResults, datasetResult{id: evt.Message, err: evt.Error})
 		case generator.EventModelComplete:
+			t := pendingModels[evt.ModelID]
+			t.complete = true
 			modelsCompleted++
-			completedModels = append(completedModels, modelResult{id: evt.ModelID, datasets: evt.Datasets})
 			if modelsCompleted < totalModels {
-				workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d", modelsCompleted, totalModels)))
+				workflow.UpdateMessage(processTaskIdx, ui.Dim.Render(fmt.Sprintf("%d/%d complete", modelsCompleted, totalModels)))
 			}
 		case generator.EventError:
-			completedModels = append(completedModels, modelResult{id: evt.ModelID, err: evt.Message})
+			if evt.Message != "BOM build failed" {
+				t := pendingModels[evt.ModelID]
+				if fetcher.IsNotFound(evt.Error) {
+					t.notFound = true
+				} else if fetcher.IsUnauthorized(evt.Error) && !t.apiOK {
+					// 401/403 before the model API succeeded = model is private or non-existent.
+					// HF Hub returns 401 for non-existent repos too, so treat this like 404.
+					t.notFound = true
+				} else {
+					t.fetchErr = true
+					if t.fetchErrVal == nil {
+						t.fetchErrVal = evt.Error
+					}
+				}
+			}
 		}
 	}
 
@@ -287,14 +312,8 @@ func runScanDirectory(inputPath, mode, hfToken string, timeout time.Duration, qu
 
 		// Print individual model results after workflow completes
 		fmt.Println()
-		for _, m := range completedModels {
-			if m.err != "" {
-				fmt.Printf("  %s %s %s\n", ui.GetCrossMark(), ui.Highlight.Render(m.id), ui.Error.Render("→ "+m.err))
-			} else if m.datasets > 0 {
-				fmt.Printf("  %s %s %s\n", ui.GetCheckMark(), ui.Highlight.Render(m.id), ui.Dim.Render(fmt.Sprintf("→ %d dataset(s)", m.datasets)))
-			} else {
-				fmt.Printf("  %s %s\n", ui.GetCheckMark(), ui.Highlight.Render(m.id))
-			}
+		for _, id := range modelOrder {
+			printModelResult(id, pendingModels[id], hasToken)
 		}
 	}
 

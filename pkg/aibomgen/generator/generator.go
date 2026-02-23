@@ -43,17 +43,17 @@ type fetcherSet struct {
 	}
 }
 
-var newFetcherSet = func(httpClient *http.Client, token string) fetcherSet {
+var newFetcherSet = func(httpClient *http.Client) fetcherSet {
 	return fetcherSet{
-		modelAPI:      &fetcher.ModelAPIFetcher{Client: httpClient, Token: token},
-		modelReadme:   &fetcher.ModelReadmeFetcher{Client: httpClient, Token: token},
-		datasetAPI:    &fetcher.DatasetAPIFetcher{Client: httpClient, Token: token},
-		datasetReadme: &fetcher.DatasetReadmeFetcher{Client: httpClient, Token: token},
+		modelAPI:      &fetcher.ModelAPIFetcher{Client: httpClient},
+		modelReadme:   &fetcher.ModelReadmeFetcher{Client: httpClient},
+		datasetAPI:    &fetcher.DatasetAPIFetcher{Client: httpClient},
+		datasetReadme: &fetcher.DatasetReadmeFetcher{Client: httpClient},
 	}
 }
 
 func newHTTPClient(opts GenerateOptions) *http.Client {
-	return fetcher.NewHFClient(opts.Timeout)
+	return fetcher.NewHFClient(opts.Timeout, opts.HFToken)
 }
 
 // Dummy fetcher factory for BuildDummyBOM testing
@@ -93,6 +93,7 @@ const (
 	EventBuildComplete
 	EventDatasetStart
 	EventDatasetComplete
+	EventDatasetError // dataset fetch/build failed (non-fatal; model processing continues)
 	EventModelComplete
 	EventError
 )
@@ -174,7 +175,7 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, opts GenerateOptions) ([
 
 	results := make([]DiscoveredBOM, 0, len(discoveries))
 
-	fetchers := newFetcherSet(newHTTPClient(opts), opts.HFToken)
+	fetchers := newFetcherSet(newHTTPClient(opts))
 	bomBuilder := newBOMBuilder()
 
 	for i, d := range discoveries {
@@ -192,11 +193,15 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, opts GenerateOptions) ([
 			if r, err := fetchers.modelAPI.Fetch(modelID); err == nil {
 				resp = r
 				progress(ProgressEvent{Type: EventFetchAPIComplete, ModelID: modelID})
+			} else {
+				progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err, Message: fetchErrMessage("API", err)})
 			}
 
 			if c, err := fetchers.modelReadme.Fetch(modelID); err == nil {
 				readme = c
 				progress(ProgressEvent{Type: EventFetchReadmeComplete, ModelID: modelID})
+			} else {
+				progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err, Message: fetchErrMessage("README", err)})
 			}
 		}
 
@@ -211,8 +216,8 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, opts GenerateOptions) ([
 
 		bom, err := bomBuilder.Build(bctx)
 		if err != nil {
-			progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err})
-			return nil, err
+			progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err, Message: "BOM build failed"})
+			continue
 		}
 
 		progress(ProgressEvent{Type: EventBuildComplete, ModelID: modelID})
@@ -231,6 +236,15 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, opts GenerateOptions) ([
 	}
 
 	return results, nil
+}
+
+// fetchErrMessage returns a user-facing message for a Hugging Face fetch error,
+// distinguishing "not found" (404) from other failures.
+func fetchErrMessage(kind string, err error) string {
+	if fetcher.IsNotFound(err) {
+		return kind + ": not found on Hugging Face Hub"
+	}
+	return kind + " fetch failed: " + err.Error()
 }
 
 // extractDatasetsFromModel extracts dataset IDs from model's training metadata
@@ -293,6 +307,7 @@ func buildDatasetComponents(fetchers fetcherSet, bom *cdx.BOM, datasets []string
 
 		dsResp, err := fetchers.datasetAPI.Fetch(dsID)
 		if err != nil {
+			progress(ProgressEvent{Type: EventDatasetError, ModelID: modelID, Message: dsID, Error: err})
 			continue
 		}
 
@@ -335,7 +350,7 @@ func BuildFromModelIDs(modelIDs []string, opts GenerateOptions) ([]DiscoveredBOM
 
 	results := make([]DiscoveredBOM, 0, len(modelIDs))
 
-	fetchers := newFetcherSet(newHTTPClient(opts), opts.HFToken)
+	fetchers := newFetcherSet(newHTTPClient(opts))
 
 	for i, modelID := range modelIDs {
 		modelID = strings.TrimSpace(modelID)
@@ -359,6 +374,7 @@ func BuildFromModelIDs(modelIDs []string, opts GenerateOptions) ([]DiscoveredBOM
 		// Fetch README
 		readme, err := fetchers.modelReadme.Fetch(modelID)
 		if err != nil {
+			progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err, Message: "README fetch failed"})
 			readme = nil
 		} else {
 			progress(ProgressEvent{Type: EventFetchReadmeComplete, ModelID: modelID})

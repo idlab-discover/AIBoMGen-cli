@@ -7,9 +7,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
+	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/bomio"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 )
 
 var completenessCmd = &cobra.Command{
@@ -27,7 +28,7 @@ var completenessCmd = &cobra.Command{
 		case "quiet", "standard", "debug":
 			// ok
 		default:
-			return fmt.Errorf("invalid --log-level %q (expected quiet|standard|debug)", level)
+			return apperr.Userf("invalid --log-level %q (expected quiet|standard|debug)", level)
 		}
 
 		// Wire internal package logging based on log level.
@@ -37,6 +38,9 @@ var completenessCmd = &cobra.Command{
 
 		// Get input path and format from viper
 		inputPath := viper.GetString("completeness.input")
+		if inputPath == "" {
+			return apperr.User("--input is required")
+		}
 		inputFormat := viper.GetString("completeness.format")
 		if inputFormat == "" {
 			inputFormat = "auto"

@@ -59,6 +59,10 @@ func init() {
 		defaultHelp(cmd, args)
 	})
 
+	// Suppress usage output on errors – it is noise for a large CLI; the user
+	// should run the subcommand with --help to see usage when needed.
+	rootCmd.SilenceUsage = true
+
 	// Add subcommands
 	rootCmd.AddCommand(generateCmd, scanCmd, enrichCmd, validateCmd, completenessCmd, mergeCmd)
 }
