@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 )
 
 type ValidationResult struct {

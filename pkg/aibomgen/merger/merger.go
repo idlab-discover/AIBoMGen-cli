@@ -9,8 +9,6 @@ import (
 
 // MergeOptions configures how BOMs are merged.
 type MergeOptions struct {
-	// SBOMName is used to identify the SBOM in metadata
-	SBOMName string
 	// DeduplicateComponents removes duplicate components based on BOM-ref
 	DeduplicateComponents bool
 }
@@ -155,11 +153,17 @@ func MergeAIBOMsWithSBOM(sbom *cdx.BOM, aiboms []*cdx.BOM, opts MergeOptions) (*
 	// Track unique tools by name@version for deduplication
 	toolsMap := make(map[string]bool)
 
-	// Use the SBOM's spec version
+	// Use the SBOM's spec version, format and schema
 	result.MergedBOM.SpecVersion = sbom.SpecVersion
 	if result.MergedBOM.SpecVersion == cdx.SpecVersion(0) {
 		result.MergedBOM.SpecVersion = cdx.SpecVersion1_6
 	}
+	if sbom.BOMFormat != "" {
+		result.MergedBOM.BOMFormat = sbom.BOMFormat
+	} else {
+		result.MergedBOM.BOMFormat = "CycloneDX"
+	}
+	result.MergedBOM.JSONSchema = sbom.JSONSchema
 
 	// Preserve SBOM metadata (including the application component)
 	if sbom.Metadata != nil {

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
@@ -115,7 +114,6 @@ Example:
 
 		// Prepare merge options
 		opts := merger.MergeOptions{
-			SBOMName:              filepath.Base(sbomPath),
 			DeduplicateComponents: viper.GetBool("merge.deduplicate"),
 		}
 

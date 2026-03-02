@@ -20,11 +20,11 @@ What works today:
 - [BETA] Testing
 - [BETA] Merge one or more AIBOMs with an existing SBOM from a different source (e.g., Syft, Trivy) into a single comprehensive BOM
 - [BETA] Interactive Hugging Face model browsing
+- [BETA] Complex regex-based Hugging Face detection
 
 
 What is future work:
 
-- Improving the scanner beyond the current regex-based Hugging Face detection
 - Implementing check-vuln command to check AI vulnerability databases
 - Implementing AIBOM generation based of model files not on Hugging Face
 
