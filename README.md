@@ -28,7 +28,31 @@ What is future work:
 - Implementing check-vuln command to check AI vulnerability databases
 - Implementing AIBOM generation based of model files not on Hugging Face
 
-## Build
+## Installation
+
+### Using `go install`
+
+Requires Go:
+
+```bash
+go install github.com/idlab-discover/AIBoMGen-cli@latest
+```
+
+Ensure `$HOME/go/bin` is in your `PATH`, then verify:
+
+```bash
+AIBoMGen-cli --help
+```
+
+### From release archive
+
+```bash
+tar -xzf AIBoMGen-cli_<version>_linux_amd64.tar.gz
+chmod +x AIBoMGen-cli
+sudo mv AIBoMGen-cli /usr/local/bin/aibomgen-cli
+```
+
+## Build from source
 
 ```bash
 go test ./...
