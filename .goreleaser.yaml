@@ -5,6 +5,10 @@ builds:
     binary: aibomgen-cli
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - "-s -w -X main.Version={{ .Version }}"
+    flags:
+      - "-trimpath"
     goos:
       - linux
       - darwin

@@ -31,6 +31,7 @@ var rootCmd = &cobra.Command{
 
 var cfgFile string
 var version string
+var renderedBanner string
 
 // SetVersion sets the version for the CLI
 func SetVersion(v string) {
@@ -130,5 +131,8 @@ func initUIAndBanner(cmd *cobra.Command) {
 	if cmd == nil {
 		return
 	}
-	cmd.Root().Long = ui.RenderGradientBanner(ui.BannerASCII) + "\n" + longDescription
+	if renderedBanner == "" {
+		renderedBanner = ui.RenderGradientBanner(ui.BannerASCII) + "\n" + longDescription
+	}
+	cmd.Root().Long = renderedBanner
 }
