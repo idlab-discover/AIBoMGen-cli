@@ -20,6 +20,7 @@ func main() {
 		context.Background(),
 		cmd.GetRootCmd(),
 		fang.WithColorSchemeFunc(ui.FangColorScheme),
+		fang.WithVersion(Version),
 	); err != nil {
 		// User deliberately cancelled an interactive flow – not a failure.
 		if errors.Is(err, apperr.ErrCancelled) {
