@@ -201,11 +201,22 @@ func MergeAIBOMsWithSBOM(sbom *cdx.BOM, aiboms []*cdx.BOM, opts MergeOptions) (*
 				}
 			}
 
-			// Copy tools.tools (older format) if present
+			// Convert legacy tools.tools entries into tools.components.
 			if sbom.Metadata.Tools.Tools != nil && len(*sbom.Metadata.Tools.Tools) > 0 {
-				toolsCopy := make([]cdx.Tool, len(*sbom.Metadata.Tools.Tools))
-				copy(toolsCopy, *sbom.Metadata.Tools.Tools)
-				result.MergedBOM.Metadata.Tools.Tools = &toolsCopy
+				if result.MergedBOM.Metadata.Tools.Components == nil {
+					result.MergedBOM.Metadata.Tools.Components = &[]cdx.Component{}
+				}
+
+				for i := range *sbom.Metadata.Tools.Tools {
+					toolComp := legacyToolToComponent(&(*sbom.Metadata.Tools.Tools)[i])
+					toolKey := getToolKey(&toolComp)
+					if toolKey == "" || !toolsMap[toolKey] {
+						*result.MergedBOM.Metadata.Tools.Components = append(*result.MergedBOM.Metadata.Tools.Components, toolComp)
+						if toolKey != "" {
+							toolsMap[toolKey] = true
+						}
+					}
+				}
 			}
 		}
 	}
@@ -611,6 +622,32 @@ func getToolKey(comp *cdx.Component) string {
 		return ""
 	}
 	return comp.Name + "@" + comp.Version
+}
+
+// legacyToolToComponent maps deprecated metadata.tools.tools entries to
+// metadata.tools.components so merged output only uses one ToolsChoice shape.
+func legacyToolToComponent(tool *cdx.Tool) cdx.Component {
+	comp := cdx.Component{
+		Type:    cdx.ComponentTypeApplication,
+		Name:    tool.Name,
+		Version: tool.Version,
+	}
+
+	if tool.Vendor != "" {
+		comp.Manufacturer = &cdx.OrganizationalEntity{Name: tool.Vendor}
+	}
+	if tool.Hashes != nil {
+		hashesCopy := make([]cdx.Hash, len(*tool.Hashes))
+		copy(hashesCopy, *tool.Hashes)
+		comp.Hashes = &hashesCopy
+	}
+	if tool.ExternalReferences != nil {
+		externalRefsCopy := make([]cdx.ExternalReference, len(*tool.ExternalReferences))
+		copy(externalRefsCopy, *tool.ExternalReferences)
+		comp.ExternalReferences = &externalRefsCopy
+	}
+
+	return comp
 }
 
 // generateBOMRef creates a BOM-ref from component identity.
