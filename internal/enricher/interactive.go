@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/huh/v2"
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/charmbracelet/huh"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
 	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
 )
