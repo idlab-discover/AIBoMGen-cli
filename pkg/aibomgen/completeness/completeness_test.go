@@ -11,14 +11,14 @@ import (
 )
 
 // Test Strategy:
-// - Uses calculated score values (e.g., 1.0 / 11.25) instead of hardcoded floats to avoid precision issues
+// - Uses calculated score values (e.g., 1.0 / 12.15) instead of hardcoded floats to avoid precision issues
 // - Implements tolerance-based comparison (1e-9) for floating point scores
 // - Helper functions resultsEqual() and datasetResultsEqual() compare results with proper float handling
 // - Best practice: never hardcode floating point literals in test expectations
 
-// Constants from metadata registry (total weight: 11.25 for model, 9.4 for dataset)
+// Constants from metadata registry (total weight: 12.15 for model, 9.4 for dataset)
 const (
-	totalModelFields   = 26
+	totalModelFields   = 30
 	totalDatasetFields = 17
 	floatTolerance     = 1e-9 // Tolerance for floating point comparison
 )
@@ -117,6 +117,10 @@ func TestCheck(t *testing.T) {
 					metadata.ModelCardConsiderationsEthicalConsiderations,
 					metadata.ModelCardQuantitativeAnalysisPerformanceMetrics,
 					metadata.ModelCardConsiderationsEnvironmentalConsiderationsProperties,
+					metadata.ComponentPropertiesSecurityOverallStatus,
+					metadata.ComponentPropertiesSecurityScannedFiles,
+					metadata.ComponentPropertiesSecurityUnsafeFiles,
+					metadata.ComponentPropertiesSecurityCautionFiles,
 				},
 				DatasetResults: make(map[string]DatasetResult),
 			},
@@ -134,7 +138,7 @@ func TestCheck(t *testing.T) {
 			},
 			want: Result{
 				ModelID:         "test-model",
-				Score:           1.0 / 11.25, // ComponentName weight (1.0) / total weight (11.25)
+				Score:           1.0 / 12.15, // ComponentName weight (1.0) / total weight (12.15)
 				Passed:          1,
 				Total:           totalModelFields,
 				MissingRequired: nil, // ComponentName is satisfied
@@ -164,6 +168,10 @@ func TestCheck(t *testing.T) {
 					metadata.ModelCardConsiderationsEthicalConsiderations,
 					metadata.ModelCardQuantitativeAnalysisPerformanceMetrics,
 					metadata.ModelCardConsiderationsEnvironmentalConsiderationsProperties,
+					metadata.ComponentPropertiesSecurityOverallStatus,
+					metadata.ComponentPropertiesSecurityScannedFiles,
+					metadata.ComponentPropertiesSecurityUnsafeFiles,
+					metadata.ComponentPropertiesSecurityCautionFiles,
 				},
 				DatasetResults: make(map[string]DatasetResult),
 			},
@@ -188,7 +196,7 @@ func TestCheck(t *testing.T) {
 			},
 			want: Result{
 				ModelID:         "test-model",
-				Score:           1.5 / 11.25, // ComponentName (1.0) + Datasets (0.5) / total (11.25)
+				Score:           1.5 / 12.15, // ComponentName (1.0) + Datasets (0.5) / total (12.15)
 				Passed:          2,
 				Total:           totalModelFields,
 				MissingRequired: nil,
@@ -218,6 +226,10 @@ func TestCheck(t *testing.T) {
 					metadata.ModelCardConsiderationsEthicalConsiderations,
 					metadata.ModelCardQuantitativeAnalysisPerformanceMetrics,
 					metadata.ModelCardConsiderationsEnvironmentalConsiderationsProperties,
+					metadata.ComponentPropertiesSecurityOverallStatus,
+					metadata.ComponentPropertiesSecurityScannedFiles,
+					metadata.ComponentPropertiesSecurityUnsafeFiles,
+					metadata.ComponentPropertiesSecurityCautionFiles,
 				},
 				DatasetResults: make(map[string]DatasetResult),
 			},
@@ -248,7 +260,7 @@ func TestCheck(t *testing.T) {
 			},
 			want: Result{
 				ModelID:         "test-model",
-				Score:           1.5 / 11.25,
+				Score:           1.5 / 12.15,
 				Passed:          2,
 				Total:           totalModelFields,
 				MissingRequired: nil,
@@ -277,6 +289,10 @@ func TestCheck(t *testing.T) {
 					metadata.ModelCardConsiderationsEthicalConsiderations,
 					metadata.ModelCardQuantitativeAnalysisPerformanceMetrics,
 					metadata.ModelCardConsiderationsEnvironmentalConsiderationsProperties,
+					metadata.ComponentPropertiesSecurityOverallStatus,
+					metadata.ComponentPropertiesSecurityScannedFiles,
+					metadata.ComponentPropertiesSecurityUnsafeFiles,
+					metadata.ComponentPropertiesSecurityCautionFiles,
 				},
 				DatasetResults: map[string]DatasetResult{
 					"dataset-1": {
@@ -325,7 +341,7 @@ func TestCheck(t *testing.T) {
 			},
 			want: Result{
 				ModelID:         "test-model",
-				Score:           1.0 / 11.25, // Only ComponentName is present
+				Score:           1.0 / 12.15, // Only ComponentName is present
 				Passed:          1,
 				Total:           totalModelFields,
 				MissingRequired: nil,
@@ -355,6 +371,10 @@ func TestCheck(t *testing.T) {
 					metadata.ModelCardConsiderationsEthicalConsiderations,
 					metadata.ModelCardQuantitativeAnalysisPerformanceMetrics,
 					metadata.ModelCardConsiderationsEnvironmentalConsiderationsProperties,
+					metadata.ComponentPropertiesSecurityOverallStatus,
+					metadata.ComponentPropertiesSecurityScannedFiles,
+					metadata.ComponentPropertiesSecurityUnsafeFiles,
+					metadata.ComponentPropertiesSecurityCautionFiles,
 				},
 				DatasetResults: make(map[string]DatasetResult),
 			},
@@ -379,7 +399,7 @@ func TestCheck(t *testing.T) {
 			},
 			want: Result{
 				ModelID:         "test-model",
-				Score:           1.0 / 11.25,
+				Score:           1.0 / 12.15,
 				Passed:          1,
 				Total:           totalModelFields,
 				MissingRequired: nil,
@@ -409,6 +429,10 @@ func TestCheck(t *testing.T) {
 					metadata.ModelCardConsiderationsEthicalConsiderations,
 					metadata.ModelCardQuantitativeAnalysisPerformanceMetrics,
 					metadata.ModelCardConsiderationsEnvironmentalConsiderationsProperties,
+					metadata.ComponentPropertiesSecurityOverallStatus,
+					metadata.ComponentPropertiesSecurityScannedFiles,
+					metadata.ComponentPropertiesSecurityUnsafeFiles,
+					metadata.ComponentPropertiesSecurityCautionFiles,
 				},
 				DatasetResults: make(map[string]DatasetResult),
 			},
@@ -451,7 +475,7 @@ func TestCheck(t *testing.T) {
 			},
 			want: Result{
 				ModelID:         "test-model",
-				Score:           1.5 / 11.25,
+				Score:           1.5 / 12.15,
 				Passed:          2,
 				Total:           totalModelFields,
 				MissingRequired: nil,
@@ -480,6 +504,10 @@ func TestCheck(t *testing.T) {
 					metadata.ModelCardConsiderationsEthicalConsiderations,
 					metadata.ModelCardQuantitativeAnalysisPerformanceMetrics,
 					metadata.ModelCardConsiderationsEnvironmentalConsiderationsProperties,
+					metadata.ComponentPropertiesSecurityOverallStatus,
+					metadata.ComponentPropertiesSecurityScannedFiles,
+					metadata.ComponentPropertiesSecurityUnsafeFiles,
+					metadata.ComponentPropertiesSecurityCautionFiles,
 				},
 				DatasetResults: map[string]DatasetResult{
 					"dataset-1": {

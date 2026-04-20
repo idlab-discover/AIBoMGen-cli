@@ -65,7 +65,7 @@ func init() {
 	rootCmd.SilenceUsage = true
 
 	// Add subcommands
-	rootCmd.AddCommand(generateCmd, scanCmd, enrichCmd, validateCmd, completenessCmd, mergeCmd)
+	rootCmd.AddCommand(generateCmd, scanCmd, enrichCmd, validateCmd, completenessCmd, mergeCmd, vulnScanCmd)
 }
 
 func initConfig() {

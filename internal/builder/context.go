@@ -6,10 +6,11 @@ import (
 )
 
 type BuildContext struct {
-	ModelID string
-	Scan    scanner.Discovery
-	HF      *fetcher.ModelAPIResponse
-	Readme  *fetcher.ModelReadmeCard
+	ModelID      string
+	Scan         scanner.Discovery
+	HF           *fetcher.ModelAPIResponse
+	Readme       *fetcher.ModelReadmeCard
+	SecurityTree []fetcher.SecurityFileEntry
 }
 
 // DatasetBuildContext for dataset component building

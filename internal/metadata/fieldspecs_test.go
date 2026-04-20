@@ -76,6 +76,12 @@ func TestRegistryApplyAndPresent(t *testing.T) {
 	src.HF.Config.ModelType = "bert"
 	src.HF.Config.Architectures = []string{"BertForSequenceClassification"}
 
+	// Provide a minimal security tree so the security FieldSpecs have data to present.
+	safeStatus := &fetcher.SecurityFileStatus{Status: "safe"}
+	src.SecurityTree = []fetcher.SecurityFileEntry{
+		{Type: "file", OID: "abc", Path: "model.safetensors", SecurityFileStatus: safeStatus},
+	}
+
 	tgt := Target{
 		BOM:                       bom,
 		Component:                 comp,

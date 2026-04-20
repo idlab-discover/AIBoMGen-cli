@@ -34,6 +34,9 @@ var (
 
 	// interactive enables the interactive model selector
 	interactive bool
+
+	// noSecurityScan disables the HF tree security scan fetch
+	noSecurityScan bool
 )
 
 // generateCmd represents the generate command
@@ -314,9 +317,10 @@ func runModelIDMode(genUI *ui.GenerateUI, modelIDs []string, mode, hfToken strin
 	}
 
 	opts := generator.GenerateOptions{
-		HFToken:    hfToken,
-		Timeout:    timeout,
-		OnProgress: onProgress,
+		HFToken:          hfToken,
+		Timeout:          timeout,
+		OnProgress:       onProgress,
+		SkipSecurityScan: noSecurityScan,
 	}
 
 	boms, err := generator.BuildFromModelIDs(modelIDs, opts)
@@ -354,6 +358,7 @@ func init() {
 	generateCmd.Flags().StringVar(&hfToken, "hf-token", "", "Hugging Face access token")
 	generateCmd.Flags().StringVar(&generateLogLevel, "log-level", "", "Log level: quiet|standard|debug")
 	generateCmd.Flags().BoolVar(&interactive, "interactive", false, "Interactive model selector (cannot be used with --model-id)")
+	generateCmd.Flags().BoolVar(&noSecurityScan, "no-security-scan", false, "Skip fetching the HuggingFace security scan tree")
 
 	// Bind all flags to viper for config file support
 	viper.BindPFlag("generate.model-ids", generateCmd.Flags().Lookup("model-id"))

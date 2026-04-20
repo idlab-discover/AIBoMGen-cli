@@ -41,6 +41,9 @@ type fetcherSet struct {
 	datasetReadme interface {
 		Fetch(string) (*fetcher.DatasetReadmeCard, error)
 	}
+	modelTree interface {
+		Fetch(string) ([]fetcher.SecurityFileEntry, error)
+	}
 }
 
 var newFetcherSet = func(httpClient *http.Client) fetcherSet {
@@ -49,6 +52,7 @@ var newFetcherSet = func(httpClient *http.Client) fetcherSet {
 		modelReadme:   &fetcher.ModelReadmeFetcher{Client: httpClient},
 		datasetAPI:    &fetcher.DatasetAPIFetcher{Client: httpClient},
 		datasetReadme: &fetcher.DatasetReadmeFetcher{Client: httpClient},
+		modelTree:     &fetcher.ModelTreeFetcher{Client: httpClient},
 	}
 }
 
@@ -63,6 +67,7 @@ var newDummyFetcherSet = func() fetcherSet {
 		modelReadme:   &fetcher.DummyModelReadmeFetcher{},
 		datasetAPI:    &fetcher.DummyDatasetAPIFetcher{},
 		datasetReadme: &fetcher.DummyDatasetReadmeFetcher{},
+		modelTree:     &fetcher.DummyModelTreeFetcher{},
 	}
 }
 
@@ -89,6 +94,7 @@ const (
 	EventFetchStart
 	EventFetchAPIComplete
 	EventFetchReadmeComplete
+	EventFetchSecurityScanComplete
 	EventBuildStart
 	EventBuildComplete
 	EventDatasetStart
@@ -100,9 +106,10 @@ const (
 
 // GenerateOptions configures the generation process
 type GenerateOptions struct {
-	HFToken    string
-	Timeout    time.Duration
-	OnProgress ProgressCallback
+	HFToken          string
+	Timeout          time.Duration
+	OnProgress       ProgressCallback
+	SkipSecurityScan bool // when true, the HF tree security scan is not fetched
 }
 
 // BuildDummyBOM builds a single comprehensive dummy BOM with all fields populated.
@@ -130,12 +137,18 @@ func BuildDummyBOM() ([]DiscoveredBOM, error) {
 		return nil, err
 	}
 
+	var securityTree []fetcher.SecurityFileEntry
+	if fetchers.modelTree != nil {
+		securityTree, _ = fetchers.modelTree.Fetch("dummy-org/dummy-model")
+	}
+
 	// Build the BOM with all dummy data
 	bctx := builder.BuildContext{
-		ModelID: "dummy-org/dummy-model",
-		Scan:    dummyDiscovery,
-		HF:      apiResp,
-		Readme:  readme,
+		ModelID:      "dummy-org/dummy-model",
+		Scan:         dummyDiscovery,
+		HF:           apiResp,
+		Readme:       readme,
+		SecurityTree: securityTree,
 	}
 
 	bomBuilder := newBOMBuilder()
@@ -205,13 +218,25 @@ func BuildPerDiscovery(discoveries []scanner.Discovery, opts GenerateOptions) ([
 			}
 		}
 
+		var securityTree []fetcher.SecurityFileEntry
+		if modelID != "" && !opts.SkipSecurityScan && fetchers.modelTree != nil {
+			if tree, err := fetchers.modelTree.Fetch(modelID); err == nil {
+				securityTree = tree
+				progress(ProgressEvent{Type: EventFetchSecurityScanComplete, ModelID: modelID})
+			} else {
+				// Non-fatal: security scan failure should not abort BOM generation.
+				progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err, Message: fetchErrMessage("security scan", err)})
+			}
+		}
+
 		progress(ProgressEvent{Type: EventBuildStart, ModelID: modelID})
 
 		bctx := builder.BuildContext{
-			ModelID: modelID,
-			Scan:    d,
-			HF:      resp,
-			Readme:  readme,
+			ModelID:      modelID,
+			Scan:         d,
+			HF:           resp,
+			Readme:       readme,
+			SecurityTree: securityTree,
 		}
 
 		bom, err := bomBuilder.Build(bctx)
@@ -380,6 +405,17 @@ func BuildFromModelIDs(modelIDs []string, opts GenerateOptions) ([]DiscoveredBOM
 			progress(ProgressEvent{Type: EventFetchReadmeComplete, ModelID: modelID})
 		}
 
+		// Fetch security scan tree (non-fatal)
+		var securityTree []fetcher.SecurityFileEntry
+		if !opts.SkipSecurityScan && fetchers.modelTree != nil {
+			if tree, err := fetchers.modelTree.Fetch(modelID); err == nil {
+				securityTree = tree
+				progress(ProgressEvent{Type: EventFetchSecurityScanComplete, ModelID: modelID})
+			} else {
+				progress(ProgressEvent{Type: EventError, ModelID: modelID, Error: err, Message: fetchErrMessage("security scan", err)})
+			}
+		}
+
 		progress(ProgressEvent{Type: EventBuildStart, ModelID: modelID})
 
 		discovery := scanner.Discovery{
@@ -391,10 +427,11 @@ func BuildFromModelIDs(modelIDs []string, opts GenerateOptions) ([]DiscoveredBOM
 		}
 
 		bctx := builder.BuildContext{
-			ModelID: modelID,
-			Scan:    discovery,
-			HF:      resp,
-			Readme:  readme,
+			ModelID:      modelID,
+			Scan:         discovery,
+			HF:           resp,
+			Readme:       readme,
+			SecurityTree: securityTree,
 		}
 
 		bom, err := bomBuilder.Build(bctx)

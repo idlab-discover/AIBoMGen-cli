@@ -32,6 +32,9 @@ var (
 
 	// Logging is controlled via scanLogLevel.
 	scanLogLevel string
+
+	// scanNoSecurityScan disables the HF tree security scan fetch
+	scanNoSecurityScan bool
 )
 
 // scanCmd represents the scan command
@@ -290,9 +293,10 @@ func runScanDirectory(inputPath, mode, hfToken string, timeout time.Duration, qu
 	}
 
 	opts := generator.GenerateOptions{
-		HFToken:    hfToken,
-		Timeout:    timeout,
-		OnProgress: onProgress,
+		HFToken:          hfToken,
+		Timeout:          timeout,
+		OnProgress:       onProgress,
+		SkipSecurityScan: scanNoSecurityScan,
 	}
 
 	boms, err := generator.BuildPerDiscovery(discoveries, opts)
@@ -330,6 +334,7 @@ func init() {
 	scanCmd.Flags().IntVar(&scanHfTimeoutSec, "hf-timeout", 0, "Timeout in seconds per Hugging Face API request (default 10)")
 	scanCmd.Flags().StringVar(&scanHfToken, "hf-token", "", "Hugging Face access token")
 	scanCmd.Flags().StringVar(&scanLogLevel, "log-level", "", "Log level: quiet|standard|debug")
+	scanCmd.Flags().BoolVar(&scanNoSecurityScan, "no-security-scan", false, "Skip fetching the HuggingFace security scan tree")
 
 	// Bind all flags to viper for config file support
 	viper.BindPFlag("scan.input", scanCmd.Flags().Lookup("input"))

@@ -44,6 +44,12 @@ const (
 	ModelCardConsiderationsEthicalConsiderations                 Key = "BOM.metadata.component.modelCard.considerations.ethicalConsiderations"
 	ModelCardQuantitativeAnalysisPerformanceMetrics              Key = "BOM.metadata.component.modelCard.quantitativeAnalysis.performanceMetrics"
 	ModelCardConsiderationsEnvironmentalConsiderationsProperties Key = "BOM.metadata.component.modelCard.considerations.environmentalConsiderations.properties"
+
+	// Security scan summary stored as Component.Properties
+	ComponentPropertiesSecurityOverallStatus Key = "BOM.metadata.component.properties.huggingface:security:overallStatus"
+	ComponentPropertiesSecurityScannedFiles  Key = "BOM.metadata.component.properties.huggingface:security:scannedFileCount"
+	ComponentPropertiesSecurityUnsafeFiles   Key = "BOM.metadata.component.properties.huggingface:security:unsafeFileCount"
+	ComponentPropertiesSecurityCautionFiles  Key = "BOM.metadata.component.properties.huggingface:security:cautionFileCount"
 )
 
 // DatasetKey identifies dataset-specific CycloneDX fields
@@ -74,10 +80,11 @@ const (
 
 // Source is everything FieldSpecs can read from.
 type Source struct {
-	ModelID string
-	Scan    scanner.Discovery
-	HF      *fetcher.ModelAPIResponse
-	Readme  *fetcher.ModelReadmeCard
+	ModelID      string
+	Scan         scanner.Discovery
+	HF           *fetcher.ModelAPIResponse
+	Readme       *fetcher.ModelReadmeCard
+	SecurityTree []fetcher.SecurityFileEntry
 }
 
 // Target is everything FieldSpecs are allowed to mutate.
@@ -167,5 +174,6 @@ func Registry() []FieldSpec {
 	specs = append(specs, evidenceFields()...)
 	specs = append(specs, hfPropFields()...)
 	specs = append(specs, modelCardFields()...)
+	specs = append(specs, securityFields()...)
 	return specs
 }
