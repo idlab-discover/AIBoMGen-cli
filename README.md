@@ -3,30 +3,29 @@
 
 [![Build + Unit Tests](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/build.yml/badge.svg)](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/build.yml) [![Scan Integration](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/integration.yml/badge.svg)](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/integration.yml)
 
-Go CLI tool and packages that scan a repository for **basic Hugging Face model usage** and emit a **CycloneDX AI Bill of Materials (AIBOM)**.
+Go CLI tool and packages that scan a repository for **Hugging Face model and dataset usage** and emit a **CycloneDX AI Bill of Materials (AIBOM)**.
 
 ## Status
 
 What works today:
 
-- `scan` command: scan a directory for AI imports and emit one AIBOM per detected model
+- `scan` command: walk a directory, detect AI imports across multiple file types, and emit one AIBOM per detected model
 - `generate` command: generate an AIBOM directly from one or more Hugging Face model IDs, or interactively browse models
-- Hugging Face Hub API fetch to populate metadata fields
-- Hugging Face Repo README fetch to populate more metadata fields
-- Completeness scoring and validation of existing AIBOM files
-- Interactive or file based metadata enrichment
-- Data components with dataset fetchers and linking them in the AIBOM
-- Updated the UI to utilise Charm libraries
-- [BETA] Testing
-- [BETA] Merge one or more AIBOMs with an existing SBOM from a different source (e.g., Syft, Trivy) into a single comprehensive BOM
-- [BETA] Interactive Hugging Face model browsing
-- [BETA] Complex regex-based Hugging Face detection
-
+- `validate` command: validate an existing AIBOM with completeness scoring and strict mode
+- `completeness` command: score an existing AIBOM against the metadata field registry
+- `enrich` command: fill missing metadata fields interactively or from a YAML config file
+- `merge` command: merge one or more AIBOMs with an SBOM from another tool (Syft, Trivy, etc.)
+- `vuln-scan` command: fetch per-file security scan results from the Hugging Face Hub for every model and dataset component in an AIBOM; optionally inject findings as CycloneDX vulnerabilities
+- Hugging Face Hub API and README/model-card fetch to populate metadata fields
+- Dataset metadata fetch (API + README) with dataset components linked in the AIBOM
+- Security scan data from the HF tree API embedded as BOM properties and `BOM.Vulnerabilities` during generation; disable with `--no-security-scan`
+- Multi-source detection: Python (transformers, diffusers, huggingface_hub, sentence-transformers, optimum, peft, LangChain, evaluate, and more), YAML configs, JSON configs, Markdown front-matter, shell scripts, Dockerfiles, and JavaScript/TypeScript
+- Rich TUI output built with Charm libraries (Lipgloss, Bubbletea, Huh)
+- Interactive Hugging Face model browsing and selection
 
 What is future work:
 
-- Implementing check-vuln command to check AI vulnerability databases
-- Implementing AIBOM generation based of model files not on Hugging Face
+- AIBOM generation from local model weight files (not hosted on Hugging Face)
 
 ## Installation
 
@@ -64,11 +63,12 @@ go build -o aibomgen-cli .
 
 ### `scan`
 
-Scans a directory for AI-related imports (e.g., Hugging Face model IDs) and writes one AIBOM file per detected model.
+Walks a directory for AI-related imports across Python, YAML, JSON, Markdown, shell, Dockerfile, and JavaScript/TypeScript files. Writes one AIBOM per detected model. Security scan data from the Hugging Face tree API is embedded in each BOM by default.
 
 ```bash
 ./aibomgen-cli scan -i targets/target-2
 ./aibomgen-cli scan -i targets/target-3 --format xml --hf-mode online
+./aibomgen-cli scan -i targets/target-1 --no-security-scan
 ```
 
 By default this writes JSON files under `dist/` with filenames derived from the model ID, e.g.:
@@ -85,11 +85,12 @@ Options:
 - `--hf-mode online|dummy` (default: `online`)
 - `--hf-token <token>`: for gated/private models
 - `--hf-timeout <seconds>`
+- `--no-security-scan`: skip fetching the Hugging Face security scan tree
 - `--log-level quiet|standard|debug`
 
 ### `generate`
 
-Generates an AIBOM from one or more Hugging Face model IDs specified directly, or through an interactive model browser. Use `scan` instead when you want to detect models from a source directory.
+Generates an AIBOM from one or more Hugging Face model IDs specified directly, or through an interactive model browser. Security scan data is embedded in the BOM by default. Use `scan` instead when you want to detect models from a source directory.
 
 ```bash
 ./aibomgen-cli generate -m google-bert/bert-base-uncased
@@ -107,6 +108,7 @@ Options:
 - `--hf-mode online|dummy` (default: `online`)
 - `--hf-token <token>`: for gated/private models
 - `--hf-timeout <seconds>`
+- `--no-security-scan`: skip fetching the Hugging Face security scan tree
 - `--log-level quiet|standard|debug`
 
 ### `validate`
@@ -118,17 +120,18 @@ Validates an existing AIBOM file (JSON/XML), runs completeness checks, and can f
 ./aibomgen-cli validate -i dist/google-bert_bert-base-uncased_aibom.json --strict --min-score 0.5
 ```
 
-Useful options:
+Options:
 
+- `--input, -i <path>`: path to AIBOM file (required)
 - `--format, -f json|xml|auto`
 - `--strict`: fail on missing required fields
-- `--min-score 0.0-1.0`
+- `--min-score 0.0-1.0`: minimum acceptable completeness score
 - `--check-model-card`: validate model card fields (default: `false`)
 - `--log-level quiet|standard|debug`
 
 ### `completeness`
 
-Computes and prints a completeness score for an existing AIBOM using the metadata field registry.
+Computes and prints a completeness score for an existing AIBOM using the metadata field registry. Scores both the model component and any linked dataset components.
 
 ```bash
 ./aibomgen-cli completeness -i dist/google-bert_bert-base-uncased_aibom.json
@@ -136,13 +139,14 @@ Computes and prints a completeness score for an existing AIBOM using the metadat
 
 Options:
 
+- `--input, -i <path>`: path to AIBOM file (required)
 - `--format, -f json|xml|auto`
 - `--plain-summary`: print a single-line machine-readable summary (no styling)
 - `--log-level quiet|standard|debug`
 
 ### `enrich`
 
-Enriches an existing AIBOM by filling missing metadata fields interactively or from a configuration file.
+Enriches an existing AIBOM by filling missing metadata fields interactively or from a YAML configuration file. Can optionally refetch the latest metadata from Hugging Face before prompting.
 
 ```bash
 ./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json
@@ -168,6 +172,33 @@ Options:
 - `--hf-timeout <seconds>`: Hugging Face API timeout (for refetch)
 - `--log-level quiet|standard|debug`
 
+### `vuln-scan`
+
+Fetches per-file security scan results from the Hugging Face Hub for every model and dataset component referenced in an existing AIBOM and displays a vulnerability report. The scanners covered are Cisco Foundation AI (ClamAV), ProtectAI, HuggingFace Pickle Scanner, VirusTotal, and JFrog Research.
+
+Optionally re-injects the findings back into the AIBOM as CycloneDX `BOM.Vulnerabilities` using `--enrich`.
+
+```bash
+./aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json
+./aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json --enrich
+./aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json --enrich --no-preview
+```
+
+Options:
+
+- `--input, -i <path>`: path to existing AIBOM (required)
+- `--output, -o <path>`: output path when `--enrich` is set (default: overwrite input)
+- `--format, -f json|xml|auto`: input BOM format
+- `--output-format json|xml|auto`: output BOM format
+- `--spec <version>`: CycloneDX spec version for output
+- `--enrich`: inject discovered vulnerabilities back into the AIBOM
+- `--interactive`: show confirmation prompt before saving (default: `true`, only relevant with `--enrich`)
+- `--no-preview`: skip the confirmation prompt (only with `--enrich`)
+- `--hf-token <token>`: Hugging Face API token
+- `--hf-base-url <url>`: Hugging Face base URL override
+- `--hf-timeout <seconds>` (default: `15`)
+- `--log-level quiet|standard|debug`
+
 ### `merge`
 
 **[BETA]** Merges one or more AIBOMs with an existing SBOM from a different source (e.g., Syft, Trivy) into a single comprehensive BOM.
@@ -175,8 +206,6 @@ Options:
 The SBOM's application metadata is preserved as the main component, while AI/ML model and dataset components from the AIBOM(s) are added to the components list.
 
 ```bash
-# Example workflow: Combine software dependencies with AI components
-
 # 1. Generate SBOM for software dependencies using Syft
 syft scan . -o cyclonedx-json > sbom.json
 
@@ -186,17 +215,17 @@ syft scan . -o cyclonedx-json > sbom.json
 # 3. Merge them into a comprehensive BOM
 ./aibomgen-cli merge --aibom aibom.json --sbom sbom.json -o merged.json
 
-# 4. Merge multiple AIBOMs with one SBOM (for projects using multiple models)
+# 4. Merge multiple AIBOMs with one SBOM (for projects using multiple models in seperate AIBOM files)
 ./aibomgen-cli merge --aibom model1_aibom.json --aibom model2_aibom.json --sbom sbom.json -o merged.json
 ```
 
 Options:
 
-- `--aibom <path>`: Path to AIBOM file (can be specified multiple times, required)
-- `--sbom <path>`: Path to SBOM file (required)
-- `--output, -o <path>`: Output path for merged BOM (required)
-- `--format, -f json|xml|auto`: Output format (default: `auto`)
-- `--deduplicate`: Remove duplicate components based on BOM-ref (default: `true`)
+- `--aibom <path>`: path to AIBOM file (can be specified multiple times, required)
+- `--sbom <path>`: path to SBOM file (required)
+- `--output, -o <path>`: output path for merged BOM (required)
+- `--format, -f json|xml|auto`: output format (default: `auto`)
+- `--deduplicate`: remove duplicate components based on BOM-ref (default: `true`)
 - `--log-level quiet|standard|debug`
 
 ### Global flags
