@@ -37,6 +37,13 @@ Thumbs.db
 *.pem
 .vscode
 layout.json
+
+# Generated SBOM/release artifacts (produced in CI, not committed)
+sbom-binary.json
+sbom-binary-vulnerabilities.json
+sbom.bundle.json
+coverage.out
+grype.table
 signed_layout.json
 worker_public_key.json
 venv/
