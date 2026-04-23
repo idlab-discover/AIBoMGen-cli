@@ -8,6 +8,8 @@ import (
 	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
 )
 
+// ValidationResult is returned by [Validate] and summarises the outcome of
+// all checks performed on the BOM.
 type ValidationResult struct {
 	ModelID  string
 	Valid    bool
@@ -23,6 +25,8 @@ type ValidationResult struct {
 	DatasetResults map[string]DatasetValidationResult // key is dataset name
 }
 
+// DatasetValidationResult holds validation results for a single dataset
+// component within the BOM.
 type DatasetValidationResult struct {
 	DatasetRef        string
 	CompletenessScore float64
@@ -32,12 +36,16 @@ type DatasetValidationResult struct {
 	Warnings          []string
 }
 
+// ValidationOptions configures the behaviour of [Validate].
 type ValidationOptions struct {
 	StrictMode           bool    // Fail if required fields missing
 	MinCompletenessScore float64 // Minimum acceptable score (0.0-1.0)
 	CheckModelCard       bool    // Validate model card fields
 }
 
+// Validate checks the structural and completeness properties of bom.
+// It returns a [ValidationResult] with errors and warnings; Valid is false
+// when any hard error is found or when strict-mode thresholds are not met.
 func Validate(bom *cdx.BOM, opts ValidationOptions) ValidationResult {
 
 	result := ValidationResult{

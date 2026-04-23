@@ -6,6 +6,8 @@ import (
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )
 
+// Result holds the completeness score for the model component of a BOM and
+// all linked dataset components.
 type Result struct {
 	ModelID string  // Model identifier/name
 	Score   float64 // 0..1
@@ -20,6 +22,7 @@ type Result struct {
 	DatasetResults map[string]DatasetResult // key is dataset name/ref
 }
 
+// DatasetResult holds the completeness score for a single dataset component.
 type DatasetResult struct {
 	DatasetRef string // Reference to the dataset
 

@@ -13,6 +13,8 @@ import (
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )
 
+// DiscoveredBOM pairs a scanner discovery with the CycloneDX BOM generated
+// from it.
 type DiscoveredBOM struct {
 	Discovery scanner.Discovery
 	BOM       *cdx.BOM

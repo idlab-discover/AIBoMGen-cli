@@ -56,7 +56,7 @@ sudo mv AIBoMGen-cli /usr/local/bin/aibomgen-cli
 ```bash
 go test ./...
 go build -o aibomgen-cli .
-./aibomgen-cli --help
+aibomgen-cli --help
 ```
 
 ## Commands
@@ -66,9 +66,9 @@ go build -o aibomgen-cli .
 Walks a directory for AI-related imports across Python, YAML, JSON, Markdown, shell, Dockerfile, and JavaScript/TypeScript files. Writes one AIBOM per detected model. Security scan data from the Hugging Face tree API is embedded in each BOM by default.
 
 ```bash
-./aibomgen-cli scan -i targets/target-2
-./aibomgen-cli scan -i targets/target-3 --format xml --hf-mode online
-./aibomgen-cli scan -i targets/target-1 --no-security-scan
+aibomgen-cli scan -i targets/target-2
+aibomgen-cli scan -i targets/target-3 --format xml --hf-mode online
+aibomgen-cli scan -i targets/target-1 --no-security-scan
 ```
 
 By default this writes JSON files under `dist/` with filenames derived from the model ID, e.g.:
@@ -93,9 +93,9 @@ Options:
 Generates an AIBOM from one or more Hugging Face model IDs specified directly, or through an interactive model browser. Security scan data is embedded in the BOM by default. Use `scan` instead when you want to detect models from a source directory.
 
 ```bash
-./aibomgen-cli generate -m google-bert/bert-base-uncased
-./aibomgen-cli generate -m gpt2 -m meta-llama/Llama-3.1-8B
-./aibomgen-cli generate --interactive
+aibomgen-cli generate -m google-bert/bert-base-uncased
+aibomgen-cli generate -m gpt2 -m meta-llama/Llama-3.1-8B
+aibomgen-cli generate --interactive
 ```
 
 Options:
@@ -116,8 +116,8 @@ Options:
 Validates an existing AIBOM file (JSON/XML), runs completeness checks, and can fail in strict mode.
 
 ```bash
-./aibomgen-cli validate -i dist/google-bert_bert-base-uncased_aibom.json
-./aibomgen-cli validate -i dist/google-bert_bert-base-uncased_aibom.json --strict --min-score 0.5
+aibomgen-cli validate -i dist/google-bert_bert-base-uncased_aibom.json
+aibomgen-cli validate -i dist/google-bert_bert-base-uncased_aibom.json --strict --min-score 0.5
 ```
 
 Options:
@@ -134,7 +134,7 @@ Options:
 Computes and prints a completeness score for an existing AIBOM using the metadata field registry. Scores both the model component and any linked dataset components.
 
 ```bash
-./aibomgen-cli completeness -i dist/google-bert_bert-base-uncased_aibom.json
+aibomgen-cli completeness -i dist/google-bert_bert-base-uncased_aibom.json
 ```
 
 Options:
@@ -149,9 +149,9 @@ Options:
 Enriches an existing AIBOM by filling missing metadata fields interactively or from a YAML configuration file. Can optionally refetch the latest metadata from Hugging Face before prompting.
 
 ```bash
-./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json
-./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy interactive
-./aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy file --file config/enrichment.yaml
+aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json
+aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy interactive
+aibomgen-cli enrich -i dist/google-bert_bert-base-uncased_aibom.json --strategy file --file config/enrichment.yaml
 ```
 
 Options:
@@ -179,9 +179,9 @@ Fetches per-file security scan results from the Hugging Face Hub for every model
 Optionally re-injects the findings back into the AIBOM as CycloneDX `BOM.Vulnerabilities` using `--enrich`.
 
 ```bash
-./aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json
-./aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json --enrich
-./aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json --enrich --no-preview
+aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json
+aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json --enrich
+aibomgen-cli vuln-scan -i dist/google-bert_bert-base-uncased_aibom.json --enrich --no-preview
 ```
 
 Options:
@@ -210,13 +210,13 @@ The SBOM's application metadata is preserved as the main component, while AI/ML 
 syft scan . -o cyclonedx-json > sbom.json
 
 # 2. Generate AIBOM for AI/ML components using AIBoMGen
-./aibomgen-cli scan -i . -o aibom.json
+aibomgen-cli scan -i . -o aibom.json
 
 # 3. Merge them into a comprehensive BOM
-./aibomgen-cli merge --aibom aibom.json --sbom sbom.json -o merged.json
+aibomgen-cli merge --aibom aibom.json --sbom sbom.json -o merged.json
 
-# 4. Merge multiple AIBOMs with one SBOM (for projects using multiple models in seperate AIBOM files)
-./aibomgen-cli merge --aibom model1_aibom.json --aibom model2_aibom.json --sbom sbom.json -o merged.json
+# 4. Merge multiple AIBOMs with one SBOM (for projects using multiple models in separate AIBOM files)
+aibomgen-cli merge --aibom model1_aibom.json --aibom model2_aibom.json --sbom sbom.json -o merged.json
 ```
 
 Options:
@@ -248,130 +248,11 @@ validate:
 Any flag not passed on the CLI falls back to the config file value. CLI flags always take precedence. See [`config/defaults.yaml`](config/defaults.yaml) for a full reference of all available keys.
 
 
-## Package overview
-
-Each folder below is a Go package.
-
-### `main`
-
-Entry point. Bootstraps the Cobra root command via [fang](https://github.com/charmbracelet/fang) for styled help output and version injection.
-
-### `cmd/aibomgen-cli`
-
-Cobra CLI wiring: root command, all subcommands, flag parsing, and orchestration into `internal/` and `pkg/` packages. Each command has its own file (`scan.go`, `generate.go`, `validate.go`, `completeness.go`, `enrich.go`, `merge.go`, `vulnscan.go`).
-
-### `pkg/aibomgen/scanner`
-
-Repository scanning used by the `scan` command. Walks a directory tree and applies a multi-rule detection engine across multiple file types:
-
-- **Python** (`.py`, `.ipynb`): `from_pretrained`, `hf_hub_download`, `snapshot_download`, `pipeline`, `InferenceClient`, `SentenceTransformer`, `ORTModel`, `PeftModel`, LangChain loaders, `evaluate.load`, and more — both positional and keyword argument forms
-- **YAML** (`.yaml`, `.yml`): `model_name_or_path`, `base_model`, `_name_or_path`, `pretrained_model_name_or_path`
-- **JSON** (`.json`): adapter configs, `_name_or_path`, `base_model`
-- **Markdown front-matter**: `base_model` field in YAML front-matter
-- **Shell scripts and Dockerfiles**: `huggingface-cli download` and `hf download`
-- **JavaScript / TypeScript** (`.js`, `.ts`, `.mjs`, `.cjs`): `pipeline` and `from_pretrained` calls via the `@huggingface/transformers` library
-
-### `internal/fetcher`
-
-HTTP clients for fetching model and dataset metadata from the Hugging Face Hub.
-
-- Fetches model metadata via API (`/api/models/:id`) and README (model cards)
-- Fetches dataset metadata via API (`/api/datasets/:id`) and README (dataset cards)
-- Fetches per-file security scan data via the HF tree API (models and datasets) for embedding in generated BOMs and for the `vuln-scan` command
-- Provides a `ModelSearcher` for the interactive model browser
-- Used when `--hf-mode online` or when enriching with `--refetch`
-- Supports optional bearer token via `--hf-token` for gated/private resources
-- Includes dummy implementations for offline/testing scenarios
-- Provides markdown extraction utilities for parsing model and dataset cards
-
-### `internal/metadata`
-
-Central field registry describing which CycloneDX AI-BOM fields the tool populates and scores.
-
-- Defines field specifications for model components, dataset components, Hugging Face properties, model card fields, and security scan summaries
-- Each field has a key, weight, required status, an `Apply` function, and a `Present` check
-- Security scan summary fields: overall status, scanned file count, unsafe file count, caution file count — stored as `Component.Properties`
-- Used by `internal/builder` to populate the BOM and by `pkg/aibomgen/completeness` to score it
-- Used by `internal/enricher` to identify missing fields and apply new values
-
-### `internal/builder`
-
-Turns fetched metadata into a CycloneDX BOM.
-
-- Builds the metadata component (ML model), applies the full field registry, computes a deterministic PURL and BOM-ref
-- `BuildDataset` builds dataset sub-components using the dataset registry
-- `InjectSecurityData` appends `BOM.Vulnerabilities` derived from the HF tree security scan entries; maps scanner statuses (`unsafe` → critical, `suspicious` → high, `caution` → medium) to CycloneDX severity ratings. Covered scanners: Cisco Foundation AI (ClamAV), ProtectAI, HuggingFace Pickle Scanner, VirusTotal, JFrog Research
-
-### `pkg/aibomgen/generator`
-
-Orchestrates per-discovery AIBOM generation.
-
-- For each detected model: creates an HTTP client, fetches model API response, README/model card, linked dataset metadata, and optionally the HF security tree; builds the BOM via `internal/builder`
-- `BuildDummyBOM` produces a deterministic fixture BOM for offline/testing use
-- Reports progress via a `ProgressCallback` used by the UI workflow tracker
-
-### `pkg/aibomgen/bomio`
-
-Read/write helpers for CycloneDX BOMs.
-
-- Supports JSON and XML
-- `format=auto` infers format from file extension
-- `WriteBOM` and `WriteOutputFiles` support optional CycloneDX spec version selection
-
-### `pkg/aibomgen/completeness`
-
-Computes a completeness score $0..1$ for a BOM using weights defined in the metadata registry. Scores the model component and each linked dataset component separately. Returns missing required and optional field lists.
-
-### `pkg/aibomgen/validator`
-
-Validates an existing AIBOM.
-
-- Performs basic structural checks (nil BOM, missing `metadata.component`)
-- Validates CycloneDX spec version
-- Runs completeness scoring and can enforce a minimum threshold in strict mode
-- Returns per-dataset validation results alongside model results
-
-### `internal/enricher`
-
-Interactively or automatically fills missing metadata fields in an existing AIBOM.
-
-- Supports two strategies: `interactive` (prompts user via Huh forms) and `file` (reads from a YAML config)
-- Can refetch the latest model metadata from Hugging Face Hub before prompting
-- Enriches both model components and dataset components
-- Shows a before/after completeness preview before saving (unless `--no-preview`)
-- Respects field weights and required status when deciding what to prompt for
-
-### `internal/vulnscan`
-
-Standalone security scanning package used by the `vuln-scan` command.
-
-- `ScanBOM` fetches per-file security scan results for every model and dataset component in a BOM using the HF tree API
-- `ApplyToDOM` writes the discovered `cdx.Vulnerability` objects back into the BOM in-place
-- Errors per component are non-fatal; the scan continues for all other components
-
-### `internal/ui`
-
-Comprehensive TUI system built with Charm libraries (Lipgloss, Bubbletea, Huh).
-
-- Provides rich, styled output for all commands
-- `Workflow` implements task-based progress tracking with a spinner
-- Specialized renderers per command: `GenerateUI`, `ValidationUI`, `CompletenessUI`, `MergerUI`
-- `styles.go`: centralized color palette and text styles (bold, muted, success, warning, error)
-- `model_selector.go`: interactive fuzzy-search model browser backed by `fetcher.ModelSearcher`
-
-### `pkg/aibomgen/merger`
-
-**[BETA]** BOM merging functionality for combining AIBOMs with SBOMs from other tools.
-
-- Merges one or more AIBOMs with an SBOM, preserving the SBOM's metadata component as the primary component
-- AI/ML model and dataset components from AIBOMs are added to the components list
-- Supports component deduplication based on BOM-ref
-- Merges dependency graphs, compositions, tools, and external references
-- Returns a `MergeResult` with per-category component counts and duplicate removal statistics
-
 ## Docs and examples
 
-- `targets` are small repositories used in integration tests and examples.
-- `docs/` contains design notes and field mapping documentation. These are drafts, not actual docs.
+- API reference: [pkg.go.dev/github.com/idlab-discover/AIBoMGen-cli](https://pkg.go.dev/github.com/idlab-discover/AIBoMGen-cli)
+- `targets/` — small repositories used in integration tests and examples
+- `docs/` — design notes and field mapping documentation (drafts)
+- [`config/defaults.yaml`](config/defaults.yaml) — full reference of all config file keys
 
 

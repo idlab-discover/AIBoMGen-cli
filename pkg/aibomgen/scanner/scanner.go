@@ -13,7 +13,10 @@ import (
 	"sync"
 )
 
-// Discovery represents an AI-related artifact detected in a project.
+// Discovery represents a Hugging Face model or dataset reference detected in a
+// project file. ID is the Hugging Face repository identifier (e.g.
+// "google-bert/bert-base-uncased"), Type is always "huggingface", and Method
+// identifies the detection rule that matched (e.g. "from_pretrained").
 type Discovery struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
@@ -326,6 +329,10 @@ func init() {
 // Files in common non-source directories (.git, node_modules, __pycache__,
 // virtual-env dirs, build outputs) are skipped automatically.
 // Files are processed concurrently using a goroutine worker pool.
+// Scan walks the directory tree rooted at root and returns every Hugging Face
+// model and dataset reference it finds. The returned slice is deduplicated by
+// (ID, Path). Hidden directories, virtual environments, and common build
+// output directories are skipped automatically.
 func Scan(root string) ([]Discovery, error) {
 	// Collect file paths first (fast, serial walk).
 	var paths []string
