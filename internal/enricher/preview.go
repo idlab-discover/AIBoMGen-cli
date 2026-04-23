@@ -6,9 +6,9 @@ import (
 
 	"charm.land/huh/v2"
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
+	"github.com/idlab-discover/aibomgen-cli/internal/metadata"
+	"github.com/idlab-discover/aibomgen-cli/internal/ui"
+	"github.com/idlab-discover/aibomgen-cli/pkg/aibomgen/completeness"
 )
 
 // ShowPreviewWithConfirm shows a preview of changes and asks for confirmation using huh

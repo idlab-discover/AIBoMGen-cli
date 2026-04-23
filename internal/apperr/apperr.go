@@ -1,4 +1,4 @@
-// Package apperr defines the two sentinel error categories used across AIBoMGen-cli.
+// Package apperr defines the two sentinel error categories used across aibomgen-cli.
 //
 // Error taxonomy
 //

@@ -1,4 +1,4 @@
-# AIBoMGen-cli Global Configuration
+# aibomgen-cli Global Configuration
 # This file provides default values for all command flags.
 # Values can be overridden by command-line flags or by using --config to specify a different file.
 # Default location: $HOME/.aibomgen-cli.yaml or ./config/defaults.yaml

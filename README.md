@@ -1,7 +1,7 @@
 
 # AIBoMGen CLI
 
-[![Build + Unit Tests](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/build.yml/badge.svg)](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/build.yml) [![Scan Integration](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/integration.yml/badge.svg)](https://github.com/idlab-discover/AIBoMGen-cli/actions/workflows/integration.yml)
+[![Build + Unit Tests](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/build.yml/badge.svg)](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/build.yml) [![Scan Integration](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/integration.yml/badge.svg)](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/integration.yml)
 
 Go CLI tool and packages that scan a repository for **Hugging Face model and dataset usage** and emit a **CycloneDX AI Bill of Materials (AIBOM)**.
 
@@ -34,24 +34,24 @@ What is future work:
 Requires Go:
 
 ```bash
-go install github.com/idlab-discover/AIBoMGen-cli@latest
+go install github.com/idlab-discover/aibomgen-cli@latest
 ```
 
 Ensure `$HOME/go/bin` is in your `PATH`, then verify:
 
 ```bash
-AIBoMGen-cli --help
+aibomgen-cli --help
 ```
 
 ### From release archive
 
 ```bash
-tar -xzf AIBoMGen-cli_<version>_linux_amd64.tar.gz
-chmod +x AIBoMGen-cli
-sudo mv AIBoMGen-cli /usr/local/bin/aibomgen-cli
+tar -xzf aibomgen-cli_<version>_linux_amd64.tar.gz
+chmod +x aibomgen-cli
+sudo mv aibomgen-cli /usr/local/bin/aibomgen-cli
 ```
 
-## Build from source
+### From source
 
 ```bash
 go test ./...
@@ -250,7 +250,7 @@ Any flag not passed on the CLI falls back to the config file value. CLI flags al
 
 ## Docs and examples
 
-- API reference: [pkg.go.dev/github.com/idlab-discover/AIBoMGen-cli](https://pkg.go.dev/github.com/idlab-discover/AIBoMGen-cli)
+- API reference: [pkg.go.dev/github.com/idlab-discover/aibomgen-cli](https://pkg.go.dev/github.com/idlab-discover/aibomgen-cli)
 - `targets/` — small repositories used in integration tests and examples
 - `docs/` — design notes and field mapping documentation (drafts)
 - [`config/defaults.yaml`](config/defaults.yaml) — full reference of all config file keys

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
+	"github.com/idlab-discover/aibomgen-cli/internal/fetcher"
 )
 
 func securityFields() []FieldSpec {

@@ -7,10 +7,10 @@ import (
 	"strings"
 )
 
-const aibomgenModulePath = "github.com/idlab-discover/AIBoMGen-cli"
+const aibomgenModulePath = "github.com/idlab-discover/aibomgen-cli"
 
 var (
-	// Set these at build time with -ldflags "-X 'github.com/idlab-discover/AIBoMGen-cli/internal/builder.Version=...' -X '...Commit=...'"
+	// Set these at build time with -ldflags "-X 'github.com/idlab-discover/aibomgen-cli/internal/builder.Version=...' -X '...Commit=...'"
 	Version = ""
 	Commit  = ""
 )

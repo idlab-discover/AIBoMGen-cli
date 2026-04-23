@@ -1,4 +1,4 @@
-name: AIBomGen-cli Go Build
+name: aibomgen-cli Go Build
 
 on:
   push:
@@ -66,14 +66,14 @@ jobs:
 
       - name: Build
         run: |
-          go build -o AIBoMGen-cli ./
-          chmod +x AIBoMGen-cli
+          go build -o aibomgen-cli ./
+          chmod +x aibomgen-cli
           
       - name: Generate SBOM (Syft)
         if: ${{ matrix.go-version == '1.25.x' }}
         uses: anchore/sbom-action@v0
         with:
-          file: ./AIBoMGen-cli
+          file: ./aibomgen-cli
           format: cyclonedx-json
           output-file: sbom-binary.json
           upload-artifact: false

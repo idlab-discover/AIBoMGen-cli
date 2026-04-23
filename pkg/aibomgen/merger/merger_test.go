@@ -25,7 +25,7 @@ func TestMergeAIBOMsWithSBOM_NormalizesLegacyToolsForMarshal(t *testing.T) {
 			Tools: &cdx.ToolsChoice{
 				Components: &[]cdx.Component{{
 					Type:    cdx.ComponentTypeApplication,
-					Name:    "AIBoMGen-cli",
+					Name:    "aibomgen-cli",
 					Version: "0.1.0",
 				}},
 			},
@@ -58,7 +58,7 @@ func TestMergeAIBOMsWithSBOM_DeduplicatesLegacyAndComponentTools(t *testing.T) {
 			Tools: &cdx.ToolsChoice{
 				Tools: &[]cdx.Tool{{
 					Vendor:  "idlab-discover",
-					Name:    "AIBoMGen-cli",
+					Name:    "aibomgen-cli",
 					Version: "0.1.0",
 				}},
 			},
@@ -70,7 +70,7 @@ func TestMergeAIBOMsWithSBOM_DeduplicatesLegacyAndComponentTools(t *testing.T) {
 			Tools: &cdx.ToolsChoice{
 				Components: &[]cdx.Component{{
 					Type:    cdx.ComponentTypeApplication,
-					Name:    "AIBoMGen-cli",
+					Name:    "aibomgen-cli",
 					Version: "0.1.0",
 				}},
 			},

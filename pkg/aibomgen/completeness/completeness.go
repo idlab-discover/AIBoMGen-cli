@@ -1,7 +1,7 @@
 package completeness
 
 import (
-	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
+	"github.com/idlab-discover/aibomgen-cli/internal/metadata"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 )

@@ -1,4 +1,4 @@
-module github.com/idlab-discover/AIBoMGen-cli
+module github.com/idlab-discover/aibomgen-cli
 
 go 1.25.8
 

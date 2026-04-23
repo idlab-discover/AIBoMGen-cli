@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
+	"github.com/idlab-discover/aibomgen-cli/internal/metadata"
+	"github.com/idlab-discover/aibomgen-cli/pkg/aibomgen/completeness"
 )
 
 // ValidationResult is returned by [Validate] and summarises the outcome of

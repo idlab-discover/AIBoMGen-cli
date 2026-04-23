@@ -616,7 +616,7 @@ func getBOMRef(comp *cdx.Component) string {
 }
 
 // getToolKey generates a unique key for a tool component based on name and version.
-// This is used for deduplicating tools (e.g., AIBoMGen-cli appears only once per version).
+// This is used for deduplicating tools (e.g., aibomgen-cli appears only once per version).
 func getToolKey(comp *cdx.Component) string {
 	if comp == nil {
 		return ""

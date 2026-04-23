@@ -6,14 +6,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
+	"github.com/idlab-discover/aibomgen-cli/internal/ui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 // rootCmd represents the base command
 var rootCmd = &cobra.Command{
-	Use:   "AIBoMGen-cli",
+	Use:   "aibomgen-cli",
 	Short: "BOM Generator for Software Projects using AI {}",
 	Long:  longDescription,
 

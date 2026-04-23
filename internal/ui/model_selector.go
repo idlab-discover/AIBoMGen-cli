@@ -9,8 +9,8 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
+	"github.com/idlab-discover/aibomgen-cli/internal/apperr"
+	"github.com/idlab-discover/aibomgen-cli/internal/fetcher"
 )
 
 // ModelSelectorConfig configures the model selector

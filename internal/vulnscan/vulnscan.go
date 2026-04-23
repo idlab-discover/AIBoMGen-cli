@@ -7,8 +7,8 @@ import (
 	"time"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/builder"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
+	"github.com/idlab-discover/aibomgen-cli/internal/builder"
+	"github.com/idlab-discover/aibomgen-cli/internal/fetcher"
 )
 
 // ComponentScanResult holds the security tree entries and any derived vulnerabilities

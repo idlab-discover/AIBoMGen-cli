@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/validator"
+	"github.com/idlab-discover/aibomgen-cli/pkg/aibomgen/validator"
 )
 
 // ValidationUI provides a rich UI for the validation command

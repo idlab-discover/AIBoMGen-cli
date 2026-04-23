@@ -1,8 +1,8 @@
 package builder
 
 import (
-	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/scanner"
+	"github.com/idlab-discover/aibomgen-cli/internal/fetcher"
+	"github.com/idlab-discover/aibomgen-cli/pkg/aibomgen/scanner"
 )
 
 type BuildContext struct {

@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"charm.land/fang/v2"
-	cmd "github.com/idlab-discover/AIBoMGen-cli/cmd/aibomgen-cli"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/ui"
+	cmd "github.com/idlab-discover/aibomgen-cli/cmd/aibomgen-cli"
+	"github.com/idlab-discover/aibomgen-cli/internal/apperr"
+	"github.com/idlab-discover/aibomgen-cli/internal/ui"
 )
 
 // Version is set at build time

@@ -8,10 +8,10 @@ import (
 	"time"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/apperr"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/fetcher"
-	"github.com/idlab-discover/AIBoMGen-cli/internal/metadata"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/completeness"
+	"github.com/idlab-discover/aibomgen-cli/internal/apperr"
+	"github.com/idlab-discover/aibomgen-cli/internal/fetcher"
+	"github.com/idlab-discover/aibomgen-cli/internal/metadata"
+	"github.com/idlab-discover/aibomgen-cli/pkg/aibomgen/completeness"
 )
 
 // Config holds enrichment configuration

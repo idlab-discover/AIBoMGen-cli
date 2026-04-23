@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
-	"github.com/idlab-discover/AIBoMGen-cli/pkg/aibomgen/generator"
+	"github.com/idlab-discover/aibomgen-cli/pkg/aibomgen/generator"
 )
 
 // ReadBOM reads a BOM from a file (JSON or XML).

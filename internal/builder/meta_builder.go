@@ -36,7 +36,7 @@ func CurrentTimestampRFC3339() string {
 
 const (
 	DefaultToolVendor  = "idlab-discover"
-	DefaultToolName    = "AIBoMGen-cli"
+	DefaultToolName    = "aibomgen-cli"
 	DefaultToolVersion = "v0.0.0"
 )
 
