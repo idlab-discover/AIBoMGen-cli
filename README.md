@@ -1,7 +1,15 @@
 
 # AIBoMGen CLI
 
-[![Build + Unit Tests](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/build.yml/badge.svg)](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/build.yml) [![Scan Integration](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/integration.yml/badge.svg)](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/integration.yml)
+[![Build + Unit Tests](https://img.shields.io/github/actions/workflow/status/idlab-discover/aibomgen-cli/build.yml?label=Build+%2B+Unit+Tests)](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/build.yml)
+[![Scan Integration](https://img.shields.io/github/actions/workflow/status/idlab-discover/aibomgen-cli/integration.yml?label=Scan+Integration)](https://github.com/idlab-discover/aibomgen-cli/actions/workflows/integration.yml)
+[![Go version](https://img.shields.io/badge/go-1.25+-00ADD8?logo=go)](go.mod)
+[![Go Reference](https://img.shields.io/badge/pkg.go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/idlab-discover/aibomgen-cli)
+[![Go Report Card](https://img.shields.io/badge/go%20report-A%2B-brightgreen?logo=go&logoColor=white)](https://goreportcard.com/report/github.com/idlab-discover/aibomgen-cli)
+[![GitHub release](https://img.shields.io/github/v/release/idlab-discover/aibomgen-cli)](https://github.com/idlab-discover/aibomgen-cli/releases)
+[![License](https://img.shields.io/github/license/idlab-discover/aibomgen-cli)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/idlab-discover/aibomgen-cli)](https://goreportcard.com/report/github.com/idlab-discover/aibomgen-cli)
+
 
 Go CLI tool and packages that scan a repository for **Hugging Face model and dataset usage** and emit a **CycloneDX AI Bill of Materials (AIBOM)**.
 
