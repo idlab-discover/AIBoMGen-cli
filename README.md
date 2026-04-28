@@ -76,10 +76,10 @@ rm ./aibomgen-cli
 
 Settings can come from multiple sources. The priority order (lowest to highest) is:
 
-1. **Built-in defaults** — hardcoded in the code
-2. **Config file** — values from `~/.aibomgen-cli.yaml` or `./config/defaults.yaml` (or a custom path set with `--config`)
-3. **Environment variables** — `AIBOMGEN_*` prefix (e.g., `AIBOMGEN_GENERATE_HF_TOKEN`)
-4. **Command-line flags** — `--flag` arguments (highest priority)
+1. **Built-in defaults**: hardcoded in the code
+2. **Config file**: values from `~/.aibomgen-cli.yaml` or `./config/defaults.yaml` (or a custom path set with `--config`)
+3. **Environment variables**: `AIBOMGEN_*` prefix (e.g., `AIBOMGEN_GENERATE_HF_TOKEN`)
+4. **Command-line flags**: `--flag` arguments (highest priority)
 
 Each level overrides the ones below it. For example:
 
