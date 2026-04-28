@@ -11,29 +11,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/idlab-discover/aibomgen-cli)](https://goreportcard.com/report/github.com/idlab-discover/aibomgen-cli)
 
 
-Go CLI tool and packages that scan a repository for **Hugging Face model and dataset usage** and emit a **CycloneDX AI Bill of Materials (AIBOM)**.
-
-## Status
-
-What works today:
-
-- `scan` command: walk a directory, detect AI imports across multiple file types, and emit one AIBOM per detected model
-- `generate` command: generate an AIBOM directly from one or more Hugging Face model IDs, or interactively browse models
-- `validate` command: validate an existing AIBOM with completeness scoring and strict mode
-- `completeness` command: score an existing AIBOM against the metadata field registry
-- `enrich` command: fill missing metadata fields interactively or from a YAML config file
-- `merge` command: merge one or more AIBOMs with an SBOM from another tool (Syft, Trivy, etc.)
-- `vuln-scan` command: fetch per-file security scan results from the Hugging Face Hub for every model and dataset component in an AIBOM; optionally inject findings as CycloneDX vulnerabilities
-- Hugging Face Hub API and README/model-card fetch to populate metadata fields
-- Dataset metadata fetch (API + README) with dataset components linked in the AIBOM
-- Security scan data from the HF tree API embedded as BOM properties and `BOM.Vulnerabilities` during generation; disable with `--no-security-scan`
-- Multi-source detection: Python (transformers, diffusers, huggingface_hub, sentence-transformers, optimum, peft, LangChain, evaluate, and more), YAML configs, JSON configs, Markdown front-matter, shell scripts, Dockerfiles, and JavaScript/TypeScript
-- Rich TUI output built with Charm libraries (Lipgloss, Bubbletea, Huh)
-- Interactive Hugging Face model browsing and selection
-
-What is future work:
-
-- AIBOM generation from local model weight files (not hosted on Hugging Face)
+Go CLI tool that scans a repository for **Hugging Face model and dataset usage** and emits a **CycloneDX AI Bill of Materials (AIBOM)**.
 
 ## Installation
 
@@ -93,6 +71,37 @@ aibomgen-cli --help
 ```bash
 rm ./aibomgen-cli
 ```
+
+## Configuration Priority
+
+Settings can come from multiple sources. The priority order (lowest to highest) is:
+
+1. **Built-in defaults** — hardcoded in the code
+2. **Config file** — values from `~/.aibomgen-cli.yaml` or `./config/defaults.yaml` (or a custom path set with `--config`)
+3. **Environment variables** — `AIBOMGEN_*` prefix (e.g., `AIBOMGEN_GENERATE_HF_TOKEN`)
+4. **Command-line flags** — `--flag` arguments (highest priority)
+
+Each level overrides the ones below it. For example:
+
+```bash
+# 1. Default value from code (if set)
+# 2. Config file value (if present)
+generate:
+  hf-token: "hf_config_value"
+# 3. Environment variable (if set)
+export AIBOMGEN_GENERATE_HF_TOKEN="hf_env_value"
+aibomgen-cli generate -m gpt2
+# Result: env_value is used
+
+# 4. Explicit flag (always wins)
+aibomgen-cli generate -m gpt2 --hf-token hf_flag_value
+# Result: flag_value is used (env var and config are ignored)
+```
+
+Config keys with dashes are translated to underscores in env var names:
+- `generate.hf-token` → `AIBOMGEN_GENERATE_HF_TOKEN`
+- `scan.hf-mode` → `AIBOMGEN_SCAN_HF_MODE`
+- `enrich.log-level` → `AIBOMGEN_ENRICH_LOG_LEVEL`
 
 ## Commands
 
