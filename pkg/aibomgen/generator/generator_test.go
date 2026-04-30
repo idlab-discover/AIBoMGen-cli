@@ -78,6 +78,32 @@ func (m *mockDatasetReadmeFetcher) Fetch(id string) (*fetcher.DatasetReadmeCard,
 	return &fetcher.DatasetReadmeCard{}, nil
 }
 
+func successFetcherSet() fetcherSet {
+	return fetcherSet{
+		modelAPI: &mockModelAPIFetcher{
+			fetchFunc: func(id string) (*fetcher.ModelAPIResponse, error) {
+				return &fetcher.ModelAPIResponse{ID: id}, nil
+			},
+		},
+		modelReadme: &mockModelReadmeFetcher{
+			fetchFunc: func(id string) (*fetcher.ModelReadmeCard, error) {
+				return &fetcher.ModelReadmeCard{}, nil
+			},
+		},
+		datasetAPI: &mockDatasetAPIFetcher{
+			fetchFunc: func(id string) (*fetcher.DatasetAPIResponse, error) {
+				return &fetcher.DatasetAPIResponse{ID: id}, nil
+			},
+		},
+		datasetReadme: &mockDatasetReadmeFetcher{
+			fetchFunc: func(id string) (*fetcher.DatasetReadmeCard, error) {
+				return &fetcher.DatasetReadmeCard{}, nil
+			},
+		},
+		modelTree: &fetcher.DummyModelTreeFetcher{},
+	}
+}
+
 func TestBuildDummyBOM(t *testing.T) {
 	// Save originals.
 	originalDummyFetcherSet := newDummyFetcherSet
@@ -271,6 +297,9 @@ func TestBuildPerDiscovery(t *testing.T) {
 						},
 					}
 				}
+				newFetcherSet = func(httpClient *http.Client) fetcherSet {
+					return successFetcherSet()
+				}
 			},
 			wantErr: false,
 			check: func(t *testing.T, got []DiscoveredBOM) {
@@ -311,6 +340,9 @@ func TestBuildPerDiscovery(t *testing.T) {
 						},
 					}
 				}
+				newFetcherSet = func(httpClient *http.Client) fetcherSet {
+					return successFetcherSet()
+				}
 			},
 			wantErr: false,
 			check: func(t *testing.T, got []DiscoveredBOM) {
@@ -334,6 +366,9 @@ func TestBuildPerDiscovery(t *testing.T) {
 							return &cdx.BOM{}, nil
 						},
 					}
+				}
+				newFetcherSet = func(httpClient *http.Client) fetcherSet {
+					return successFetcherSet()
 				}
 			},
 			wantErr: false,
@@ -361,6 +396,9 @@ func TestBuildPerDiscovery(t *testing.T) {
 							return &cdx.BOM{SerialNumber: "test-serial"}, nil
 						},
 					}
+				}
+				newFetcherSet = func(httpClient *http.Client) fetcherSet {
+					return successFetcherSet()
 				}
 			},
 			wantErr: false,
@@ -802,6 +840,9 @@ func TestBuildFromModelIDs(t *testing.T) {
 						},
 					}
 				}
+				newFetcherSet = func(httpClient *http.Client) fetcherSet {
+					return successFetcherSet()
+				}
 			},
 			wantErr: false,
 			check: func(t *testing.T, got []DiscoveredBOM) {
@@ -827,6 +868,9 @@ func TestBuildFromModelIDs(t *testing.T) {
 							return &cdx.BOM{}, nil
 						},
 					}
+				}
+				newFetcherSet = func(httpClient *http.Client) fetcherSet {
+					return successFetcherSet()
 				}
 			},
 			wantErr: false,
@@ -869,6 +913,9 @@ func TestBuildFromModelIDs(t *testing.T) {
 						},
 					}
 				}
+				newFetcherSet = func(httpClient *http.Client) fetcherSet {
+					return successFetcherSet()
+				}
 			},
 			wantErr: false,
 			check: func(t *testing.T, got []DiscoveredBOM) {
@@ -895,6 +942,9 @@ func TestBuildFromModelIDs(t *testing.T) {
 							return &cdx.BOM{}, nil
 						},
 					}
+				}
+				newFetcherSet = func(httpClient *http.Client) fetcherSet {
+					return successFetcherSet()
 				}
 			},
 			wantErr: false,
